@@ -1,0 +1,14 @@
+BuildRules*
+.cache*
+
+build/
+bin/
+obj/
+
+compile_commands*
+compile_flags*
+*.raddbg
+*.log
+*river2Dconf
+river2D.ini
+callgrind.*

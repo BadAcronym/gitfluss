@@ -24,7 +24,6 @@ fi
 
 if [[ $build = "asan" ]] || [[ $build = "debug" ]] || [[ $build = "release" ]]
 then
-
     echo ""
     echo -e "\033[36mcompiling gitfluss...\033[0m"
     echo ""
