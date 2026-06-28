@@ -1,0 +1,56 @@
+#!/bin/bash
+
+if [[ ! -d "./obj/" ]]
+then
+    mkdir ./obj/
+fi
+
+if [[ ! -d "./build/" ]]
+then
+    mkdir ./build/
+fi
+
+if [[ ! -d "./bin/" ]]
+then
+    mkdir ./bin/
+fi
+
+if [[ $1 = "" ]]
+then
+    build="release"
+else
+    build=$1
+fi
+
+if [[ $build = "asan" ]] || [[ $build = "debug" ]] || [[ $build = "release" ]]
+then
+
+    echo ""
+    echo -e "\033[36mcompiling gitfluss...\033[0m"
+    echo ""
+    premake5 gmake
+
+    pushd ./build/ > /dev/null
+    make config=$build\_linux
+else
+    echo -e "\033[31m\nERROR: invalid make config: $build.\033[0m"
+    exit -2;
+fi
+
+if [[ $? != 0 ]]
+then
+    echo -e "\033[31m\nERROR: failed to compile marino.\n\033[0m"
+    exit -1;
+fi
+
+echo -e "\n"
+
+if [[ $2 = "--compile-only" ]]
+then
+    exit 0;
+fi
+
+popd > /dev/null
+
+chmod +x ./bin/$build/gitfluss
+./bin/$build/gitfluss
