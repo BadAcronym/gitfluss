@@ -1,0 +1,3 @@
+[submodule "vendor/puddle"]
+	path = vendor/puddle
+	url = git@github.com:badacronym/puddle
