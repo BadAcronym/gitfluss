@@ -38,7 +38,7 @@ fi
 
 if [[ $? != 0 ]]
 then
-    echo -e "\033[31m\nERROR: failed to compile marino.\n\033[0m"
+    echo -e "\033[31m\nERROR: failed to compile gitfluss.\n\033[0m"
     exit -1;
 fi
 
