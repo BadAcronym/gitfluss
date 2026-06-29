@@ -143,12 +143,19 @@ int main
             const git_signature *sign = git_commit_author(commit);
 
             StringView author_mail = cstr_sv(sign->email);
+            git_time   commit_time = sign->when;
 
             for(uint16_t i = 0; i < MAX_AUTHORS; ++i)
             {
                 StringView author = sv_find_by_delim(authors, ';', i);
                 if(sv_same(author, author_mail))
                 {
+                    // printf("commit time: %lu\n", commit_time.time);
+
+                    // if(commit_time.time > 24h ago)
+                    // {
+                    // }
+
                     ++commit_count;
                     break;
                 }
