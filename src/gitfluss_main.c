@@ -30,6 +30,8 @@ f_internal void readConfig
         return;
     }
 
+    StringView sep = cstr_sv(";");
+
     char buf[bufsize];
     while(fgets(buf, bufsize, file))
     {
@@ -37,16 +39,50 @@ f_internal void readConfig
         buffer.data = buf;
         buffer.size = bufsize;
 
-        StringView author_sv  = cstr_sv("author: ");
+        StringView  author_sv = cstr_sv("author: ");
         const char* authorloc = sv_find(author_sv, buffer);
         if(authorloc)
         {
-            // add author
+            StringView author = cstr_sv(buffer.data + author_sv.size);
+            if(authors->data)
+            {
+                fprintf(stderr, "author list before separator addition: "PRI_SV"\n", ARG_SV(*authors));
+
+                const char *authors_cstr = sv_concat(*authors, sep);
+                *authors = cstr_sv(authors_cstr);
+
+                // TESTING: DEBUG:
+                fprintf(stderr, "author list after separator addition: %s\n", authors_cstr);
+
+                authors_cstr = sv_concat(*authors, author);
+                *authors = cstr_sv(authors_cstr);
+            }
+            else
+            {
+                authors->data = author.data;
+                authors->size = author.size;
+
+                fprintf(stderr, "author list after replacement: "PRI_SV"\n", ARG_SV(*authors));
+            }
+
+            #ifdef DEBUG
+                fprintf(stderr, "detected author: "PRI_SV, ARG_SV(author));
+                fprintf(stderr, "author list: "PRI_SV"\n", ARG_SV(*authors));
+            #endif
+
             continue;
         }
 
-        // add path
+        // append path to path list
     }
+
+    const char *sorted = sv_sort_by_delim(*authors, ';');
+    *authors = cstr_sv(sorted);
+
+    #ifdef DEBUG
+        fprintf(stderr, "final, sorted author list:\n"PRI_SV"\n", ARG_SV(*authors));
+        fprintf(stderr, "final, sorted paths:\n"PRI_SV"\n", ARG_SV(*repositories));
+    #endif
 
     fclose(file);
 }
