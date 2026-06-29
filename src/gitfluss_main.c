@@ -6,15 +6,59 @@
 #include <stdint.h>
 #include <stdio.h>
 
+#define f_internal static
+
+#ifdef BUILD_LINUX
+    #define CONF_PATH ".conf"
+#endif
+#ifdef BUILD_WINDOWS
+    #define CONF_PATH "gitfluss.ini"
+#endif
+
+#define bufsize 4096
+
+f_internal void readConfig
+(
+    StringView *repositories,
+    StringView *authors
+){
+    FILE *file = fopen(CONF_PATH, "r");
+    if(!file)
+    {
+        fprintf(stderr, "\033[33;3mWARNING: could not open configuration file."
+                "\033[0m\n");
+        return;
+    }
+
+    char buf[bufsize];
+    while(fgets(buf, bufsize, file))
+    {
+        StringView buffer;
+        buffer.data = buf;
+        buffer.size = bufsize;
+
+        StringView author_sv  = cstr_sv("author: ");
+        const char* authorloc = sv_find(author_sv, buffer);
+        if(authorloc)
+        {
+            // add author
+            continue;
+        }
+
+        // add path
+    }
+
+    fclose(file);
+}
+
 int main
 (
     void
 ){
-    // TODO: read these from some config file
-    StringView repositories = cstr_sv("/home/mandi/repository/river2D_mapedit;/home/mandi/repository/river2D");
-    StringView authors      = cstr_sv("test@123.com;terribleacronym@gmail.com");
-    uint8_t    actions      = 0; // enum int with like COMMITS_ONLY, COMMITS_MERGES, etc
+    StringView repositories = {0};
+    StringView authors      = {0};
 
+    readConfig(&repositories, &authors);
     uint32_t repository_count = sv_count_by_delim(repositories, ';');
 
     git_libgit2_init();
