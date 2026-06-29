@@ -15,7 +15,8 @@
     #define CONF_PATH "gitfluss.ini"
 #endif
 
-#define bufsize 4096
+#define bufsize     4096
+#define MAX_AUTHORS 1024
 
 f_internal void readConfig
 (
@@ -44,44 +45,62 @@ f_internal void readConfig
         if(authorloc)
         {
             StringView author = cstr_sv(buffer.data + author_sv.size);
+            author.size -= 1;
+
             if(authors->data)
             {
-                fprintf(stderr, "author list before separator addition: "PRI_SV"\n", ARG_SV(*authors));
-
                 const char *authors_cstr = sv_concat(*authors, sep);
                 *authors = cstr_sv(authors_cstr);
-
-                // TESTING: DEBUG:
-                fprintf(stderr, "author list after separator addition: %s\n", authors_cstr);
 
                 authors_cstr = sv_concat(*authors, author);
                 *authors = cstr_sv(authors_cstr);
             }
             else
             {
-                authors->data = author.data;
-                authors->size = author.size;
-
-                fprintf(stderr, "author list after replacement: "PRI_SV"\n", ARG_SV(*authors));
+                *authors = cstr_sv_cpy(buffer.data + author_sv.size);
+                authors->size -= 1;
             }
 
             #ifdef DEBUG
-                fprintf(stderr, "detected author: "PRI_SV, ARG_SV(author));
+                fprintf(stderr, "detected author: "PRI_SV"\n", ARG_SV(author));
                 fprintf(stderr, "author list: "PRI_SV"\n", ARG_SV(*authors));
             #endif
 
             continue;
         }
 
-        // append path to path list
+        StringView path = cstr_sv(buffer.data);
+        path.size -= 1;
+
+        if(repositories->data)
+        {
+            const char *repositories_cstr = sv_concat(*repositories, sep);
+            *repositories = cstr_sv(repositories_cstr);
+
+            repositories_cstr = sv_concat(*repositories, path);
+            *repositories = cstr_sv(repositories_cstr);
+        }
+        else
+        {
+            *repositories = cstr_sv_cpy(buffer.data);
+            repositories->size -= 1;
+        }
+
+        #ifdef DEBUG
+            fprintf(stderr, "detected path: "PRI_SV"\n", ARG_SV(path));
+            fprintf(stderr, "path list: "PRI_SV"\n", ARG_SV(*repositories));
+        #endif
     }
 
-    const char *sorted = sv_sort_by_delim(*authors, ';');
-    *authors = cstr_sv(sorted);
+    const char *sorted_authors = sv_sort_by_delim(*authors, ';');
+    *authors = cstr_sv(sorted_authors);
+
+    const char *sorted_repos = sv_sort_by_delim(*repositories, ';');
+    *repositories = cstr_sv(sorted_repos);
 
     #ifdef DEBUG
-        fprintf(stderr, "final, sorted author list:\n"PRI_SV"\n", ARG_SV(*authors));
-        fprintf(stderr, "final, sorted paths:\n"PRI_SV"\n", ARG_SV(*repositories));
+        fprintf(stderr, "\nfinal, sorted author list:\n"PRI_SV"\n", ARG_SV(*authors));
+        fprintf(stderr, "\nfinal, sorted paths:\n"PRI_SV"\n", ARG_SV(*repositories));
     #endif
 
     fclose(file);
@@ -125,9 +144,14 @@ int main
 
             StringView author_mail = cstr_sv(sign->email);
 
-            if(sv_find(author_mail, authors))
+            for(uint16_t i = 0; i < MAX_AUTHORS; ++i)
             {
-                ++commit_count;
+                StringView author = sv_find_by_delim(authors, ';', i);
+                if(sv_same(author, author_mail))
+                {
+                    ++commit_count;
+                    break;
+                }
             }
 
             git_commit_free(commit);
