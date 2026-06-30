@@ -87,12 +87,6 @@ f_internal void readConfig
             continue;
         }
 
-        StringView path = cstr_sv(buffer.data);
-        if(path.size)
-        {
-            path.size -= 1;
-        }
-
         if(repositories->data)
         {
             const char *repositories_cstr = sv_concat(*repositories, sep);
@@ -103,12 +97,23 @@ f_internal void readConfig
                 free((void*)repositories_cstr);
             }
 
-            repositories_cstr = sv_concat(*repositories, path);
+            const char *resolved   = gfExpandPath(buffer.data);
+            StringView resolved_sv = cstr_sv(resolved);
+            if(resolved_sv.size)
+            {
+                resolved_sv.size -= 1;
+            }
+
+            repositories_cstr = sv_concat(*repositories, resolved_sv);
             *repositories = cstr_sv_cpy(repositories_cstr);
 
             if(repositories_cstr)
             {
                 free((void*)repositories_cstr);
+            }
+            if(resolved)
+            {
+                free((void*)resolved);
             }
         }
         else
@@ -128,7 +133,7 @@ f_internal void readConfig
         }
 
         #ifdef DEBUG
-            fprintf(stderr, "detected path: "PRI_SV"\n", ARG_SV(path));
+            fprintf(stderr, "detected path: %s\n", buffer.data);
             fprintf(stderr, "path list: "PRI_SV"\n", ARG_SV(*repositories));
         #endif
     }
