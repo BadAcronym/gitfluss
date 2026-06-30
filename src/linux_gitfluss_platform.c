@@ -2,7 +2,7 @@
 
 #include <sys/stat.h>
 
-uint64_t gfQueryTime
+int64_t gfQueryTime
 (
     void
 ){

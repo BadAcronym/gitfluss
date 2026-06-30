@@ -13,7 +13,7 @@
 #define GF_TYPE_DIRECTORY 2
 #define GF_TYPE_OTHER     3
 
-uint64_t gfQueryTime
+int64_t gfQueryTime
 (
     void
 );
