@@ -38,7 +38,7 @@ f_internal void readConfig
         {
             fprintf(stderr, "\033[33;3mWARNING: could not open configuration file."
                     "\033[0m\n");
-            return;
+            goto cleanup;
         }
     }
 
@@ -56,7 +56,10 @@ f_internal void readConfig
         if(authorloc)
         {
             StringView author = cstr_sv(buffer.data + author_sv.size);
-            author.size -= 1;
+            if(author.size)
+            {
+                author.size -= 1;
+            }
 
             if(authors->data)
             {
@@ -68,8 +71,12 @@ f_internal void readConfig
             }
             else
             {
+                // ASAN: leak
                 *authors = cstr_sv_cpy(buffer.data + author_sv.size);
-                authors->size -= 1;
+                if(authors->size)
+                {
+                    authors->size -= 1;
+                }
             }
 
             #ifdef DEBUG
@@ -88,21 +95,36 @@ f_internal void readConfig
 
         if(repositories->data)
         {
-            // ASAN: negative-size-param
             const char *repositories_cstr = sv_concat(*repositories, sep);
-            *repositories = cstr_sv(repositories_cstr);
+            *repositories = cstr_sv_cpy(repositories_cstr);
+
+            if(repositories_cstr)
+            {
+                free((void*)repositories_cstr);
+            }
 
             repositories_cstr = sv_concat(*repositories, path);
-            *repositories = cstr_sv(repositories_cstr);
+            *repositories = cstr_sv_cpy(repositories_cstr);
+
+            if(repositories_cstr)
+            {
+                free((void*)repositories_cstr);
+            }
         }
         else
         {
             const char *resolved = gfExpandPath(buffer.data);
-
             *repositories = cstr_sv_cpy(resolved);
-            repositories->size -= 1;
 
-            free((void*)resolved);
+            if(repositories->size)
+            {
+                repositories->size -= 1;
+            }
+
+            if(resolved)
+            {
+                free((void*)resolved);
+            }
         }
 
         #ifdef DEBUG
@@ -122,6 +144,7 @@ f_internal void readConfig
         fprintf(stderr, "\nfinal, sorted paths:\n"PRI_SV"\n", ARG_SV(*repositories));
     #endif
 
+cleanup:
     if(path_expanded)
     {
         free((void*)path_expanded);
@@ -223,5 +246,13 @@ int main
     printf("most commits in single repository (%u) in '"PRI_SV"'.\n", repo_max,
            ARG_SV(biggestRepo));
 
+    if(authors.data)
+    {
+        free((void*)authors.data);
+    }
+    if(repositories.data)
+    {
+        free((void*)repositories.data);
+    }
     return git_libgit2_shutdown();
 }
