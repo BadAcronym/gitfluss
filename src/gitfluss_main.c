@@ -1,3 +1,5 @@
+#include "gitfluss.h"
+
 #define STRING_VIEW_IMPL
 #include "string_view.h"
 
@@ -118,16 +120,21 @@ int main
 
     git_libgit2_init();
 
+    uint32_t heatmap[16384] = {0};
+
     for(uint32_t i = 0; i < repository_count; ++i)
     {
         git_repository *repo    = 0;
         git_revwalk    *revwalk = 0;
         git_oid        oid      = {0};
 
-        StringView repository   = sv_find_by_delim(repositories, ';', i);
-        uint32_t   commit_count = 0;
+        StringView repository        = sv_find_by_delim(repositories, ';', i);
+        uint32_t   repo_commit_count = 0;
 
-        printf("\nAnalyzing repository %u: "PRI_SV"\n", i, ARG_SV(repository));
+        #ifdef DEBUG
+            fprintf(stderr, "\nAnalyzing repository %u: "PRI_SV"\n", i,
+                    ARG_SV(repository));
+        #endif
 
         const char *current_repo_cstr = sv_cstr(repository);
 
@@ -145,30 +152,41 @@ int main
             StringView author_mail = cstr_sv(sign->email);
             git_time   commit_time = sign->when;
 
-            for(uint16_t i = 0; i < MAX_AUTHORS; ++i)
+            for(uint16_t j = 0; j < MAX_AUTHORS; ++j)
             {
-                StringView author = sv_find_by_delim(authors, ';', i);
+                StringView author = sv_find_by_delim(authors, ';', j);
                 if(sv_same(author, author_mail))
                 {
-                    // printf("commit time: %lu\n", commit_time.time);
+                    int64_t now  = gfQueryTime();
+                    int64_t days = (now - commit_time.time) / (24 * 3600);
 
-                    // if(commit_time.time > 24h ago)
-                    // {
-                    // }
-
-                    ++commit_count;
+                    ++heatmap[days];
+                    ++repo_commit_count;
                     break;
                 }
             }
 
             git_commit_free(commit);
         }
-        printf("commits in "PRI_SV": %i\n", ARG_SV(repository), commit_count);
 
         git_revwalk_free(revwalk);
         git_repository_free(repo);
         free((void*)current_repo_cstr);
     }
+
+    uint32_t max    = 0;
+    uint16_t maxday = 0;
+
+    for(uint16_t i = 0; i < 365; ++i)
+    {
+        if(heatmap[i] > max)
+        {
+            max = heatmap[i];
+            maxday = i;
+        }
+    }
+
+    printf("most commits this year (%u) made %u days ago.\n", max, maxday);
 
     return git_libgit2_shutdown();
 }
