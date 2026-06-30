@@ -22,6 +22,20 @@
 #define bufsize     4096
 #define MAX_AUTHORS 1024
 
+#define HEAT_0 " "
+
+#define HEAT_1_RED   "\033[38;5;52m\u25FC\033[0m"
+#define HEAT_2_RED   "\033[38;5;88m\u25FC\033[0m"
+#define HEAT_3_RED   "\033[38;5;124m\u25FC\033[0m"
+#define HEAT_4_RED   "\033[38;5;160m\u25FC\033[0m"
+#define HEAT_5_RED   "\033[38;5;196m\u25FC\033[0m"
+
+#define HEAT_1_GREEN "\033[38;5;190m\u25FC\033[0m"
+#define HEAT_2_GREEN "\033[38;5;154m\u25FC\033[0m"
+#define HEAT_3_GREEN "\033[38;5;118m\u25FC\033[0m"
+#define HEAT_4_GREEN "\033[38;5;82m\u25FC\033[0m"
+#define HEAT_5_GREEN "\033[38;5;46m\u25FC\033[0m"
+
 f_internal void readConfig
 (
     StringView *repositories,
@@ -161,6 +175,33 @@ cleanup:
     fclose(file);
 }
 
+f_internal void printMonthHeader
+(
+    uint8_t current
+){
+    const char *months[12] =
+    {
+        " Jan ",
+        " Feb ",
+        " Mar ",
+        " Apr ",
+        " May ",
+        " Jun ",
+        " Jul ",
+        " Aug ",
+        " Sep ",
+        " Oct ",
+        " Nov ",
+        " Dec "
+    };
+
+    for(uint8_t i = 0; i < 12; ++i)
+    {
+        printf(" %s ", months[(current + i) % 12]);
+    }
+    printf("\n");
+}
+
 int main
 (
     void
@@ -173,9 +214,11 @@ int main
 
     git_libgit2_init();
 
-    uint32_t   heatmap[16384] = {0};
-    uint32_t   repo_max       = 0;
-    StringView biggestRepo    = {0};
+    uint32_t   heatmap[16384]   = {0};
+    StringView biggestRepo      = {0};
+    uint32_t   repo_max         = 0;
+    uint32_t   oldestCommitTime = UINT32_MAX;
+    int64_t    now              = gfQueryTime();
 
     for(uint32_t i = 0; i < repository_count; ++i)
     {
@@ -184,7 +227,7 @@ int main
         git_oid        oid      = {0};
 
         StringView repository        = sv_find_by_delim(repositories, ';', i);
-        uint32_t   repo_commit_count = 0;
+        uint32_t   repoCommitCount = 0;
 
         #ifdef DEBUG
             fprintf(stderr, "\nAnalyzing repository %u: "PRI_SV"\n", i,
@@ -212,11 +255,14 @@ int main
                 StringView author = sv_find_by_delim(authors, ';', j);
                 if(sv_same(author, author_mail))
                 {
-                    int64_t now  = gfQueryTime();
                     int64_t days = (now - commit_time.time) / (24 * 3600);
+                    if(commit_time.time < oldestCommitTime)
+                    {
+                        oldestCommitTime = commit_time.time;
+                    }
 
                     ++heatmap[days];
-                    ++repo_commit_count;
+                    ++repoCommitCount;
                     break;
                 }
             }
@@ -224,9 +270,9 @@ int main
             git_commit_free(commit);
         }
 
-        if(repo_commit_count > repo_max)
+        if(repoCommitCount > repo_max)
         {
-            repo_max    = repo_commit_count;
+            repo_max    = repoCommitCount;
             biggestRepo = cstr_sv_cpy(current_repo_cstr);
         }
 
@@ -250,6 +296,24 @@ int main
     printf("most commits this year (%u) made %u days ago.\n", singleday_max, maxday);
     printf("most commits in single repository (%u) in '"PRI_SV"'.\n", repo_max,
            ARG_SV(biggestRepo));
+
+    uint32_t days_epoch  = now / (24 * 3600);
+    uint32_t days_commit = (now - oldestCommitTime) / (24 * 3600);
+    printf("days since epoch: %u\n", days_epoch);
+    printf("days since first commit: %u\n", days_commit);
+
+    printf("\nheatmap (last 365 days):\n");
+    uint8_t currentMonth = 6;
+    printMonthHeader(currentMonth);
+
+    // printf("%s", months[currentMonth]);
+
+    printf(HEAT_0);
+    printf(HEAT_1_RED);
+    printf(HEAT_2_RED);
+    printf(HEAT_3_RED);
+    printf(HEAT_4_RED);
+    printf(HEAT_5_RED);
 
     if(authors.data)
     {
