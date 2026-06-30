@@ -293,13 +293,15 @@ int main
         }
     }
 
-    printf("most commits this year (%u) made %u days ago.\n", singleday_max, maxday);
+    printf("most commits in the last 365 days (%u) made %u days ago.\n", singleday_max,
+           maxday);
     printf("most commits in single repository (%u) in '"PRI_SV"'.\n", repo_max,
            ARG_SV(biggestRepo));
+    printf("\ncommits in the last 24h: %u\n", heatmap[0]);
 
     uint32_t days_epoch  = now / (24 * 3600);
     uint32_t days_commit = (now - oldestCommitTime) / (24 * 3600);
-    printf("days since epoch: %u\n", days_epoch);
+    printf("\ndays since epoch: %u\n", days_epoch);
     printf("days since first commit: %u\n", days_commit);
 
     printf("\nheatmap (last 365 days):\n");
