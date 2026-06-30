@@ -39,7 +39,8 @@
 f_internal void readConfig
 (
     StringView *repositories,
-    StringView *authors
+    StringView *authors,
+    uint8_t    *green
 ){
     const char *path_expanded     = gfExpandPath(CONF_PATH);
     const char *fallback_expanded = gfExpandPath(CONF_FALLBACK);
@@ -202,14 +203,66 @@ f_internal void printMonthHeader
     printf("\n");
 }
 
+f_internal void printCorrespondingHeat
+(
+    uint32_t commit_count,
+    uint8_t  green
+){
+    if(!commit_count)
+    {
+        printf(HEAT_0);
+    }
+    else if(commit_count > 9 && green)
+    {
+        printf(HEAT_5_GREEN);
+    }
+    else if(commit_count > 9)
+    {
+        printf(HEAT_5_RED);
+    }
+    else if(commit_count > 7 && green)
+    {
+        printf(HEAT_4_GREEN);
+    }
+    else if(commit_count > 7)
+    {
+        printf(HEAT_4_RED);
+    }
+    else if(commit_count > 5 && green)
+    {
+        printf(HEAT_3_GREEN);
+    }
+    else if(commit_count > 5)
+    {
+        printf(HEAT_3_RED);
+    }
+    else if(commit_count > 3 && green)
+    {
+        printf(HEAT_2_GREEN);
+    }
+    else if(commit_count > 3)
+    {
+        printf(HEAT_2_RED);
+    }
+    else if(green)
+    {
+        printf(HEAT_1_GREEN);
+    }
+    else
+    {
+        printf(HEAT_1_RED);
+    }
+}
+
 int main
 (
     void
 ){
     StringView repositories = {0};
     StringView authors      = {0};
+    uint8_t    green        = 0;
 
-    readConfig(&repositories, &authors);
+    readConfig(&repositories, &authors, &green);
     uint32_t repository_count = sv_count_by_delim(repositories, ';');
 
     git_libgit2_init();
@@ -297,7 +350,8 @@ int main
            maxday);
     printf("most commits in single repository (%u) in '"PRI_SV"'.\n", repo_max,
            ARG_SV(biggestRepo));
-    printf("\ncommits in the last 24h: %u\n", heatmap[0]);
+    printf("\ncommits in the last 24h: %u ", heatmap[0]);
+    printCorrespondingHeat(heatmap[0], green);
 
     uint32_t days_epoch  = now / (24 * 3600);
     uint32_t days_commit = (now - oldestCommitTime) / (24 * 3600);
