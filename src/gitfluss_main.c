@@ -11,10 +11,12 @@
 #define f_internal static
 
 #ifdef BUILD_LINUX
-    #define CONF_PATH ".conf"
+    #define CONF_PATH     ".conf"
+    #define CONF_FALLBACK "~/.config/gitfluss/.conf"
 #endif
 #ifdef BUILD_WINDOWS
-    #define CONF_PATH "gitfluss.ini"
+    #define CONF_PATH     "gitfluss.ini"
+    #define CONF_FALLBACK "~\\.config\\gitfluss.ini"
 #endif
 
 #define bufsize     4096
@@ -28,9 +30,14 @@ f_internal void readConfig
     FILE *file = fopen(CONF_PATH, "r");
     if(!file)
     {
-        fprintf(stderr, "\033[33;3mWARNING: could not open configuration file."
-                "\033[0m\n");
-        return;
+        file = fopen(CONF_FALLBACK, "r");
+
+        if(!file)
+        {
+            fprintf(stderr, "\033[33;3mWARNING: could not open configuration file."
+                    "\033[0m\n");
+            return;
+        }
     }
 
     StringView sep = cstr_sv(";");
@@ -120,7 +127,9 @@ int main
 
     git_libgit2_init();
 
-    uint32_t heatmap[16384] = {0};
+    uint32_t   heatmap[16384] = {0};
+    uint32_t   repo_max       = 0;
+    StringView biggestRepo    = {0};
 
     for(uint32_t i = 0; i < repository_count; ++i)
     {
@@ -169,24 +178,32 @@ int main
             git_commit_free(commit);
         }
 
+        if(repo_commit_count > repo_max)
+        {
+            repo_max    = repo_commit_count;
+            biggestRepo = cstr_sv_cpy(current_repo_cstr);
+        }
+
         git_revwalk_free(revwalk);
         git_repository_free(repo);
         free((void*)current_repo_cstr);
     }
 
-    uint32_t max    = 0;
-    uint16_t maxday = 0;
+    uint32_t singleday_max = 0;
+    uint16_t maxday        = 0;
 
     for(uint16_t i = 0; i < 365; ++i)
     {
-        if(heatmap[i] > max)
+        if(heatmap[i] > singleday_max)
         {
-            max = heatmap[i];
-            maxday = i;
+            singleday_max = heatmap[i];
+            maxday        = i;
         }
     }
 
-    printf("most commits this year (%u) made %u days ago.\n", max, maxday);
+    printf("most commits this year (%u) made %u days ago.\n", singleday_max, maxday);
+    printf("most commits in single repository (%u) in '"PRI_SV"'.\n", repo_max,
+           ARG_SV(biggestRepo));
 
     return git_libgit2_shutdown();
 }
