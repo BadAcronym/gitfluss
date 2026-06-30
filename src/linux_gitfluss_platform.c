@@ -38,3 +38,36 @@ uint8_t gfVerifyPath
     }
     return GF_TYPE_OTHER;
 }
+
+const char *gfExpandPath
+(
+    const char *path
+){
+    StringView path_sv = cstr_sv(path);
+
+    char *buf = calloc(4096, 1);
+
+    if(path_sv.size > 1 && path[0] == '~')
+    {
+        const char *home = getenv("HOME");
+        if(!home)
+        {
+            return 0;
+        }
+
+        StringView home_sv = cstr_sv(home);
+
+        uint32_t i = 0;
+        for(; i < home_sv.size; ++i)
+        {
+            buf[i] = home[i];
+        }
+
+        for(uint32_t j = 0; j < path_sv.size && j < 4096 - i; ++j)
+        {
+            buf[i + j] = path[j + 1];
+        }
+    }
+
+    return buf;
+}

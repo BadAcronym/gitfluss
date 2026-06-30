@@ -27,11 +27,13 @@ f_internal void readConfig
     StringView *repositories,
     StringView *authors
 ){
-    FILE *file = fopen(CONF_PATH, "r");
+    const char *path_expanded     = gfExpandPath(CONF_PATH);
+    const char *fallback_expanded = gfExpandPath(CONF_FALLBACK);
+
+    FILE *file = fopen(path_expanded, "r");
     if(!file)
     {
-        file = fopen(CONF_FALLBACK, "r");
-
+        file = fopen(fallback_expanded, "r");
         if(!file)
         {
             fprintf(stderr, "\033[33;3mWARNING: could not open configuration file."
@@ -79,10 +81,14 @@ f_internal void readConfig
         }
 
         StringView path = cstr_sv(buffer.data);
-        path.size -= 1;
+        if(path.size)
+        {
+            path.size -= 1;
+        }
 
         if(repositories->data)
         {
+            // ASAN: negative-size-param
             const char *repositories_cstr = sv_concat(*repositories, sep);
             *repositories = cstr_sv(repositories_cstr);
 
@@ -91,8 +97,12 @@ f_internal void readConfig
         }
         else
         {
-            *repositories = cstr_sv_cpy(buffer.data);
+            const char *resolved = gfExpandPath(buffer.data);
+
+            *repositories = cstr_sv_cpy(resolved);
             repositories->size -= 1;
+
+            free((void*)resolved);
         }
 
         #ifdef DEBUG
@@ -112,6 +122,14 @@ f_internal void readConfig
         fprintf(stderr, "\nfinal, sorted paths:\n"PRI_SV"\n", ARG_SV(*repositories));
     #endif
 
+    if(path_expanded)
+    {
+        free((void*)path_expanded);
+    }
+    if(fallback_expanded)
+    {
+        free((void*)fallback_expanded);
+    }
     fclose(file);
 }
 
