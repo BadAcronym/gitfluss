@@ -47,16 +47,12 @@ const char *gfExpandPath
 
     char *buf = calloc(4096, 1);
 
-    if(path_sv.size > 1 && path[0] == '~')
+    StringView homevar = cstr_sv("$HOME");
+    const char *home   = getenv("HOME");
+    StringView home_sv = cstr_sv(home);
+
+    if(home && path_sv.size > 0 && path[0] == '~')
     {
-        const char *home = getenv("HOME");
-        if(!home)
-        {
-            return 0;
-        }
-
-        StringView home_sv = cstr_sv(home);
-
         uint32_t i = 0;
         for(; i < home_sv.size; ++i)
         {
@@ -66,6 +62,19 @@ const char *gfExpandPath
         for(uint32_t j = 0; j < path_sv.size && j < 4096 - i; ++j)
         {
             buf[i + j] = path[j + 1];
+        }
+    }
+    else if(home && path_sv.size > 4 && sv_find(homevar, path_sv) == path_sv.data)
+    {
+        uint32_t i = 0;
+        for(; i < home_sv.size; ++i)
+        {
+            buf[i] = home[i];
+        }
+
+        for(uint32_t j = 0; j < path_sv.size && j < 4096 - i - homevar.size; ++j)
+        {
+            buf[i + j] = path[j + homevar.size];
         }
     }
 
