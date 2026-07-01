@@ -418,10 +418,11 @@ int main
            ARG_SV(biggestRepo));
     printf("\ncommits in the last 24h: %u ", heatmap[0]);
     printCorrespondingHeat(heatmap[0], green);
+    printf("\n");
 
     uint32_t days_epoch  = now / (24 * 3600);
     uint32_t days_commit = (now - oldestCommitTime) / (24 * 3600);
-    printf("\ndays since epoch: %u\n", days_epoch);
+    // printf("\ndays since epoch: %u\n", days_epoch);
     printf("days since first commit: %u\n", days_commit);
 
     printf("\nheatmap (last 365 days):\n\n");
