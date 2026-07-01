@@ -5,9 +5,6 @@ resolved, all other paths must be absolute for now.
 + You can also configure a list of authors to consider (by email)
 + You can choose a colour (red is default):
 
-The heatmap display is currently under construction, the data being presented is not
-truthful (yet). The stats above it are correctly identified, however.
-
 ![red theme](screenshots/red.jpg)
 
 The configuration file location is `~/.config/gitfluss/.conf`. Gitfluss will look first
