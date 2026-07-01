@@ -68,6 +68,10 @@ f_internal void readConfig
 
         StringView  author_sv = cstr_sv("author: ");
         const char* authorloc = sv_find(author_sv, buffer);
+
+        StringView  colour_sv = cstr_sv("colour: ");
+        const char* colourloc = sv_find(colour_sv, buffer);
+
         if(authorloc)
         {
             StringView author = cstr_sv(buffer.data + author_sv.size);
@@ -98,6 +102,22 @@ f_internal void readConfig
             #ifdef DEBUG
                 fprintf(stderr, "detected author: "PRI_SV"\n", ARG_SV(author));
                 fprintf(stderr, "author list: "PRI_SV"\n", ARG_SV(*authors));
+            #endif
+
+            continue;
+        }
+        else if(colourloc)
+        {
+            StringView colour   = cstr_sv(buffer.data + colour_sv.size);
+            StringView green_sv = cstr_sv("green\n");
+
+            if(sv_same(colour, green_sv))
+            {
+                *green = 1;
+            }
+
+            #ifdef DEBUG
+                fprintf(stderr, "detected colour: "PRI_SV"\n", ARG_SV(colour));
             #endif
 
             continue;
@@ -186,33 +206,6 @@ cleanup:
     fclose(file);
 }
 
-f_internal void printMonthHeader
-(
-    uint8_t current
-){
-    const char *months[12] =
-    {
-        " Jan ",
-        " Feb ",
-        " Mar ",
-        " Apr ",
-        " May ",
-        " Jun ",
-        " Jul ",
-        " Aug ",
-        " Sep ",
-        " Oct ",
-        " Nov ",
-        " Dec "
-    };
-
-    for(uint8_t i = 0; i < 12; ++i)
-    {
-        printf(" %s ", months[(current + i) % 12]);
-    }
-    printf("\n");
-}
-
 f_internal void printCorrespondingHeat
 (
     uint32_t commit_count,
@@ -264,6 +257,62 @@ f_internal void printCorrespondingHeat
     }
 }
 
+f_internal void printHeatMap
+(
+    uint8_t currentMonth,
+    uint8_t green
+){
+    const char *months[12] =
+    {
+        " Jan ",
+        " Feb ",
+        " Mar ",
+        " Apr ",
+        " May ",
+        " Jun ",
+        " Jul ",
+        " Aug ",
+        " Sep ",
+        " Oct ",
+        " Nov ",
+        " Dec "
+    };
+
+    const char *days[7] =
+    {
+        " Mon ",
+        " Tue ",
+        " Wed ",
+        " Thu ",
+        " Fri ",
+        " Sat ",
+        " Sun ",
+    };
+
+    printf("      ");
+    for(uint8_t i = 0; i < 12; ++i)
+    {
+        printf("%s", months[(currentMonth + i) % 12]);
+    }
+    printf("\n");
+
+    for(uint8_t i = 0; i < 7; ++i)
+    {
+        printf(" %s ", days[i]);
+        for(uint8_t j = 0; j < 48; ++j)
+        {
+            printCorrespondingHeat(5, green);
+            if(j % 4 == 3)
+            {
+                printf(" ");
+            }
+        }
+        printf("\n");
+    }
+
+    printf("\n");
+}
+
 int main
 (
     void
@@ -280,7 +329,7 @@ int main
     uint32_t   heatmap[16384]   = {0};
     StringView biggestRepo      = {0};
     uint32_t   repo_max         = 0;
-    uint32_t   oldestCommitTime = UINT32_MAX;
+    int64_t    oldestCommitTime = INT64_MAX;
     int64_t    now              = gfQueryTime();
 
     for(uint32_t i = 0; i < repository_count; ++i)
@@ -372,18 +421,9 @@ int main
     printf("\ndays since epoch: %u\n", days_epoch);
     printf("days since first commit: %u\n", days_commit);
 
-    printf("\nheatmap (last 365 days):\n");
+    printf("\nheatmap (last 365 days):\n\n");
     uint8_t currentMonth = 6;
-    printMonthHeader(currentMonth);
-
-    // printf("%s", months[currentMonth]);
-
-    printf(HEAT_0);
-    printf(HEAT_1_RED);
-    printf(HEAT_2_RED);
-    printf(HEAT_3_RED);
-    printf(HEAT_4_RED);
-    printf(HEAT_5_RED);
+    printHeatMap(currentMonth, green);
 
     if(authors.data)
     {
