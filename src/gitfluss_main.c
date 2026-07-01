@@ -24,17 +24,17 @@
 
 #define HEAT_0 " "
 
-#define HEAT_1_RED   "\033[38;5;52m\u25FC\033[0m"
-#define HEAT_2_RED   "\033[38;5;88m\u25FC\033[0m"
-#define HEAT_3_RED   "\033[38;5;124m\u25FC\033[0m"
-#define HEAT_4_RED   "\033[38;5;160m\u25FC\033[0m"
-#define HEAT_5_RED   "\033[38;5;196m\u25FC\033[0m"
+#define HEAT_1_RED   "\033[38;2;100;10;10m\u25FC\033[0m"
+#define HEAT_2_RED   "\033[38;2;150;15;30m\u25FC\033[0m"
+#define HEAT_3_RED   "\033[38;2;200;20;50m\u25FC\033[0m"
+#define HEAT_4_RED   "\033[38;2;220;20;50m\u25FC\033[0m"
+#define HEAT_5_RED   "\033[38;2;255;20;50m\u25FC\033[0m"
 
-#define HEAT_1_GREEN "\033[38;5;190m\u25FC\033[0m"
-#define HEAT_2_GREEN "\033[38;5;154m\u25FC\033[0m"
-#define HEAT_3_GREEN "\033[38;5;118m\u25FC\033[0m"
-#define HEAT_4_GREEN "\033[38;5;82m\u25FC\033[0m"
-#define HEAT_5_GREEN "\033[38;5;46m\u25FC\033[0m"
+#define HEAT_1_GREEN "\033[38;2;50;100;50m\u25FC\033[0m"
+#define HEAT_2_GREEN "\033[38;2;50;150;50m\u25FC\033[0m"
+#define HEAT_3_GREEN "\033[38;2;50;200;50m\u25FC\033[0m"
+#define HEAT_4_GREEN "\033[38;2;50;220;50m\u25FC\033[0m"
+#define HEAT_5_GREEN "\033[38;2;50;255;50m\u25FC\033[0m"
 
 f_internal void readConfig
 (
