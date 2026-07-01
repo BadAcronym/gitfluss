@@ -79,14 +79,15 @@ f_internal void readConfig
             if(authors->data)
             {
                 const char *authors_cstr = sv_concat(*authors, sep);
+                free((void*)authors->data);
                 *authors = cstr_sv(authors_cstr);
 
                 authors_cstr = sv_concat(*authors, author);
+                free((void*)authors->data);
                 *authors = cstr_sv(authors_cstr);
             }
             else
             {
-                // ASAN: leak
                 *authors = cstr_sv_cpy(buffer.data + author_sv.size);
                 if(authors->size)
                 {
@@ -105,12 +106,8 @@ f_internal void readConfig
         if(repositories->data)
         {
             const char *repositories_cstr = sv_concat(*repositories, sep);
+            free((void*)repositories->data);
             *repositories = cstr_sv_cpy(repositories_cstr);
-
-            if(repositories_cstr)
-            {
-                free((void*)repositories_cstr);
-            }
 
             const char *resolved   = gfExpandPath(buffer.data);
             StringView resolved_sv = cstr_sv(resolved);
@@ -119,7 +116,12 @@ f_internal void readConfig
                 resolved_sv.size -= 1;
             }
 
+            if(repositories_cstr)
+            {
+                free((void*)repositories_cstr);
+            }
             repositories_cstr = sv_concat(*repositories, resolved_sv);
+            free((void*)repositories->data);
             *repositories = cstr_sv_cpy(repositories_cstr);
 
             if(repositories_cstr)
@@ -154,9 +156,17 @@ f_internal void readConfig
     }
 
     const char *sorted_authors = sv_sort_by_delim(*authors, ';');
+    if(authors->data)
+    {
+        free((void*)authors->data);
+    }
     *authors = cstr_sv(sorted_authors);
 
     const char *sorted_repos = sv_sort_by_delim(*repositories, ';');
+    if(repositories->data)
+    {
+        free((void*)repositories->data);
+    }
     *repositories = cstr_sv(sorted_repos);
 
     #ifdef DEBUG
@@ -325,8 +335,12 @@ int main
 
         if(repoCommitCount > repo_max)
         {
-            repo_max    = repoCommitCount;
+            if(biggestRepo.data)
+            {
+                free((void*)biggestRepo.data);
+            }
             biggestRepo = cstr_sv_cpy(current_repo_cstr);
+            repo_max    = repoCommitCount;
         }
 
         git_revwalk_free(revwalk);
@@ -378,6 +392,10 @@ int main
     if(repositories.data)
     {
         free((void*)repositories.data);
+    }
+    if(biggestRepo.data)
+    {
+        free((void*)biggestRepo.data);
     }
     return git_libgit2_shutdown();
 }
