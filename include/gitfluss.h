@@ -23,7 +23,7 @@ uint8_t gfVerifyPath
     StringView path
 );
 
-const char *gfExpandPath
+void gfExpandPath
 (
     const char *path,
     char       *buf

@@ -39,7 +39,7 @@ uint8_t gfVerifyPath
     return GF_TYPE_OTHER;
 }
 
-const char *gfExpandPath
+void gfExpandPath
 (
     const char *path,
     char*      buf
@@ -82,6 +82,4 @@ const char *gfExpandPath
 
         buf[i + j] = '\0';
     }
-
-    return buf;
 }
