@@ -1,6 +1,7 @@
 Status:
 + Linux only for now, win32 needs a small bit of porting
-+ You can configure a list of paths in the configuration file
++ You can configure a list of paths in the configuration file. `~` and `$HOME` will be
+resolved, all other paths must be absolute for now.
 + You can also configure a list of authors to consider (by email)
 + You can choose a colour (red is default):
 
