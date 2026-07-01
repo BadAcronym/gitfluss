@@ -250,54 +250,48 @@ f_internal void printHeatMap
 (
     uint32_t *heatmap,
     uint8_t  currentMonth,
-    uint8_t  green
+    uint8_t  colour
 ){
     const char *months[12] =
     {
-        " Jan ",
-        " Feb ",
-        " Mar ",
-        " Apr ",
-        " May ",
-        " Jun ",
-        " Jul ",
-        " Aug ",
-        " Sep ",
-        " Oct ",
-        " Nov ",
-        " Dec "
+        "Jan",
+        "Feb",
+        "Mar",
+        "Apr",
+        "May",
+        "Jun",
+        "Jul",
+        "Aug",
+        "Sep",
+        "Oct",
+        "Nov",
+        "Dec"
     };
 
     const char *days[7] =
     {
-        " Mon ",
-        " Tue ",
-        " Wed ",
-        " Thu ",
-        " Fri ",
-        " Sat ",
-        " Sun ",
+        "Mon",
+        "Tue",
+        "Wed",
+        "Thu",
+        "Fri",
+        "Sat",
+        "Sun",
     };
 
-    printf("      ");
+    printf("       ");
     for(uint8_t i = 0; i < 12; ++i)
     {
-        printf("%s", months[(currentMonth + i) % 12]);
+        printf("%s ", months[(currentMonth + i) % 12]);
     }
     printf("\n");
 
     for(uint8_t i = 0; i < 7; ++i)
     {
         printf(" %s ", days[i]);
-        for(uint8_t j = 0; j < 48; ++j)
+        for(uint16_t j = i; j < 367; j += 7)
         {
-            uint32_t test = j + i + j * 2;
-
-            printCorrespondingHeat(heatmap[test], green);
-            if(j % 4 == 3)
-            {
-                printf(" ");
-            }
+            printCorrespondingHeat(heatmap[366 - j], colour);
         }
         printf("\n");
     }
