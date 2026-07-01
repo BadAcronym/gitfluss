@@ -17,15 +17,13 @@ uint8_t gfVerifyPath
     StringView path
 ){
     struct stat pathInfo;
-    const char *path_cstr = sv_cstr(path);
+    char path_cstr[4096];
+    sv_cstr(path, path_cstr);
 
     if(stat(path_cstr, &pathInfo))
     {
-        free((void*)path_cstr);
         return GF_TYPE_ERROR;
     }
-
-    free((void*)path_cstr);
 
     if(S_ISDIR(pathInfo.st_mode))
     {

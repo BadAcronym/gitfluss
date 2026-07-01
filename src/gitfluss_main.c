@@ -23,6 +23,12 @@
 #define PATH_MAX    4096
 #define MAX_AUTHORS 1024
 
+#define RED    0
+#define GREEN  1
+#define BLUE   2
+#define PURPLE 3
+#define GRAY   4
+
 #define HEAT_0 " "
 
 #define HEAT_1_RED   "\033[38;2;100;10;10m\u25FC\033[0m"
@@ -41,7 +47,9 @@ f_internal void readConfig
 (
     StringView *repositories,
     StringView *authors,
-    uint8_t    *green
+    char       *sorted_repos,
+    char       *sorted_authors,
+    uint8_t    *colour
 ){
     char path_expanded[PATH_MAX];
     char fallback_expanded[PATH_MAX];
@@ -85,17 +93,18 @@ f_internal void readConfig
 
             if(authors->data)
             {
-                const char *authors_cstr = sv_concat(*authors, sep);
+                char *authors_cstr = malloc(authors->size + author.size + 2);
+                sv_concat(*authors, sep, authors_cstr);
                 free((void*)authors->data);
                 *authors = cstr_sv(authors_cstr);
 
-                authors_cstr = sv_concat(*authors, author);
-                free((void*)authors->data);
+                sv_concat(*authors, author, authors_cstr);
                 *authors = cstr_sv(authors_cstr);
             }
             else
             {
-                *authors = cstr_sv_cpy(buffer.data + author_sv.size);
+                char *new_buf = malloc(bufsize);
+                *authors = cstr_sv_cpy(buffer.data + author_sv.size, new_buf);
                 if(authors->size)
                 {
                     authors->size -= 1;
@@ -111,12 +120,12 @@ f_internal void readConfig
         }
         else if(colourloc)
         {
-            StringView colour   = cstr_sv(buffer.data + colour_sv.size);
-            StringView green_sv = cstr_sv("green\n");
+            StringView chosen_sv = cstr_sv(buffer.data + colour_sv.size);
+            StringView green_sv  = cstr_sv("green\n");
 
-            if(sv_same(colour, green_sv))
+            if(sv_same(chosen_sv, green_sv))
             {
-                *green = 1;
+                *colour = 1;
             }
 
             #ifdef DEBUG
@@ -128,9 +137,10 @@ f_internal void readConfig
 
         if(repositories->data)
         {
-            const char *repositories_cstr = sv_concat(*repositories, sep);
+            char *repositories_cstr = malloc(repositories->size + PATH_MAX + 2);
+            sv_concat(*repositories, sep, repositories_cstr);
             free((void*)repositories->data);
-            *repositories = cstr_sv_cpy(repositories_cstr);
+            *repositories = cstr_sv(repositories_cstr);
 
             char resolved[PATH_MAX];
             gfExpandPath(buffer.data, resolved);
@@ -141,24 +151,15 @@ f_internal void readConfig
                 resolved_sv.size -= 1;
             }
 
-            if(repositories_cstr)
-            {
-                free((void*)repositories_cstr);
-            }
-            repositories_cstr = sv_concat(*repositories, resolved_sv);
-            free((void*)repositories->data);
-            *repositories = cstr_sv_cpy(repositories_cstr);
-
-            if(repositories_cstr)
-            {
-                free((void*)repositories_cstr);
-            }
+            sv_concat(*repositories, resolved_sv, repositories_cstr);
+            *repositories = cstr_sv(repositories_cstr);
         }
         else
         {
-            char resolved[PATH_MAX] = {0};
+            char *resolved = malloc(PATH_MAX);
             gfExpandPath(buffer.data, resolved);
-            *repositories = cstr_sv_cpy(resolved);
+            free((void*)repositories->data);
+            *repositories = cstr_sv(resolved);
 
             if(repositories->size)
             {
@@ -172,14 +173,14 @@ f_internal void readConfig
         #endif
     }
 
-    const char *sorted_authors = sv_sort_by_delim(*authors, ';');
+    sv_sort_by_delim(*authors, ';', sorted_authors);
     if(authors->data)
     {
         free((void*)authors->data);
     }
     *authors = cstr_sv(sorted_authors);
 
-    const char *sorted_repos = sv_sort_by_delim(*repositories, ';');
+    sv_sort_by_delim(*repositories, ';', sorted_repos);
     if(repositories->data)
     {
         free((void*)repositories->data);
@@ -197,13 +198,13 @@ f_internal void readConfig
 f_internal void printCorrespondingHeat
 (
     uint32_t commit_count,
-    uint8_t  green
+    uint8_t  colour
 ){
     if(!commit_count)
     {
         printf(HEAT_0);
     }
-    else if(commit_count > 9 && green)
+    else if(commit_count > 9 && colour == GREEN)
     {
         printf(HEAT_5_GREEN);
     }
@@ -211,7 +212,7 @@ f_internal void printCorrespondingHeat
     {
         printf(HEAT_5_RED);
     }
-    else if(commit_count > 7 && green)
+    else if(commit_count > 7 && colour == GREEN)
     {
         printf(HEAT_4_GREEN);
     }
@@ -219,7 +220,7 @@ f_internal void printCorrespondingHeat
     {
         printf(HEAT_4_RED);
     }
-    else if(commit_count > 5 && green)
+    else if(commit_count > 5 && colour == GREEN)
     {
         printf(HEAT_3_GREEN);
     }
@@ -227,7 +228,7 @@ f_internal void printCorrespondingHeat
     {
         printf(HEAT_3_RED);
     }
-    else if(commit_count > 3 && green)
+    else if(commit_count > 3 && colour == GREEN)
     {
         printf(HEAT_2_GREEN);
     }
@@ -235,7 +236,7 @@ f_internal void printCorrespondingHeat
     {
         printf(HEAT_2_RED);
     }
-    else if(green)
+    else if(colour == GREEN)
     {
         printf(HEAT_1_GREEN);
     }
@@ -310,9 +311,13 @@ int main
 ){
     StringView repositories = {0};
     StringView authors      = {0};
-    uint8_t    green        = 0;
+    uint8_t    colour       = RED;
 
-    readConfig(&repositories, &authors, &green);
+    char sorted_repos[PATH_MAX * 100];
+    char sorted_authors[PATH_MAX * 2];
+    char biggestRepo_buf[PATH_MAX + 1];
+
+    readConfig(&repositories, &authors, sorted_repos, sorted_authors, &colour);
     uint32_t repository_count = sv_count_by_delim(repositories, ';');
 
     git_libgit2_init();
@@ -329,7 +334,7 @@ int main
         git_revwalk    *revwalk = 0;
         git_oid        oid      = {0};
 
-        StringView repository        = sv_find_by_delim(repositories, ';', i);
+        StringView repository      = sv_find_by_delim(repositories, ';', i);
         uint32_t   repoCommitCount = 0;
 
         #ifdef DEBUG
@@ -337,7 +342,8 @@ int main
                     ARG_SV(repository));
         #endif
 
-        const char *current_repo_cstr = sv_cstr(repository);
+        char current_repo_cstr[repository.size + 1];
+        sv_cstr(repository, current_repo_cstr);
 
         git_repository_open(&repo, current_repo_cstr);
         git_revwalk_new(&revwalk, repo);
@@ -375,17 +381,12 @@ int main
 
         if(repoCommitCount > repo_max)
         {
-            if(biggestRepo.data)
-            {
-                free((void*)biggestRepo.data);
-            }
-            biggestRepo = cstr_sv_cpy(current_repo_cstr);
+            biggestRepo = cstr_sv_cpy(current_repo_cstr, biggestRepo_buf);
             repo_max    = repoCommitCount;
         }
 
         git_revwalk_free(revwalk);
         git_repository_free(repo);
-        free((void*)current_repo_cstr);
     }
 
     uint32_t singleday_max = 0;
@@ -405,7 +406,7 @@ int main
     printf("most commits in single repository (%u) in '"PRI_SV"'.\n", repo_max,
            ARG_SV(biggestRepo));
     printf("\ncommits in the last 24h: %u ", heatmap[0]);
-    printCorrespondingHeat(heatmap[0], green);
+    printCorrespondingHeat(heatmap[0], colour);
     printf("\n");
 
     uint32_t days_epoch  = now / (24 * 3600);
@@ -415,19 +416,7 @@ int main
 
     printf("\nheatmap (last 365 days):\n\n");
     uint8_t currentMonth = 6;
-    printHeatMap(heatmap, currentMonth, green);
+    printHeatMap(heatmap, currentMonth, colour);
 
-    if(authors.data)
-    {
-        free((void*)authors.data);
-    }
-    if(repositories.data)
-    {
-        free((void*)repositories.data);
-    }
-    if(biggestRepo.data)
-    {
-        free((void*)biggestRepo.data);
-    }
     return git_libgit2_shutdown();
 }
