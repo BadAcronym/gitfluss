@@ -41,11 +41,10 @@ uint8_t gfVerifyPath
 
 const char *gfExpandPath
 (
-    const char *path
+    const char *path,
+    char*      buf
 ){
     StringView path_sv = cstr_sv(path);
-
-    char *buf = calloc(4096, 1);
 
     StringView homevar = cstr_sv("$HOME");
     const char *home   = getenv("HOME");

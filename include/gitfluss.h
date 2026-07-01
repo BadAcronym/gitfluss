@@ -25,5 +25,6 @@ uint8_t gfVerifyPath
 
 const char *gfExpandPath
 (
-    const char *path
+    const char *path,
+    char       *buf
 );

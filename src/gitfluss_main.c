@@ -42,8 +42,10 @@ f_internal void readConfig
     StringView *authors,
     uint8_t    *green
 ){
-    const char *path_expanded     = gfExpandPath(CONF_PATH);
-    const char *fallback_expanded = gfExpandPath(CONF_FALLBACK);
+    char path_expanded[4096] = {0};
+    char fallback_expanded[4096] = {0};
+    gfExpandPath(CONF_PATH, path_expanded);
+    gfExpandPath(CONF_FALLBACK, fallback_expanded);
 
     FILE *file = fopen(path_expanded, "r");
     if(!file)
@@ -53,7 +55,7 @@ f_internal void readConfig
         {
             fprintf(stderr, "\033[33;3mWARNING: could not open configuration file."
                     "\033[0m\n");
-            goto cleanup;
+            return;
         }
     }
 
@@ -129,7 +131,9 @@ f_internal void readConfig
             free((void*)repositories->data);
             *repositories = cstr_sv_cpy(repositories_cstr);
 
-            const char *resolved   = gfExpandPath(buffer.data);
+            char resolved[4096] = {0};
+            gfExpandPath(buffer.data, resolved);
+
             StringView resolved_sv = cstr_sv(resolved);
             if(resolved_sv.size)
             {
@@ -148,24 +152,16 @@ f_internal void readConfig
             {
                 free((void*)repositories_cstr);
             }
-            if(resolved)
-            {
-                free((void*)resolved);
-            }
         }
         else
         {
-            const char *resolved = gfExpandPath(buffer.data);
+            char resolved[4096] = {0};
+            gfExpandPath(buffer.data, resolved);
             *repositories = cstr_sv_cpy(resolved);
 
             if(repositories->size)
             {
                 repositories->size -= 1;
-            }
-
-            if(resolved)
-            {
-                free((void*)resolved);
             }
         }
 
@@ -194,15 +190,6 @@ f_internal void readConfig
         fprintf(stderr, "\nfinal, sorted paths:\n"PRI_SV"\n", ARG_SV(*repositories));
     #endif
 
-cleanup:
-    if(path_expanded)
-    {
-        free((void*)path_expanded);
-    }
-    if(fallback_expanded)
-    {
-        free((void*)fallback_expanded);
-    }
     fclose(file);
 }
 
