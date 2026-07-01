@@ -42,8 +42,8 @@ f_internal void readConfig
     StringView *authors,
     uint8_t    *green
 ){
-    char path_expanded[4096] = {0};
-    char fallback_expanded[4096] = {0};
+    char path_expanded[4096];
+    char fallback_expanded[4096];
     gfExpandPath(CONF_PATH, path_expanded);
     gfExpandPath(CONF_FALLBACK, fallback_expanded);
 
@@ -131,7 +131,7 @@ f_internal void readConfig
             free((void*)repositories->data);
             *repositories = cstr_sv_cpy(repositories_cstr);
 
-            char resolved[4096] = {0};
+            char resolved[4096];
             gfExpandPath(buffer.data, resolved);
 
             StringView resolved_sv = cstr_sv(resolved);

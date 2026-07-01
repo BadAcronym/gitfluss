@@ -58,10 +58,13 @@ const char *gfExpandPath
             buf[i] = home[i];
         }
 
-        for(uint32_t j = 0; j < path_sv.size && j < 4096 - i; ++j)
+        uint32_t j = 0;
+        for(; j < path_sv.size && j < 4096 - i; ++j)
         {
             buf[i + j] = path[j + 1];
         }
+
+        buf[i + j] = '\0';
     }
     else if(home && path_sv.size > 4 && sv_find(homevar, path_sv) == path_sv.data)
     {
@@ -71,10 +74,13 @@ const char *gfExpandPath
             buf[i] = home[i];
         }
 
-        for(uint32_t j = 0; j < path_sv.size && j < 4096 - i - homevar.size; ++j)
+        uint32_t j = 0;
+        for(; j < path_sv.size && j < 4096 - i - homevar.size; ++j)
         {
             buf[i + j] = path[j + homevar.size];
         }
+
+        buf[i + j] = '\0';
     }
 
     return buf;
