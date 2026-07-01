@@ -19,7 +19,8 @@
     #define CONF_FALLBACK "~\\.config\\gitfluss.ini"
 #endif
 
-#define bufsize     4096
+#define bufsize     8192
+#define PATH_MAX    4096
 #define MAX_AUTHORS 1024
 
 #define HEAT_0 " "
@@ -42,8 +43,8 @@ f_internal void readConfig
     StringView *authors,
     uint8_t    *green
 ){
-    char path_expanded[4096];
-    char fallback_expanded[4096];
+    char path_expanded[PATH_MAX];
+    char fallback_expanded[PATH_MAX];
     gfExpandPath(CONF_PATH, path_expanded);
     gfExpandPath(CONF_FALLBACK, fallback_expanded);
 
@@ -131,7 +132,7 @@ f_internal void readConfig
             free((void*)repositories->data);
             *repositories = cstr_sv_cpy(repositories_cstr);
 
-            char resolved[4096];
+            char resolved[PATH_MAX];
             gfExpandPath(buffer.data, resolved);
 
             StringView resolved_sv = cstr_sv(resolved);
@@ -155,7 +156,7 @@ f_internal void readConfig
         }
         else
         {
-            char resolved[4096] = {0};
+            char resolved[PATH_MAX] = {0};
             gfExpandPath(buffer.data, resolved);
             *repositories = cstr_sv_cpy(resolved);
 
