@@ -259,8 +259,9 @@ f_internal void printCorrespondingHeat
 
 f_internal void printHeatMap
 (
-    uint8_t currentMonth,
-    uint8_t green
+    uint32_t *heatmap,
+    uint8_t  currentMonth,
+    uint8_t  green
 ){
     const char *months[12] =
     {
@@ -301,7 +302,9 @@ f_internal void printHeatMap
         printf(" %s ", days[i]);
         for(uint8_t j = 0; j < 48; ++j)
         {
-            printCorrespondingHeat(5, green);
+            uint32_t test = j + i + j * 2;
+
+            printCorrespondingHeat(heatmap[test], green);
             if(j % 4 == 3)
             {
                 printf(" ");
@@ -423,7 +426,7 @@ int main
 
     printf("\nheatmap (last 365 days):\n\n");
     uint8_t currentMonth = 6;
-    printHeatMap(currentMonth, green);
+    printHeatMap(heatmap, currentMonth, green);
 
     if(authors.data)
     {
