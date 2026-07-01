@@ -25,10 +25,10 @@
 #define HEAT_0 " "
 
 #define HEAT_1_RED   "\033[38;2;100;10;10m\u25FC\033[0m"
-#define HEAT_2_RED   "\033[38;2;150;15;30m\u25FC\033[0m"
-#define HEAT_3_RED   "\033[38;2;200;20;50m\u25FC\033[0m"
-#define HEAT_4_RED   "\033[38;2;220;20;50m\u25FC\033[0m"
-#define HEAT_5_RED   "\033[38;2;255;20;50m\u25FC\033[0m"
+#define HEAT_2_RED   "\033[38;2;150;15;15m\u25FC\033[0m"
+#define HEAT_3_RED   "\033[38;2;200;20;20m\u25FC\033[0m"
+#define HEAT_4_RED   "\033[38;2;220;30;30m\u25FC\033[0m"
+#define HEAT_5_RED   "\033[38;2;255;40;50m\u25FC\033[0m"
 
 #define HEAT_1_GREEN "\033[38;2;50;100;50m\u25FC\033[0m"
 #define HEAT_2_GREEN "\033[38;2;50;150;50m\u25FC\033[0m"
