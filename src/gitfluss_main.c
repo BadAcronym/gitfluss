@@ -129,7 +129,7 @@ f_internal void readConfig
             }
 
             #ifdef DEBUG
-                fprintf(stderr, "detected colour: "PRI_SV"\n", ARG_SV(colour));
+                fprintf(stderr, "detected colour: "PRI_SV"\n", ARG_SV(chosen_sv));
             #endif
 
             continue;
@@ -250,6 +250,7 @@ f_internal void printHeatMap
 (
     uint32_t *heatmap,
     uint8_t  currentMonth,
+    uint8_t  weekday_365,
     uint8_t  colour
 ){
     const char *months[12] =
@@ -289,9 +290,14 @@ f_internal void printHeatMap
     for(uint8_t i = 0; i < 7; ++i)
     {
         printf(" %s ", days[i]);
-        for(uint16_t j = i; j < 367; j += 7)
+        for(int16_t j = i - weekday_365; j < 366; j += 7)
         {
-            printCorrespondingHeat(heatmap[366 - j], colour);
+            if(j < 0)
+            {
+                printf(" ");
+                continue;
+            }
+            printCorrespondingHeat(heatmap[365 - j], colour);
         }
         printf("\n");
     }
@@ -321,6 +327,7 @@ int main
     uint32_t   repo_max         = 0;
     int64_t    oldestCommitTime = INT64_MAX;
     int64_t    now              = gfQueryTime();
+    int64_t    currDayEnd       = now - now % (24 * 3600) + 24 * 3600;
 
     for(uint32_t i = 0; i < repository_count; ++i)
     {
@@ -358,7 +365,11 @@ int main
                 StringView author = sv_find_by_delim(authors, ';', j);
                 if(sv_same(author, author_mail))
                 {
-                    int64_t days = (now - commit_time.time) / (24 * 3600);
+                    int64_t days = (currDayEnd - commit_time.time) / (24 * 3600);
+                    if(!days)
+                    {
+                        printf("%s\n", git_commit_message(commit));
+                    }
                     if(commit_time.time < oldestCommitTime)
                     {
                         oldestCommitTime = commit_time.time;
@@ -399,13 +410,13 @@ int main
            maxday);
     printf("most commits in single repository (%u) in '"PRI_SV"'.\n", repo_max,
            ARG_SV(biggestRepo));
-    printf("\ncommits in the last 24h: %u ", heatmap[0]);
+    printf("\ncommits today: %u ", heatmap[0]);
     printCorrespondingHeat(heatmap[0], colour);
     printf("\n");
 
-    uint64_t days_epoch    = now / (24 * 3600);
+    int64_t  days_epoch    = now / (24 * 3600);
     uint32_t years_epoch   = 0;
-    uint64_t currYearStart = 0;
+    int64_t  currYearStart = 0;
     for(uint32_t i = 0; i < days_epoch;)
     {
         ++years_epoch;
@@ -428,8 +439,8 @@ int main
         }
     }
 
-    uint8_t  currentMonth   = 0;
-    uint64_t currMonthStart = currYearStart;
+    uint8_t currentMonth   = 0;
+    int64_t currMonthStart = currYearStart;
     for(uint16_t i = 0; i < 365; ++i)
     {
         if(currYearStart + i * 24 * 3600 > now)
@@ -461,7 +472,7 @@ int main
         }
     }
 
-    uint64_t days_commit = (now - oldestCommitTime) / (24 * 3600);
+    int64_t days_commit = (now - oldestCommitTime) / (24 * 3600);
 
     #ifdef DEBUG
         printf("\nfull days since epoch: %lu\n", days_epoch);
@@ -470,12 +481,14 @@ int main
         printf("current year start: %lu\n", currYearStart);
         printf("current month start: %lu\n", currMonthStart);
         printf("current month: %u\n", currentMonth);
+        printf("current day start: %lu\n", currDayStart);
     #endif
 
     printf("days since first commit: %lu\n", days_commit);
 
     printf("\nheatmap (last 365 days):\n\n");
-    printHeatMap(heatmap, currentMonth, colour);
+    uint8_t weekday_365 = 2;
+    printHeatMap(heatmap, currentMonth, weekday_365, colour);
 
     return git_libgit2_shutdown();
 }
