@@ -280,7 +280,7 @@ f_internal void printHeatMap
     };
 
     printf("       ");
-    for(uint8_t i = 0; i < 12; ++i)
+    for(uint8_t i = 0; i < 13; ++i)
     {
         printf("%s ", months[(currentMonth + i) % 12]);
     }
@@ -403,13 +403,78 @@ int main
     printCorrespondingHeat(heatmap[0], colour);
     printf("\n");
 
-    uint32_t days_epoch  = now / (24 * 3600);
-    uint32_t days_commit = (now - oldestCommitTime) / (24 * 3600);
-    // printf("\ndays since epoch: %u\n", days_epoch);
-    printf("days since first commit: %u\n", days_commit);
+    uint64_t days_epoch    = now / (24 * 3600);
+    uint32_t years_epoch   = 0;
+    uint64_t currYearStart = 0;
+    for(uint32_t i = 0; i < days_epoch;)
+    {
+        ++years_epoch;
+
+        if(years_epoch % 4 == 2)
+        {
+            i += 366;
+            if(currYearStart + 366 * 24 * 3600 < now)
+            {
+                currYearStart += 366 * 24 * 3600;
+            }
+
+            continue;
+        }
+
+        i += 365;
+        if(currYearStart + 365 * 24 * 3600 < now)
+        {
+            currYearStart += 365 * 24 * 3600;
+        }
+    }
+
+    uint8_t  currentMonth   = 0;
+    uint64_t currMonthStart = currYearStart;
+    for(uint16_t i = 0; i < 365; ++i)
+    {
+        if(currYearStart + i * 24 * 3600 > now)
+        {
+            break;
+        }
+
+        ++currentMonth;
+
+        if(i == 1 && years_epoch % 4 == 2)
+        {
+            i += 29;
+            currMonthStart += 29 * 24 * 3600;
+        }
+        else if(i == 1)
+        {
+            i += 28;
+            currMonthStart += 28 * 24 * 3600;
+        }
+        else if(i == 0 || i == 2 || i == 4 || i == 6 || i == 7 || i == 9 || i == 11)
+        {
+            i += 31;
+            currMonthStart += 31 * 24 * 3600;
+        }
+        else
+        {
+            i += 30;
+            currMonthStart += 30 * 24 * 3600;
+        }
+    }
+
+    uint64_t days_commit = (now - oldestCommitTime) / (24 * 3600);
+
+    #ifdef DEBUG
+        printf("\nfull days since epoch: %lu\n", days_epoch);
+        printf("full years since epoch: %u\n", years_epoch);
+        printf("now, unix time: %lu\n", now);
+        printf("current year start: %lu\n", currYearStart);
+        printf("current month start: %lu\n", currMonthStart);
+        printf("current month: %u\n", currentMonth);
+    #endif
+
+    printf("days since first commit: %lu\n", days_commit);
 
     printf("\nheatmap (last 365 days):\n\n");
-    uint8_t currentMonth = 6;
     printHeatMap(heatmap, currentMonth, colour);
 
     return git_libgit2_shutdown();
