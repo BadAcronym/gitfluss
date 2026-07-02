@@ -27,21 +27,6 @@
 #define GREEN  1
 #define BLUE   2
 #define PURPLE 3
-#define GRAY   4
-
-#define HEAT_0 " "
-
-#define HEAT_1_RED   "\033[38;2;100;10;10m\u25FC\033[0m"
-#define HEAT_2_RED   "\033[38;2;150;15;15m\u25FC\033[0m"
-#define HEAT_3_RED   "\033[38;2;200;20;20m\u25FC\033[0m"
-#define HEAT_4_RED   "\033[38;2;220;30;30m\u25FC\033[0m"
-#define HEAT_5_RED   "\033[38;2;255;40;50m\u25FC\033[0m"
-
-#define HEAT_1_GREEN "\033[38;2;50;100;50m\u25FC\033[0m"
-#define HEAT_2_GREEN "\033[38;2;50;150;50m\u25FC\033[0m"
-#define HEAT_3_GREEN "\033[38;2;50;200;50m\u25FC\033[0m"
-#define HEAT_4_GREEN "\033[38;2;50;220;50m\u25FC\033[0m"
-#define HEAT_5_GREEN "\033[38;2;50;255;50m\u25FC\033[0m"
 
 f_internal void readConfig
 (
@@ -122,10 +107,15 @@ f_internal void readConfig
         {
             StringView chosen_sv = cstr_sv(buffer.data + colour_sv.size);
             StringView green_sv  = cstr_sv("green\n");
+            StringView blue_sv   = cstr_sv("blue\n");
 
             if(sv_same(chosen_sv, green_sv))
             {
-                *colour = 1;
+                *colour = GREEN;
+            }
+            else if(sv_same(chosen_sv, blue_sv))
+            {
+                *colour = BLUE;
             }
 
             #ifdef DEBUG
@@ -156,7 +146,7 @@ f_internal void readConfig
         }
         else
         {
-            char *resolved = malloc(PATH_MAX);
+            char *resolved = calloc(PATH_MAX, 1);
             gfExpandPath(buffer.data, resolved);
             free((void*)repositories->data);
             *repositories = cstr_sv(resolved);
@@ -200,49 +190,52 @@ f_internal void printCorrespondingHeat
     uint32_t commit_count,
     uint8_t  colour
 ){
+    const char *colours[20] =
+    {
+        // reds
+        "\033[38;2;100;10;10m\u25FC\033[0m",
+        "\033[38;2;150;15;15m\u25FC\033[0m",
+        "\033[38;2;200;20;20m\u25FC\033[0m",
+        "\033[38;2;220;30;30m\u25FC\033[0m",
+        "\033[38;2;255;40;50m\u25FC\033[0m",
+        // greens
+        "\033[38;2;50;100;50m\u25FC\033[0m",
+        "\033[38;2;50;150;50m\u25FC\033[0m",
+        "\033[38;2;50;200;50m\u25FC\033[0m",
+        "\033[38;2;50;220;50m\u25FC\033[0m",
+        "\033[38;2;50;255;50m\u25FC\033[0m",
+        // blues
+        "\033[38;2;20;20;100m\u25FC\033[0m",
+        "\033[38;2;20;20;150m\u25FC\033[0m",
+        "\033[38;2;20;20;200m\u25FC\033[0m",
+        "\033[38;2;20;20;220m\u25FC\033[0m",
+        "\033[38;2;20;20;255m\u25FC\033[0m",
+        // purples
+    };
+
     if(!commit_count)
     {
-        printf(HEAT_0);
-    }
-    else if(commit_count > 9 && colour == GREEN)
-    {
-        printf(HEAT_5_GREEN);
+        printf(" ");
     }
     else if(commit_count > 9)
     {
-        printf(HEAT_5_RED);
-    }
-    else if(commit_count > 7 && colour == GREEN)
-    {
-        printf(HEAT_4_GREEN);
+        printf("%s", colours[4 + colour * 5]);
     }
     else if(commit_count > 7)
     {
-        printf(HEAT_4_RED);
-    }
-    else if(commit_count > 5 && colour == GREEN)
-    {
-        printf(HEAT_3_GREEN);
+        printf("%s", colours[3 + colour * 5]);
     }
     else if(commit_count > 5)
     {
-        printf(HEAT_3_RED);
-    }
-    else if(commit_count > 3 && colour == GREEN)
-    {
-        printf(HEAT_2_GREEN);
+        printf("%s", colours[2 + colour * 5]);
     }
     else if(commit_count > 3)
     {
-        printf(HEAT_2_RED);
-    }
-    else if(colour == GREEN)
-    {
-        printf(HEAT_1_GREEN);
+        printf("%s", colours[1 + colour * 5]);
     }
     else
     {
-        printf(HEAT_1_RED);
+        printf("%s", colours[0 + colour * 5]);
     }
 }
 
@@ -481,7 +474,14 @@ int main
         printf("current year start: %lu\n", currYearStart);
         printf("current month start: %lu\n", currMonthStart);
         printf("current month: %u\n", currentMonth);
-        printf("current day start: %lu\n", currDayStart);
+        // printf("current day start: %lu\n", currDayStart);
+        printf("pallette: ");
+        printCorrespondingHeat(2, colour);
+        printCorrespondingHeat(4, colour);
+        printCorrespondingHeat(6, colour);
+        printCorrespondingHeat(8, colour);
+        printCorrespondingHeat(10, colour);
+        printf("\n");
     #endif
 
     printf("days since first commit: %lu\n", days_commit);
