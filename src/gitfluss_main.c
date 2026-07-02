@@ -34,7 +34,8 @@ f_internal void readConfig
     StringView *authors,
     char       *sorted_repos,
     char       *sorted_authors,
-    uint8_t    *colour
+    uint8_t    *colour,
+    uint8_t    *info
 ){
     char path_expanded[PATH_MAX];
     char fallback_expanded[PATH_MAX];
@@ -67,6 +68,9 @@ f_internal void readConfig
 
         StringView  colour_sv = cstr_sv("colour: ");
         const char* colourloc = sv_find(colour_sv, buffer);
+
+        StringView  info_sv = cstr_sv("info: ");
+        const char* infoloc = sv_find(info_sv, buffer);
 
         if(authorloc)
         {
@@ -128,6 +132,16 @@ f_internal void readConfig
             #endif
 
             continue;
+        }
+        else if(infoloc)
+        {
+            StringView set_sv  = cstr_sv(buffer.data + info_sv.size);
+            StringView true_sv = cstr_sv("true\n");
+
+            if(sv_same(set_sv, true_sv))
+            {
+                *info = 1;
+            }
         }
 
         if(repositories->data)
@@ -283,10 +297,15 @@ f_internal void printHeatMap
         "Sun",
     };
 
-    printf("       ");
+    printf("     ");
     for(uint8_t i = 0; i < 13; ++i)
     {
-        printf("%s ", months[(currentMonth + i) % 12]);
+        printf("%s", months[(currentMonth + i) % 12]);
+        uint8_t weeks = 1;
+        for(uint8_t j = 0; j < weeks; ++j)
+        {
+            printf(" ");
+        }
     }
     printf("\n");
 
@@ -315,12 +334,13 @@ int main
     StringView repositories = {0};
     StringView authors      = {0};
     uint8_t    colour       = RED;
+    uint8_t    info         = 0;
 
     char sorted_repos[PATH_MAX * 100];
     char sorted_authors[PATH_MAX * 2];
     char biggestRepo_buf[PATH_MAX + 1];
 
-    readConfig(&repositories, &authors, sorted_repos, sorted_authors, &colour);
+    readConfig(&repositories, &authors, sorted_repos, sorted_authors, &colour, &info);
     uint32_t repository_count = sv_count_by_delim(repositories, ';');
 
     git_libgit2_init();
@@ -405,13 +425,16 @@ int main
         }
     }
 
-    printf("most commits in the last 365 days (%u) made %u days ago.\n", singleday_max,
-           maxday);
-    printf("most commits in single repository (%u) in '"PRI_SV"'.\n", repo_max,
-           ARG_SV(biggestRepo));
-    printf("\ncommits today: %u ", heatmap[0]);
-    printCorrespondingHeat(heatmap[0], colour);
-    printf("\n");
+    if(info)
+    {
+        printf("most commits in the last 365 days (%u) made %u days ago.\n",
+               singleday_max, maxday);
+        printf("most commits in single repository (%u) in '"PRI_SV"'.\n", repo_max,
+               ARG_SV(biggestRepo));
+        printf("\ncommits today: %u ", heatmap[0]);
+        printCorrespondingHeat(heatmap[0], colour);
+        printf("\n");
+    }
 
     int64_t  days_epoch    = now / (24 * 3600);
     uint32_t years_epoch   = 0;
@@ -484,9 +507,13 @@ int main
         printf("\n");
     #endif
 
-    printf("days since first commit: %lu\n", days_commit);
+    if(info)
+    {
+        printf("days since first commit: %lu\n", days_commit);
+        printf("\nheatmap (last 365 days):\n");
+    }
 
-    printf("\nheatmap (last 365 days):\n\n");
+    printf("\n");
     uint8_t weekday_365 = 2;
     printHeatMap(heatmap, currentMonth, weekday_365, colour);
 
