@@ -108,6 +108,7 @@ f_internal void readConfig
             StringView chosen_sv = cstr_sv(buffer.data + colour_sv.size);
             StringView green_sv  = cstr_sv("green\n");
             StringView blue_sv   = cstr_sv("blue\n");
+            StringView purple_sv = cstr_sv("purple\n");
 
             if(sv_same(chosen_sv, green_sv))
             {
@@ -116,6 +117,10 @@ f_internal void readConfig
             else if(sv_same(chosen_sv, blue_sv))
             {
                 *colour = BLUE;
+            }
+            else if(sv_same(chosen_sv, purple_sv))
+            {
+                *colour = PURPLE;
             }
 
             #ifdef DEBUG
@@ -211,6 +216,11 @@ f_internal void printCorrespondingHeat
         "\033[38;2;20;20;220m\u25FC\033[0m",
         "\033[38;2;20;20;255m\u25FC\033[0m",
         // purples
+        "\033[38;2;100;0;100m\u25FC\033[0m",
+        "\033[38;2;150;0;150m\u25FC\033[0m",
+        "\033[38;2;200;0;200m\u25FC\033[0m",
+        "\033[38;2;220;0;220m\u25FC\033[0m",
+        "\033[38;2;255;0;255m\u25FC\033[0m",
     };
 
     if(!commit_count)
