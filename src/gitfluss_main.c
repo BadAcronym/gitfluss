@@ -369,10 +369,6 @@ int main
                 if(sv_same(author, author_mail))
                 {
                     int64_t days = (currDayEnd - commit_time.time) / (24 * 3600);
-                    if(!days)
-                    {
-                        printf("%s\n", git_commit_message(commit));
-                    }
                     if(commit_time.time < oldestCommitTime)
                     {
                         oldestCommitTime = commit_time.time;
