@@ -443,7 +443,6 @@ int main
     }
 
     uint8_t currentMonth   = 0;
-    int64_t currMonthStart = currYearStart;
     for(uint16_t i = 0; i < 365; ++i)
     {
         if(currYearStart + i * 24 * 3600 > now)
@@ -456,22 +455,18 @@ int main
         if(i == 1 && years_epoch % 4 == 2)
         {
             i += 29;
-            currMonthStart += 29 * 24 * 3600;
         }
         else if(i == 1)
         {
             i += 28;
-            currMonthStart += 28 * 24 * 3600;
         }
         else if(i == 0 || i == 2 || i == 4 || i == 6 || i == 7 || i == 9 || i == 11)
         {
             i += 31;
-            currMonthStart += 31 * 24 * 3600;
         }
         else
         {
             i += 30;
-            currMonthStart += 30 * 24 * 3600;
         }
     }
 
@@ -482,7 +477,6 @@ int main
         printf("full years since epoch: %u\n", years_epoch);
         printf("now, unix time: %lu\n", now);
         printf("current year start: %lu\n", currYearStart);
-        printf("current month start: %lu\n", currMonthStart);
         printf("current month: %u\n", currentMonth);
         // printf("current day start: %lu\n", currDayStart);
         printf("pallette: ");
