@@ -490,6 +490,7 @@ int main
     }
 
     int64_t days_commit = (now - oldestCommitTime) / (24 * 3600);
+    uint8_t weekday_365 = 2 + (uint8_t)(days_epoch % 7);
 
     #ifdef DEBUG
         printf("\nfull days since epoch: %lu\n", days_epoch);
@@ -498,6 +499,7 @@ int main
         printf("current year start: %lu\n", currYearStart);
         printf("current month: %u\n", currentMonth);
         // printf("current day start: %lu\n", currDayStart);
+        printf("weekday 365 days ago: %u\n", weekday_365);
         printf("pallette: ");
         printCorrespondingHeat(2, colour);
         printCorrespondingHeat(4, colour);
@@ -514,7 +516,6 @@ int main
     }
 
     printf("\n");
-    uint8_t weekday_365 = 2;
     printHeatMap(heatmap, currentMonth, weekday_365, colour);
 
     return git_libgit2_shutdown();
