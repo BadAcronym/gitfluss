@@ -27,6 +27,7 @@
 #define GREEN  1
 #define BLUE   2
 #define PURPLE 3
+#define YELLOW 4
 
 const char *months[12] =
 {
@@ -53,6 +54,40 @@ const char *days[7] =
     "Fri",
     "Sat",
     "Sun",
+};
+
+const char *colours[25] =
+{
+    // reds
+    "\033[38;2;100;10;10m\u25FC\033[0m",
+    "\033[38;2;150;15;15m\u25FC\033[0m",
+    "\033[38;2;200;20;20m\u25FC\033[0m",
+    "\033[38;2;220;30;30m\u25FC\033[0m",
+    "\033[38;2;255;40;50m\u25FC\033[0m",
+    // greens
+    "\033[38;2;50;100;50m\u25FC\033[0m",
+    "\033[38;2;50;150;50m\u25FC\033[0m",
+    "\033[38;2;50;200;50m\u25FC\033[0m",
+    "\033[38;2;50;220;50m\u25FC\033[0m",
+    "\033[38;2;50;255;50m\u25FC\033[0m",
+    // blues
+    "\033[38;2;20;20;100m\u25FC\033[0m",
+    "\033[38;2;20;20;150m\u25FC\033[0m",
+    "\033[38;2;20;20;200m\u25FC\033[0m",
+    "\033[38;2;20;20;220m\u25FC\033[0m",
+    "\033[38;2;20;20;255m\u25FC\033[0m",
+    // purples
+    "\033[38;2;100;0;100m\u25FC\033[0m",
+    "\033[38;2;150;0;150m\u25FC\033[0m",
+    "\033[38;2;200;0;200m\u25FC\033[0m",
+    "\033[38;2;220;0;220m\u25FC\033[0m",
+    "\033[38;2;255;0;255m\u25FC\033[0m",
+    // yellows
+    "\033[38;2;90;90;0m\u25FC\033[0m",
+    "\033[38;2;120;120;0m\u25FC\033[0m",
+    "\033[38;2;175;175;0m\u25FC\033[0m",
+    "\033[38;2;200;200;0m\u25FC\033[0m",
+    "\033[38;2;255;255;0m\u25FC\033[0m",
 };
 
 f_internal uint8_t daysInMonth
@@ -163,6 +198,7 @@ f_internal void readConfig
             StringView green_sv  = cstr_sv("green\n");
             StringView blue_sv   = cstr_sv("blue\n");
             StringView purple_sv = cstr_sv("purple\n");
+            StringView yellow_sv = cstr_sv("yellow\n");
 
             if(sv_same(chosen_sv, green_sv))
             {
@@ -175,6 +211,10 @@ f_internal void readConfig
             else if(sv_same(chosen_sv, purple_sv))
             {
                 *colour = PURPLE;
+            }
+            else if(sv_same(chosen_sv, yellow_sv))
+            {
+                *colour = YELLOW;
             }
 
             #ifdef DEBUG
@@ -259,34 +299,6 @@ f_internal void printCorrespondingHeat
     uint32_t commit_count,
     uint8_t  colour
 ){
-    const char *colours[20] =
-    {
-        // reds
-        "\033[38;2;100;10;10m\u25FC\033[0m",
-        "\033[38;2;150;15;15m\u25FC\033[0m",
-        "\033[38;2;200;20;20m\u25FC\033[0m",
-        "\033[38;2;220;30;30m\u25FC\033[0m",
-        "\033[38;2;255;40;50m\u25FC\033[0m",
-        // greens
-        "\033[38;2;50;100;50m\u25FC\033[0m",
-        "\033[38;2;50;150;50m\u25FC\033[0m",
-        "\033[38;2;50;200;50m\u25FC\033[0m",
-        "\033[38;2;50;220;50m\u25FC\033[0m",
-        "\033[38;2;50;255;50m\u25FC\033[0m",
-        // blues
-        "\033[38;2;20;20;100m\u25FC\033[0m",
-        "\033[38;2;20;20;150m\u25FC\033[0m",
-        "\033[38;2;20;20;200m\u25FC\033[0m",
-        "\033[38;2;20;20;220m\u25FC\033[0m",
-        "\033[38;2;20;20;255m\u25FC\033[0m",
-        // purples
-        "\033[38;2;100;0;100m\u25FC\033[0m",
-        "\033[38;2;150;0;150m\u25FC\033[0m",
-        "\033[38;2;200;0;200m\u25FC\033[0m",
-        "\033[38;2;220;0;220m\u25FC\033[0m",
-        "\033[38;2;255;0;255m\u25FC\033[0m",
-    };
-
     if(!commit_count)
     {
         printf(" ");
@@ -323,7 +335,6 @@ f_internal void printHeatMap
     uint8_t  leapYear,
     uint8_t  colour
 ){
-
     uint8_t column = 0;
     uint8_t printedColumns = 0;
     printf("     ");
