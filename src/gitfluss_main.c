@@ -489,7 +489,12 @@ int main
     }
 
     int64_t days_commit = (now - oldestCommitTime) / (24 * 3600);
-    uint8_t weekday_365 = 2 + (uint8_t)(days_epoch % 7);
+    uint8_t weekday_365 = 3 + (days_epoch - 365) % 7;
+    if(years_epoch % 4 == 2)
+    {
+        ++weekday_365;
+        weekday_365 %= 7;
+    }
 
     #ifdef DEBUG
         printf("\nfull days since epoch: %lu\n", days_epoch);
