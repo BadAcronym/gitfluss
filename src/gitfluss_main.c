@@ -314,9 +314,8 @@ f_internal void printHeatMap
         printf(" %s ", days[i]);
         for(int16_t j = i - weekday_365; j < 366; j += 7)
         {
-            if(j < 0)
+            if(j < 0 && j >= weekday_365)
             {
-                printf(" ");
                 continue;
             }
             printCorrespondingHeat(heatmap[365 - j], colour);
