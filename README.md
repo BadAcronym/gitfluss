@@ -25,10 +25,11 @@ $HOME/repository/bash-collection
 
 ![red theme](screenshots/red.jpg)
 
-other avaiable colours are `green`, `blue` and `purple`.
+other avaiable colours are `green`, `blue`, `yellow`, and `purple`.
 
 ![green theme](screenshots/green.jpg)
 ![blue theme](screenshots/blue.jpg)
+![yellow theme](screenshots/yellow.jpg)
 
 with `info: true`, you can see some additional commit history information.
 
