@@ -28,6 +28,33 @@
 #define BLUE   2
 #define PURPLE 3
 
+const char *months[12] =
+{
+    "Jan",
+    "Feb",
+    "Mar",
+    "Apr",
+    "May",
+    "Jun",
+    "Jul",
+    "Aug",
+    "Sep",
+    "Oct",
+    "Nov",
+    "Dec"
+};
+
+const char *days[7] =
+{
+    "Mon",
+    "Tue",
+    "Wed",
+    "Thu",
+    "Fri",
+    "Sat",
+    "Sun",
+};
+
 f_internal uint8_t daysInMonth
 (
     uint8_t month,
@@ -296,32 +323,6 @@ f_internal void printHeatMap
     uint8_t  leapYear,
     uint8_t  colour
 ){
-    const char *months[12] =
-    {
-        "Jan",
-        "Feb",
-        "Mar",
-        "Apr",
-        "May",
-        "Jun",
-        "Jul",
-        "Aug",
-        "Sep",
-        "Oct",
-        "Nov",
-        "Dec"
-    };
-
-    const char *days[7] =
-    {
-        "Mon",
-        "Tue",
-        "Wed",
-        "Thu",
-        "Fri",
-        "Sat",
-        "Sun",
-    };
 
     uint8_t column = 0;
     uint8_t printedColumns = 0;
@@ -442,13 +443,13 @@ int main
                 StringView author = sv_find_by_delim(authors, ';', j);
                 if(sv_same(author, author_mail))
                 {
-                    int64_t days = (currDayEnd - commit_time.time) / (24 * 3600);
+                    int64_t daysSince = (currDayEnd - commit_time.time) / (24 * 3600);
                     if(commit_time.time < oldestCommitTime)
                     {
                         oldestCommitTime = commit_time.time;
                     }
 
-                    ++heatmap[days];
+                    ++heatmap[daysSince];
                     ++repoCommitCount;
                     break;
                 }
@@ -515,7 +516,8 @@ int main
         }
     }
 
-    uint8_t currentMonth = 0;
+    uint8_t currentMonth   = 0;
+    int64_t currMonthStart = currYearStart;
     for(uint16_t i = 0; i < 365; ++i)
     {
         if(currYearStart + i * 24 * 3600 > now)
@@ -523,8 +525,10 @@ int main
             break;
         }
 
-        i += daysInMonth(currentMonth, years_epoch % 4 == 2);
+        uint8_t daysThisMonth = daysInMonth(currentMonth, years_epoch % 4 == 2);
+        i += daysThisMonth;
         ++currentMonth;
+        currMonthStart += daysThisMonth * 24 * 3600;
     }
 
     int64_t days_commit = (now - oldestCommitTime) / (24 * 3600);
@@ -535,7 +539,7 @@ int main
         weekday_365 %= 7;
     }
     uint8_t weekday_today = 3 + (uint8_t)(days_epoch % 7);
-    uint8_t day_month = 3;
+    uint8_t day_of_month  = (uint8_t)((currDayEnd - currMonthStart) / (24 * 3600));
 
     #ifdef DEBUG
         printf("\nfull days since epoch: %lu\n", days_epoch);
@@ -544,8 +548,8 @@ int main
         printf("current year start: %lu\n", currYearStart);
         printf("current month: %u\n", currentMonth);
         // printf("current day start: %lu\n", currDayStart);
-        printf("weekday 365 days ago: %u\n", weekday_365);
-        printf("day of the month, today: %u\n", day_month);
+        printf("weekday 365 days ago: %u\n", days[weekday_365]);
+        printf("day of the month, today: %u\n", day_of_month);
         printf("pallette: ");
         printCorrespondingHeat(2, colour);
         printCorrespondingHeat(4, colour);
@@ -562,7 +566,7 @@ int main
     }
 
     printf("\n");
-    printHeatMap(heatmap, currentMonth, weekday_365, weekday_today, day_month,
+    printHeatMap(heatmap, currentMonth, weekday_365, weekday_today, day_of_month,
                  years_epoch % 4 == 2, colour);
 
     return git_libgit2_shutdown();
