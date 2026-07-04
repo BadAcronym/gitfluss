@@ -135,6 +135,78 @@ f_internal void addAuthor
     #endif
 }
 
+f_internal void addPath
+(
+    gfConf     *config,
+    StringView path
+){
+    StringView sep = cstr_sv(";");
+
+    if(config->repositories.data)
+    {
+        char *repositories_cstr = malloc(config->repositories.size + PATH_MAX + 2);
+        sv_concat(config->repositories, sep, repositories_cstr);
+        free((void*)config->repositories.data);
+        config->repositories = cstr_sv(repositories_cstr);
+
+        char resolved[PATH_MAX];
+        gfExpandPath(path.data, resolved);
+
+        StringView resolved_sv = cstr_sv(resolved);
+        if(resolved_sv.size)
+        {
+            resolved_sv.size -= 1;
+        }
+
+        sv_concat(config->repositories, resolved_sv, repositories_cstr);
+        config->repositories = cstr_sv(repositories_cstr);
+    }
+    else
+    {
+        char *resolved = calloc(PATH_MAX, 1);
+        gfExpandPath(path.data, resolved);
+        free((void*)config->repositories.data);
+        config->repositories = cstr_sv(resolved);
+    }
+
+    #ifdef DEBUG
+        fprintf(stderr, "detected path: %s\n", path.data);
+        fprintf(stderr, "path list: "PRI_SV"\n", ARG_SV(config->repositories));
+    #endif
+}
+
+f_internal void setColour
+(
+    gfConf     *config,
+    StringView colour
+){
+    StringView green_sv  = cstr_sv("green");
+    StringView blue_sv   = cstr_sv("blue");
+    StringView purple_sv = cstr_sv("purple");
+    StringView yellow_sv = cstr_sv("yellow");
+
+    if(sv_same(colour, green_sv))
+    {
+        config->colour = GREEN;
+    }
+    else if(sv_same(colour, blue_sv))
+    {
+        config->colour = BLUE;
+    }
+    else if(sv_same(colour, purple_sv))
+    {
+        config->colour = PURPLE;
+    }
+    else if(sv_same(colour, yellow_sv))
+    {
+        config->colour = YELLOW;
+    }
+
+    #ifdef DEBUG
+        fprintf(stderr, "detected colour: "PRI_SV"\n", ARG_SV(colour));
+    #endif
+}
+
 f_internal uint8_t daysInMonth
 (
     uint8_t month,
@@ -179,8 +251,6 @@ f_internal void readConfig
         }
     }
 
-    StringView sep = cstr_sv(";");
-
     char buf[bufsize];
     while(fgets(buf, bufsize, file))
     {
@@ -212,37 +282,15 @@ f_internal void readConfig
         }
         else if(colourloc)
         {
-            // FIXME: extract into setColour
             StringView chosen_sv = cstr_sv(buffer.data + colour_sv.size);
-            StringView green_sv  = cstr_sv("green\n");
-            StringView blue_sv   = cstr_sv("blue\n");
-            StringView purple_sv = cstr_sv("purple\n");
-            StringView yellow_sv = cstr_sv("yellow\n");
-
-            if(sv_same(chosen_sv, green_sv))
+            if(chosen_sv.size)
             {
-                config->colour = GREEN;
+                chosen_sv.size -= 1;
             }
-            else if(sv_same(chosen_sv, blue_sv))
-            {
-                config->colour = BLUE;
-            }
-            else if(sv_same(chosen_sv, purple_sv))
-            {
-                config->colour = PURPLE;
-            }
-            else if(sv_same(chosen_sv, yellow_sv))
-            {
-                config->colour = YELLOW;
-            }
-
-            #ifdef DEBUG
-                fprintf(stderr, "detected colour: "PRI_SV"\n", ARG_SV(chosen_sv));
-            #endif
+            setColour(config, chosen_sv);
         }
         else if(infoloc)
         {
-            // FIXME: extract into setInfo
             StringView set_sv  = cstr_sv(buffer.data + info_sv.size);
             StringView true_sv = cstr_sv("true\n");
 
@@ -253,7 +301,6 @@ f_internal void readConfig
         }
         else if(charloc)
         {
-            // FIXME: extract into setChar
             StringView chosen_sv = cstr_sv(buffer.data + char_sv.size);
             if(chosen_sv.size)
             {
@@ -266,43 +313,7 @@ f_internal void readConfig
         }
         else
         {
-            // FIXME: extract into addPath like addAuthor
-            if(config->repositories.data)
-            {
-                char *repositories_cstr = malloc(config->repositories.size + PATH_MAX + 2);
-                sv_concat(config->repositories, sep, repositories_cstr);
-                free((void*)config->repositories.data);
-                config->repositories = cstr_sv(repositories_cstr);
-
-                char resolved[PATH_MAX];
-                gfExpandPath(buffer.data, resolved);
-
-                StringView resolved_sv = cstr_sv(resolved);
-                if(resolved_sv.size)
-                {
-                    resolved_sv.size -= 1;
-                }
-
-                sv_concat(config->repositories, resolved_sv, repositories_cstr);
-                config->repositories = cstr_sv(repositories_cstr);
-            }
-            else
-            {
-                char *resolved = calloc(PATH_MAX, 1);
-                gfExpandPath(buffer.data, resolved);
-                free((void*)config->repositories.data);
-                config->repositories = cstr_sv(resolved);
-
-                if(config->repositories.size)
-                {
-                    config->repositories.size -= 1;
-                }
-            }
-
-            #ifdef DEBUG
-                fprintf(stderr, "detected path: %s\n", buffer.data);
-                fprintf(stderr, "path list: "PRI_SV"\n", ARG_SV(config->repositories));
-            #endif
+            addPath(config, buffer);
         }
     }
 
@@ -340,17 +351,38 @@ f_internal void readArgs
     {
         StringView arg          = cstr_sv(argv[i]);
         StringView author_ident = cstr_sv("--author");
-
-        printf("arg %i: "PRI_SV"\n", i, ARG_SV(arg));
+        StringView colour_ident = cstr_sv("--colour");
+        StringView info_ident   = cstr_sv("--info");
+        StringView char_ident   = cstr_sv("--char");
 
         if(sv_same(arg, author_ident) && i + 1 < argc)
         {
             StringView author = cstr_sv(argv[i + 1]);
             printf("author: "PRI_SV"\n", ARG_SV(author));
             addAuthor(config, author);
-            continue;
         }
+        else if(sv_same(arg, colour_ident) && i + 1 < argc)
+        {
+            StringView colour = cstr_sv(argv[i + 1]);
+            setColour(config, colour);
+        }
+        else if(sv_same(arg, info_ident))
+        {
+            config->info = 1;
+        }
+        else if(sv_same(arg, char_ident) && i + 1 < argc)
+        {
+            StringView chosen_sv = cstr_sv(argv[i + 1]);
 
+            char *small_buf = malloc(8);
+            sv_cstr(chosen_sv, small_buf);
+            config->character = small_buf;
+        }
+        else
+        {
+            StringView path = cstr_sv(argv[i]);
+            addPath(config, path);
+        }
     }
 }
 
