@@ -8,9 +8,21 @@ resolved, all other paths must be absolute for now.
 The configuration file location is `~/.config/gitfluss/.conf`. Gitfluss will look first
 in the current working directory for a `.conf` file and then in the config directory.
 
+If, instead, command-line arguments are provided, the configuration file will not be
+read, for example:
+
+```
+gitfluss . --author name@company.com  --colour purple --char ◼ --info
+```
+
+Every command-line argument that's not a `colour`, `info` or `author` identifier will be
+read as a path. This is the same way the configuration file works. The identifiers
+(besides `--info`) need to be followed by the chosen colour or author, else they have no
+effect.
+
 Example configuration:
 ```
-author: terribleacronym@gmail.com
+author: author@provider.com
 author: another_author@workplace.org
 colour: purple
 character: ◼
@@ -26,8 +38,8 @@ $HOME/repository/bash-collection
 
 With `info: false`, you can hide the additional commit history information.
 
-With `author: any`, you can omit the author check and count all commits by all authors
-in the listed repositories.
+With `author: any`, (or not specifying an author at all) you can omit the author check
+and count all commits by all authors in the listed repositories.
 
 With `character: ?`, you can actually change the character that's being used to print.
 
