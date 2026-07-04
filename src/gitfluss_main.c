@@ -474,6 +474,9 @@ int main
         git_revwalk_new(&revwalk, repo);
         git_revwalk_push_head(revwalk);
 
+        StringView any_sv     = cstr_sv("any");
+        uint8_t    any_author = 0;
+
         while(!git_revwalk_next(&oid, revwalk))
         {
             git_commit *commit = 0;
@@ -483,22 +486,32 @@ int main
 
             StringView author_mail = cstr_sv(sign->email);
             git_time   commit_time = sign->when;
+            uint8_t    counts      = any_author;
 
-            for(uint16_t j = 0; j < MAX_AUTHORS; ++j)
+            for(uint16_t j = 0; !counts && j < MAX_AUTHORS; ++j)
             {
                 StringView author = sv_find_by_delim(config.authors, ';', j);
                 if(sv_same(author, author_mail))
                 {
-                    int64_t daysSince = (currDayEnd - commit_time.time) / (24 * 3600);
-                    if(commit_time.time < oldestCommitTime)
-                    {
-                        oldestCommitTime = commit_time.time;
-                    }
-
-                    ++heatmap[daysSince];
-                    ++repoCommitCount;
-                    break;
+                    counts = 1;
                 }
+                else if(sv_same(author, any_sv))
+                {
+                    counts     = 1;
+                    any_author = 1;
+                }
+            }
+
+            if(counts)
+            {
+                int64_t daysSince = (currDayEnd - commit_time.time) / (24 * 3600);
+                if(commit_time.time < oldestCommitTime)
+                {
+                    oldestCommitTime = commit_time.time;
+                }
+
+                ++heatmap[daysSince];
+                ++repoCommitCount;
             }
 
             git_commit_free(commit);
