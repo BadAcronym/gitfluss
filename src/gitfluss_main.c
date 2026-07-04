@@ -142,6 +142,11 @@ f_internal void addPath
 ){
     StringView sep = cstr_sv(";");
 
+    char path_cstr[4096];
+    sv_cstr(path, path_cstr);
+
+    printf("path_cstr: '%s'\n", path_cstr);
+
     if(config->repositories.data)
     {
         char *repositories_cstr = malloc(config->repositories.size + PATH_MAX + 2);
@@ -150,13 +155,8 @@ f_internal void addPath
         config->repositories = cstr_sv(repositories_cstr);
 
         char resolved[PATH_MAX];
-        gfExpandPath(path.data, resolved);
-
+        gfExpandPath(path_cstr, resolved);
         StringView resolved_sv = cstr_sv(resolved);
-        if(resolved_sv.size)
-        {
-            resolved_sv.size -= 1;
-        }
 
         sv_concat(config->repositories, resolved_sv, repositories_cstr);
         config->repositories = cstr_sv(repositories_cstr);
@@ -164,13 +164,12 @@ f_internal void addPath
     else
     {
         char *resolved = calloc(PATH_MAX, 1);
-        gfExpandPath(path.data, resolved);
-        free((void*)config->repositories.data);
+        gfExpandPath(path_cstr, resolved);
+        printf("resolved: %s\n", resolved);
         config->repositories = cstr_sv(resolved);
     }
 
     #ifdef DEBUG
-        fprintf(stderr, "detected path: %s\n", path.data);
         fprintf(stderr, "path list: "PRI_SV"\n", ARG_SV(config->repositories));
     #endif
 }
@@ -313,7 +312,12 @@ f_internal void readConfig
         }
         else
         {
-            addPath(config, buffer);
+            StringView path = cstr_sv(buffer.data);
+            if(path.size)
+            {
+                path.size -= 1;
+            }
+            addPath(config, path);
         }
     }
 
@@ -360,11 +364,15 @@ f_internal void readArgs
             StringView author = cstr_sv(argv[i + 1]);
             printf("author: "PRI_SV"\n", ARG_SV(author));
             addAuthor(config, author);
+
+            ++i;
         }
         else if(sv_same(arg, colour_ident) && i + 1 < argc)
         {
             StringView colour = cstr_sv(argv[i + 1]);
             setColour(config, colour);
+
+            ++i;
         }
         else if(sv_same(arg, info_ident))
         {
@@ -377,6 +385,8 @@ f_internal void readArgs
             char *small_buf = malloc(8);
             sv_cstr(chosen_sv, small_buf);
             config->character = small_buf;
+
+            ++i;
         }
         else
         {
