@@ -29,6 +29,18 @@
 #define PURPLE 3
 #define YELLOW 4
 
+typedef struct gfConf
+{
+    StringView repositories;
+    StringView authors;
+    char       *sorted_repos;
+    char       *sorted_authors;
+    const char *character;
+    uint8_t    colour;
+    uint8_t    info;
+}
+gfConf;
+
 const char *months[12] =
 {
     "Jan",
@@ -56,38 +68,40 @@ const char *days[7] =
     "Sun",
 };
 
+#define ANSI_END "\033[0m"
+
 const char *colours[25] =
 {
     // reds
-    "\033[38;2;100;10;10m\u25FC\033[0m",
-    "\033[38;2;150;15;15m\u25FC\033[0m",
-    "\033[38;2;200;20;20m\u25FC\033[0m",
-    "\033[38;2;220;30;30m\u25FC\033[0m",
-    "\033[38;2;255;40;50m\u25FC\033[0m",
+    "\033[38;2;100;10;10m",
+    "\033[38;2;150;15;15m",
+    "\033[38;2;200;20;20m",
+    "\033[38;2;220;30;30m",
+    "\033[38;2;255;40;50m",
     // greens
-    "\033[38;2;50;100;50m\u25FC\033[0m",
-    "\033[38;2;50;150;50m\u25FC\033[0m",
-    "\033[38;2;50;200;50m\u25FC\033[0m",
-    "\033[38;2;50;220;50m\u25FC\033[0m",
-    "\033[38;2;50;255;50m\u25FC\033[0m",
+    "\033[38;2;50;100;50m",
+    "\033[38;2;50;150;50m",
+    "\033[38;2;50;200;50m",
+    "\033[38;2;50;220;50m",
+    "\033[38;2;50;255;50m",
     // blues
-    "\033[38;2;20;20;100m\u25FC\033[0m",
-    "\033[38;2;20;20;150m\u25FC\033[0m",
-    "\033[38;2;20;20;200m\u25FC\033[0m",
-    "\033[38;2;20;20;220m\u25FC\033[0m",
-    "\033[38;2;20;20;255m\u25FC\033[0m",
+    "\033[38;2;20;20;100m",
+    "\033[38;2;20;20;150m",
+    "\033[38;2;20;20;200m",
+    "\033[38;2;20;20;220m",
+    "\033[38;2;20;20;255m",
     // purples
-    "\033[38;2;90;0;90m\u25FC\033[0m",
-    "\033[38;2;120;0;120m\u25FC\033[0m",
-    "\033[38;2;175;0;175m\u25FC\033[0m",
-    "\033[38;2;200;0;200m\u25FC\033[0m",
-    "\033[38;2;255;0;255m\u25FC\033[0m",
+    "\033[38;2;90;0;90m",
+    "\033[38;2;120;0;120m",
+    "\033[38;2;175;0;175m",
+    "\033[38;2;200;0;200m",
+    "\033[38;2;255;0;255m",
     // yellows
-    "\033[38;2;90;90;0m\u25FC\033[0m",
-    "\033[38;2;120;120;0m\u25FC\033[0m",
-    "\033[38;2;175;175;0m\u25FC\033[0m",
-    "\033[38;2;200;200;0m\u25FC\033[0m",
-    "\033[38;2;255;255;0m\u25FC\033[0m",
+    "\033[38;2;90;90;0m",
+    "\033[38;2;120;120;0m",
+    "\033[38;2;175;175;0m",
+    "\033[38;2;200;200;0m",
+    "\033[38;2;255;255;0m",
 };
 
 f_internal uint8_t daysInMonth
@@ -115,12 +129,7 @@ f_internal uint8_t daysInMonth
 
 f_internal void readConfig
 (
-    StringView *repositories,
-    StringView *authors,
-    char       *sorted_repos,
-    char       *sorted_authors,
-    uint8_t    *colour,
-    uint8_t    *info
+    gfConf *config
 ){
     char path_expanded[PATH_MAX];
     char fallback_expanded[PATH_MAX];
@@ -157,6 +166,9 @@ f_internal void readConfig
         StringView  info_sv = cstr_sv("info: ");
         const char* infoloc = sv_find(info_sv, buffer);
 
+        StringView  char_sv = cstr_sv("character: ");
+        const char* charloc = sv_find(char_sv, buffer);
+
         if(authorloc)
         {
             StringView author = cstr_sv(buffer.data + author_sv.size);
@@ -165,29 +177,29 @@ f_internal void readConfig
                 author.size -= 1;
             }
 
-            if(authors->data)
+            if(config->authors.data)
             {
-                char *authors_cstr = malloc(authors->size + author.size + 2);
-                sv_concat(*authors, sep, authors_cstr);
-                free((void*)authors->data);
-                *authors = cstr_sv(authors_cstr);
+                char *authors_cstr = malloc(config->authors.size + author.size + 2);
+                sv_concat(config->authors, sep, authors_cstr);
+                free((void*)config->authors.data);
+                config->authors = cstr_sv(authors_cstr);
 
-                sv_concat(*authors, author, authors_cstr);
-                *authors = cstr_sv(authors_cstr);
+                sv_concat(config->authors, author, authors_cstr);
+                config->authors = cstr_sv(authors_cstr);
             }
             else
             {
                 char *new_buf = malloc(bufsize);
-                *authors = cstr_sv_cpy(buffer.data + author_sv.size, new_buf);
-                if(authors->size)
+                config->authors = cstr_sv_cpy(buffer.data + author_sv.size, new_buf);
+                if(config->authors.size)
                 {
-                    authors->size -= 1;
+                    config->authors.size -= 1;
                 }
             }
 
             #ifdef DEBUG
                 fprintf(stderr, "detected author: "PRI_SV"\n", ARG_SV(author));
-                fprintf(stderr, "author list: "PRI_SV"\n", ARG_SV(*authors));
+                fprintf(stderr, "author list: "PRI_SV"\n", ARG_SV(config->authors));
             #endif
 
             continue;
@@ -202,19 +214,19 @@ f_internal void readConfig
 
             if(sv_same(chosen_sv, green_sv))
             {
-                *colour = GREEN;
+                config->colour = GREEN;
             }
             else if(sv_same(chosen_sv, blue_sv))
             {
-                *colour = BLUE;
+                config->colour = BLUE;
             }
             else if(sv_same(chosen_sv, purple_sv))
             {
-                *colour = PURPLE;
+                config->colour = PURPLE;
             }
             else if(sv_same(chosen_sv, yellow_sv))
             {
-                *colour = YELLOW;
+                config->colour = YELLOW;
             }
 
             #ifdef DEBUG
@@ -230,16 +242,28 @@ f_internal void readConfig
 
             if(sv_same(set_sv, true_sv))
             {
-                *info = 1;
+                config->info = 1;
             }
         }
-
-        if(repositories->data)
+        else if(charloc)
         {
-            char *repositories_cstr = malloc(repositories->size + PATH_MAX + 2);
-            sv_concat(*repositories, sep, repositories_cstr);
-            free((void*)repositories->data);
-            *repositories = cstr_sv(repositories_cstr);
+            StringView chosen_sv = cstr_sv(buffer.data + char_sv.size);
+            if(chosen_sv.size)
+            {
+                chosen_sv.size -= 1;
+            }
+
+            char *buf = malloc(2);
+            sv_cstr(chosen_sv, buf);
+            config->character = buf;
+        }
+
+        if(config->repositories.data)
+        {
+            char *repositories_cstr = malloc(config->repositories.size + PATH_MAX + 2);
+            sv_concat(config->repositories, sep, repositories_cstr);
+            free((void*)config->repositories.data);
+            config->repositories = cstr_sv(repositories_cstr);
 
             char resolved[PATH_MAX];
             gfExpandPath(buffer.data, resolved);
@@ -250,45 +274,47 @@ f_internal void readConfig
                 resolved_sv.size -= 1;
             }
 
-            sv_concat(*repositories, resolved_sv, repositories_cstr);
-            *repositories = cstr_sv(repositories_cstr);
+            sv_concat(config->repositories, resolved_sv, repositories_cstr);
+            config->repositories = cstr_sv(repositories_cstr);
         }
         else
         {
             char *resolved = calloc(PATH_MAX, 1);
             gfExpandPath(buffer.data, resolved);
-            free((void*)repositories->data);
-            *repositories = cstr_sv(resolved);
+            free((void*)config->repositories.data);
+            config->repositories = cstr_sv(resolved);
 
-            if(repositories->size)
+            if(config->repositories.size)
             {
-                repositories->size -= 1;
+                config->repositories.size -= 1;
             }
         }
 
         #ifdef DEBUG
             fprintf(stderr, "detected path: %s\n", buffer.data);
-            fprintf(stderr, "path list: "PRI_SV"\n", ARG_SV(*repositories));
+            fprintf(stderr, "path list: "PRI_SV"\n", ARG_SV(config->repositories));
         #endif
     }
 
-    sv_sort_by_delim(*authors, ';', sorted_authors);
-    if(authors->data)
+    sv_sort_by_delim(config->authors, ';', config->sorted_authors);
+    if(config->authors.data)
     {
-        free((void*)authors->data);
+        free((void*)config->authors.data);
     }
-    *authors = cstr_sv(sorted_authors);
+    config->authors = cstr_sv(config->sorted_authors);
 
-    sv_sort_by_delim(*repositories, ';', sorted_repos);
-    if(repositories->data)
+    sv_sort_by_delim(config->repositories, ';', config->sorted_repos);
+    if(config->repositories.data)
     {
-        free((void*)repositories->data);
+        free((void*)config->repositories.data);
     }
-    *repositories = cstr_sv(sorted_repos);
+    config->repositories = cstr_sv(config->sorted_repos);
 
     #ifdef DEBUG
-        fprintf(stderr, "\nfinal, sorted author list:\n"PRI_SV"\n", ARG_SV(*authors));
-        fprintf(stderr, "\nfinal, sorted paths:\n"PRI_SV"\n", ARG_SV(*repositories));
+        fprintf(stderr, "\nfinal, sorted author list:\n"PRI_SV"\n",
+                ARG_SV(config->authors));
+        fprintf(stderr, "\nfinal, sorted paths:\n"PRI_SV"\n",
+                ARG_SV(config->repositories));
     #endif
 
     fclose(file);
@@ -296,12 +322,19 @@ f_internal void readConfig
 
 f_internal void printCorrespondingHeat
 (
-    uint32_t commit_count,
-    uint8_t  colour
+    uint32_t   commit_count,
+    const char *character,
+    uint8_t    colour
 ){
+    if(!character)
+    {
+        character = "\u25FC";
+    }
+
     if(!commit_count)
     {
         printf(" ");
+        return;
     }
     else if(commit_count > 9)
     {
@@ -323,17 +356,20 @@ f_internal void printCorrespondingHeat
     {
         printf("%s", colours[0 + colour * 5]);
     }
+
+    printf("%s%s", character, ANSI_END);
 }
 
 f_internal void printHeatMap
 (
-    uint32_t *heatmap,
-    uint8_t  currentMonth,
-    uint8_t  weekday_365,
-    uint8_t  weekday,
-    uint8_t  day_month,
-    uint8_t  leapYear,
-    uint8_t  colour
+    uint32_t   *heatmap,
+    uint8_t    currentMonth,
+    uint8_t    weekday_365,
+    uint8_t    weekday,
+    uint8_t    day_month,
+    uint8_t    leapYear,
+    const char *character,
+    uint8_t    colour
 ){
     uint8_t column = 0;
     uint8_t printedColumns = 0;
@@ -385,7 +421,7 @@ f_internal void printHeatMap
             {
                 continue;
             }
-            printCorrespondingHeat(heatmap[365 - j], colour);
+            printCorrespondingHeat(heatmap[365 - j], character, colour);
         }
         printf("\n");
     }
@@ -397,17 +433,16 @@ int main
 (
     void
 ){
-    StringView repositories = {0};
-    StringView authors      = {0};
-    uint8_t    colour       = RED;
-    uint8_t    info         = 0;
-
     char sorted_repos[PATH_MAX * 100];
     char sorted_authors[PATH_MAX * 2];
     char biggestRepo_buf[PATH_MAX + 1];
 
-    readConfig(&repositories, &authors, sorted_repos, sorted_authors, &colour, &info);
-    uint32_t repository_count = sv_count_by_delim(repositories, ';');
+    gfConf config = {0};
+    config.sorted_repos   = sorted_repos;
+    config.sorted_authors = sorted_authors;
+
+    readConfig(&config);
+    uint32_t repository_count = sv_count_by_delim(config.repositories, ';');
 
     git_libgit2_init();
 
@@ -424,7 +459,7 @@ int main
         git_revwalk    *revwalk = 0;
         git_oid        oid      = {0};
 
-        StringView repository      = sv_find_by_delim(repositories, ';', i);
+        StringView repository      = sv_find_by_delim(config.repositories, ';', i);
         uint32_t   repoCommitCount = 0;
 
         #ifdef DEBUG
@@ -451,7 +486,7 @@ int main
 
             for(uint16_t j = 0; j < MAX_AUTHORS; ++j)
             {
-                StringView author = sv_find_by_delim(authors, ';', j);
+                StringView author = sv_find_by_delim(config.authors, ';', j);
                 if(sv_same(author, author_mail))
                 {
                     int64_t daysSince = (currDayEnd - commit_time.time) / (24 * 3600);
@@ -491,14 +526,14 @@ int main
         }
     }
 
-    if(info)
+    if(config.info)
     {
         printf("most commits in the last 365 days (%u) made %u days ago.\n",
                singleday_max, maxday);
         printf("most commits in single repository (%u) in '"PRI_SV"'.\n", repo_max,
                ARG_SV(biggestRepo));
         printf("\ncommits today: %u ", heatmap[0]);
-        printCorrespondingHeat(heatmap[0], colour);
+        printCorrespondingHeat(heatmap[0], config.character, config.colour);
         printf("\n");
     }
 
@@ -561,16 +596,17 @@ int main
         // printf("current day start: %lu\n", currDayStart);
         printf("weekday 365 days ago: %u\n", days[weekday_365]);
         printf("day of the month, today: %u\n", day_of_month);
-        printf("pallette: ");
-        printCorrespondingHeat(2, colour);
-        printCorrespondingHeat(4, colour);
-        printCorrespondingHeat(6, colour);
-        printCorrespondingHeat(8, colour);
-        printCorrespondingHeat(10, colour);
+        printf("palette: ");
+        const char *debugChar = "\u25FC";
+        printCorrespondingHeat(2, debugChar, config.colour);
+        printCorrespondingHeat(4, debugChar, config.colour);
+        printCorrespondingHeat(6, debugChar, config.colour);
+        printCorrespondingHeat(8, debugChar, config.colour);
+        printCorrespondingHeat(10, debugChar, config.colour);
         printf("\n");
     #endif
 
-    if(info)
+    if(config.info)
     {
         printf("days since first commit: %lu\n", days_commit);
         printf("\nheatmap (last 365 days):\n");
@@ -578,7 +614,7 @@ int main
 
     printf("\n");
     printHeatMap(heatmap, currentMonth, weekday_365, weekday_today, day_of_month,
-                 years_epoch % 4 == 2, colour);
+                 years_epoch % 4 == 2, config.character, config.colour);
 
     return git_libgit2_shutdown();
 }
