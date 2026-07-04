@@ -145,8 +145,6 @@ f_internal void addPath
     char path_cstr[4096];
     sv_cstr(path, path_cstr);
 
-    printf("path_cstr: '%s'\n", path_cstr);
-
     if(config->repositories.data)
     {
         char *repositories_cstr = malloc(config->repositories.size + PATH_MAX + 2);
@@ -165,7 +163,6 @@ f_internal void addPath
     {
         char *resolved = calloc(PATH_MAX, 1);
         gfExpandPath(path_cstr, resolved);
-        printf("resolved: %s\n", resolved);
         config->repositories = cstr_sv(resolved);
     }
 
@@ -527,6 +524,12 @@ int main
         readArgs(argc, argv, &config);
     }
 
+    if(!config.authors.data)
+    {
+        StringView any_author = cstr_sv("any");
+        addAuthor(&config, any_author);
+    }
+
     uint32_t repository_count = sv_count_by_delim(config.repositories, ';');
 
     git_libgit2_init();
@@ -548,7 +551,7 @@ int main
         uint32_t   repoCommitCount = 0;
 
         #ifdef DEBUG
-            fprintf(stderr, "\nAnalyzing repository %u: "PRI_SV"\n", i,
+            fprintf(stderr, "\nAnalyzing repository %u: '"PRI_SV"'\n", i,
                     ARG_SV(repository));
         #endif
 
@@ -692,7 +695,7 @@ int main
         printf("current year start: %lu\n", currYearStart);
         printf("current month: %u\n", currentMonth);
         // printf("current day start: %lu\n", currDayStart);
-        printf("weekday 365 days ago: %u\n", days[weekday_365]);
+        printf("weekday 365 days ago: %s\n", days[weekday_365]);
         printf("day of the month, today: %u\n", day_of_month);
         printf("palette: ");
         const char *debugChar = "\u25FC";
