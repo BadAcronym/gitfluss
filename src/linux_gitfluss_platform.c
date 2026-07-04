@@ -43,6 +43,7 @@ void gfExpandPath
     char*      buf
 ){
     StringView path_sv = cstr_sv(path);
+    StringView dot_sv  = cstr_sv(".");
 
     StringView homevar = cstr_sv("$HOME");
     const char *home   = getenv("HOME");
@@ -63,7 +64,6 @@ void gfExpandPath
         }
 
         buf[i + j] = '\0';
-        return;
     }
     else if(home && path_sv.size > 4 && sv_find(homevar, path_sv) == path_sv.data)
     {
@@ -80,13 +80,26 @@ void gfExpandPath
         }
 
         buf[i + j] = '\0';
-        return;
     }
-
-    uint32_t i = 0;
-    for(; i < path_sv.size && i < 4096; ++i)
+    else if(sv_same(path_sv, dot_sv))
     {
-        buf[i] = path[i];
+        const char *pwd   = getenv("PWD");
+        StringView pwd_sv = cstr_sv(pwd);
+
+        uint32_t i = 0;
+        for(; i < pwd_sv.size; ++i)
+        {
+            buf[i] = pwd[i];
+        }
+        buf[i] = '\0';
     }
-    buf[i] = '\0';
+    else
+    {
+        uint32_t i = 0;
+        for(; i < path_sv.size && i < 4096; ++i)
+        {
+            buf[i] = path[i];
+        }
+        buf[i] = '\0';
+    }
 }
