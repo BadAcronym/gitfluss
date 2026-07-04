@@ -24,6 +24,13 @@ $HOME/repository/gitfluss
 $HOME/repository/bash-collection
 ```
 
+With `info: false`, you can hide the additional commit history information.
+
+With `author: any`, you can omit the author check and count all commits by all authors
+in the listed repositories.
+
+With `character: ?`, you can actually change the character that's being used to print.
+
 ![example](screenshots/purple.jpg)
 
 The avaiable colours are `red`(default), `green`, `blue`, `yellow`, and `purple`.
@@ -32,12 +39,6 @@ The avaiable colours are `red`(default), `green`, `blue`, `yellow`, and `purple`
 ![green theme](screenshots/green.jpg)
 ![blue theme](screenshots/blue.jpg)
 ![yellow theme](screenshots/yellow.jpg)
-
-with `info: false`, you can hide the additional commit history information.
-with `author: any`, you can omit the author check and count all commits by all authors
-in the listed repositories.
-
-With `character: ?`, you can actually change the character that's being used to print.
 
 `character: o`
 ![o](screenshots/o.jpg)
