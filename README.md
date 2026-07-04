@@ -12,7 +12,7 @@ Example configuration:
 ```
 author: terribleacronym@gmail.com
 author: another_author@workplace.org
-colour: red
+colour: purple
 character: ◼
 info: false
 $HOME/repository/puddle
@@ -24,19 +24,18 @@ $HOME/repository/gitfluss
 $HOME/repository/bash-collection
 ```
 
+![example](screenshots/purple.jpg)
+
+other avaiable colours are `red`(default), `green`, `blue`, `yellow`, and `purple`.
+
 ![red theme](screenshots/red.jpg)
-
-other avaiable colours are `green`, `blue`, `yellow`, and `purple`.
-
 ![green theme](screenshots/green.jpg)
 ![blue theme](screenshots/blue.jpg)
 ![yellow theme](screenshots/yellow.jpg)
 
-with `info: true`, you can see some additional commit history information.
+with `info: false`, you can hide the additional commit history information.
 
-![extra info](screenshots/info.jpg)
-
-With `character: `, you can actually change the character that's being used to print.
+With `character: ?`, you can actually change the character that's being used to print.
 
 `character: o`
 ![o](screenshots/o.jpg)
