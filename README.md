@@ -26,7 +26,7 @@ $HOME/repository/bash-collection
 
 ![example](screenshots/purple.jpg)
 
-other avaiable colours are `red`(default), `green`, `blue`, `yellow`, and `purple`.
+The avaiable colours are `red`(default), `green`, `blue`, `yellow`, and `purple`.
 
 ![red theme](screenshots/red.jpg)
 ![green theme](screenshots/green.jpg)
