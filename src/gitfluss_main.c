@@ -104,6 +104,37 @@ const char *colours[25] =
     "\033[38;2;255;255;0m",
 };
 
+f_internal void addAuthor
+(
+    gfConf     *config,
+    StringView author
+){
+    StringView sep = cstr_sv(";");
+
+    if(config->authors.data)
+    {
+        char *authors_cstr = malloc(config->authors.size + author.size + 2);
+        sv_concat(config->authors, sep, authors_cstr);
+        free((void*)config->authors.data);
+        config->authors = cstr_sv(authors_cstr);
+
+        sv_concat(config->authors, author, authors_cstr);
+        config->authors = cstr_sv(authors_cstr);
+    }
+    else
+    {
+        char *new_buf = malloc(bufsize);
+        char author_cstr[512];
+        sv_cstr(author, author_cstr);
+        config->authors = cstr_sv_cpy(author_cstr, new_buf);
+    }
+
+    #ifdef DEBUG
+        fprintf(stderr, "detected author: "PRI_SV"\n", ARG_SV(author));
+        fprintf(stderr, "author list: "PRI_SV"\n", ARG_SV(config->authors));
+    #endif
+}
+
 f_internal uint8_t daysInMonth
 (
     uint8_t month,
@@ -177,35 +208,11 @@ f_internal void readConfig
                 author.size -= 1;
             }
 
-            if(config->authors.data)
-            {
-                char *authors_cstr = malloc(config->authors.size + author.size + 2);
-                sv_concat(config->authors, sep, authors_cstr);
-                free((void*)config->authors.data);
-                config->authors = cstr_sv(authors_cstr);
-
-                sv_concat(config->authors, author, authors_cstr);
-                config->authors = cstr_sv(authors_cstr);
-            }
-            else
-            {
-                char *new_buf = malloc(bufsize);
-                config->authors = cstr_sv_cpy(buffer.data + author_sv.size, new_buf);
-                if(config->authors.size)
-                {
-                    config->authors.size -= 1;
-                }
-            }
-
-            #ifdef DEBUG
-                fprintf(stderr, "detected author: "PRI_SV"\n", ARG_SV(author));
-                fprintf(stderr, "author list: "PRI_SV"\n", ARG_SV(config->authors));
-            #endif
-
-            continue;
+            addAuthor(config, author);
         }
         else if(colourloc)
         {
+            // FIXME: extract into setColour
             StringView chosen_sv = cstr_sv(buffer.data + colour_sv.size);
             StringView green_sv  = cstr_sv("green\n");
             StringView blue_sv   = cstr_sv("blue\n");
@@ -232,11 +239,10 @@ f_internal void readConfig
             #ifdef DEBUG
                 fprintf(stderr, "detected colour: "PRI_SV"\n", ARG_SV(chosen_sv));
             #endif
-
-            continue;
         }
         else if(infoloc)
         {
+            // FIXME: extract into setInfo
             StringView set_sv  = cstr_sv(buffer.data + info_sv.size);
             StringView true_sv = cstr_sv("true\n");
 
@@ -247,6 +253,7 @@ f_internal void readConfig
         }
         else if(charloc)
         {
+            // FIXME: extract into setChar
             StringView chosen_sv = cstr_sv(buffer.data + char_sv.size);
             if(chosen_sv.size)
             {
@@ -257,43 +264,46 @@ f_internal void readConfig
             sv_cstr(chosen_sv, small_buf);
             config->character = small_buf;
         }
-
-        if(config->repositories.data)
-        {
-            char *repositories_cstr = malloc(config->repositories.size + PATH_MAX + 2);
-            sv_concat(config->repositories, sep, repositories_cstr);
-            free((void*)config->repositories.data);
-            config->repositories = cstr_sv(repositories_cstr);
-
-            char resolved[PATH_MAX];
-            gfExpandPath(buffer.data, resolved);
-
-            StringView resolved_sv = cstr_sv(resolved);
-            if(resolved_sv.size)
-            {
-                resolved_sv.size -= 1;
-            }
-
-            sv_concat(config->repositories, resolved_sv, repositories_cstr);
-            config->repositories = cstr_sv(repositories_cstr);
-        }
         else
         {
-            char *resolved = calloc(PATH_MAX, 1);
-            gfExpandPath(buffer.data, resolved);
-            free((void*)config->repositories.data);
-            config->repositories = cstr_sv(resolved);
-
-            if(config->repositories.size)
+            // FIXME: extract into addPath like addAuthor
+            if(config->repositories.data)
             {
-                config->repositories.size -= 1;
-            }
-        }
+                char *repositories_cstr = malloc(config->repositories.size + PATH_MAX + 2);
+                sv_concat(config->repositories, sep, repositories_cstr);
+                free((void*)config->repositories.data);
+                config->repositories = cstr_sv(repositories_cstr);
 
-        #ifdef DEBUG
-            fprintf(stderr, "detected path: %s\n", buffer.data);
-            fprintf(stderr, "path list: "PRI_SV"\n", ARG_SV(config->repositories));
-        #endif
+                char resolved[PATH_MAX];
+                gfExpandPath(buffer.data, resolved);
+
+                StringView resolved_sv = cstr_sv(resolved);
+                if(resolved_sv.size)
+                {
+                    resolved_sv.size -= 1;
+                }
+
+                sv_concat(config->repositories, resolved_sv, repositories_cstr);
+                config->repositories = cstr_sv(repositories_cstr);
+            }
+            else
+            {
+                char *resolved = calloc(PATH_MAX, 1);
+                gfExpandPath(buffer.data, resolved);
+                free((void*)config->repositories.data);
+                config->repositories = cstr_sv(resolved);
+
+                if(config->repositories.size)
+                {
+                    config->repositories.size -= 1;
+                }
+            }
+
+            #ifdef DEBUG
+                fprintf(stderr, "detected path: %s\n", buffer.data);
+                fprintf(stderr, "path list: "PRI_SV"\n", ARG_SV(config->repositories));
+            #endif
+        }
     }
 
     sv_sort_by_delim(config->authors, ';', config->sorted_authors);
@@ -318,6 +328,30 @@ f_internal void readConfig
     #endif
 
     fclose(file);
+}
+
+f_internal void readArgs
+(
+    int    argc,
+    char   **argv,
+    gfConf *config
+){
+    for(uint16_t i = 1; i < argc; ++i)
+    {
+        StringView arg          = cstr_sv(argv[i]);
+        StringView author_ident = cstr_sv("--author");
+
+        printf("arg %i: "PRI_SV"\n", i, ARG_SV(arg));
+
+        if(sv_same(arg, author_ident) && i + 1 < argc)
+        {
+            StringView author = cstr_sv(argv[i + 1]);
+            printf("author: "PRI_SV"\n", ARG_SV(author));
+            addAuthor(config, author);
+            continue;
+        }
+
+    }
 }
 
 f_internal void printCorrespondingHeat
@@ -431,7 +465,8 @@ f_internal void printHeatMap
 
 int main
 (
-    void
+    int  argc,
+    char **argv
 ){
     char sorted_repos[PATH_MAX * 100];
     char sorted_authors[PATH_MAX * 2];
@@ -441,7 +476,15 @@ int main
     config.sorted_repos   = sorted_repos;
     config.sorted_authors = sorted_authors;
 
-    readConfig(&config);
+    if(argc < 2)
+    {
+        readConfig(&config);
+    }
+    else
+    {
+        readArgs(argc, argv, &config);
+    }
+
     uint32_t repository_count = sv_count_by_delim(config.repositories, ';');
 
     git_libgit2_init();
