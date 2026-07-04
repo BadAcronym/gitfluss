@@ -253,9 +253,9 @@ f_internal void readConfig
                 chosen_sv.size -= 1;
             }
 
-            char *buf = malloc(2);
-            sv_cstr(chosen_sv, buf);
-            config->character = buf;
+            char *small_buf = malloc(8);
+            sv_cstr(chosen_sv, small_buf);
+            config->character = small_buf;
         }
 
         if(config->repositories.data)
