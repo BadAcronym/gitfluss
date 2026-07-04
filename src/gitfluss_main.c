@@ -616,5 +616,10 @@ int main
     printHeatMap(heatmap, currentMonth, weekday_365, weekday_today, day_of_month,
                  years_epoch % 4 == 2, config.character, config.colour);
 
+    if(config.character)
+    {
+        free((void*)config.character);
+    }
+
     return git_libgit2_shutdown();
 }
