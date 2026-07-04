@@ -13,6 +13,7 @@ Example configuration:
 author: terribleacronym@gmail.com
 author: another_author@workplace.org
 colour: red
+character: ◼
 info: false
 $HOME/repository/puddle
 $HOME/repository/imgsurf
@@ -34,3 +35,22 @@ other avaiable colours are `green`, `blue`, `yellow`, and `purple`.
 with `info: true`, you can see some additional commit history information.
 
 ![extra info](screenshots/info.jpg)
+
+With `character: `, you can actually change the character that's being used to print.
+
+`character: o`
+![o](screenshots/o.jpg)
+
+`character: $`
+![dollarsign](screenshots/dollarsign.jpg)
+
+`character: █`
+![fullblock](screenshots/fullblock.jpg)
+
+If the character is an emoji, the ANSI terminal colours will not be able to take effect.
+`character: ☺️`
+![smiley](screenshots/smiley.jpg)
+
+Keep in mind that if the character is not monospace, the header will appear to be wrong.
+`character: 🪑`
+![chair](screenshots/chair.jpg)
