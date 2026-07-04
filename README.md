@@ -34,6 +34,8 @@ The avaiable colours are `red`(default), `green`, `blue`, `yellow`, and `purple`
 ![yellow theme](screenshots/yellow.jpg)
 
 with `info: false`, you can hide the additional commit history information.
+with `author: any`, you can omit the author check and count all commits by all authors
+in the listed repositories.
 
 With `character: ?`, you can actually change the character that's being used to print.
 
