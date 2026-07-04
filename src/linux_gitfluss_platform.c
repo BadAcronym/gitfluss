@@ -63,6 +63,7 @@ void gfExpandPath
         }
 
         buf[i + j] = '\0';
+        return;
     }
     else if(home && path_sv.size > 4 && sv_find(homevar, path_sv) == path_sv.data)
     {
@@ -79,5 +80,13 @@ void gfExpandPath
         }
 
         buf[i + j] = '\0';
+        return;
     }
+
+    uint32_t i = 0;
+    for(; i < path_sv.size && i < 4096; ++i)
+    {
+        buf[i] = path[i];
+    }
+    buf[i] = '\0';
 }
