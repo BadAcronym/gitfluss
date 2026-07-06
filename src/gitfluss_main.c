@@ -472,8 +472,7 @@ f_internal void printHeatMap
 
         for(uint8_t j = 0; j < remainingDays; ++j)
         {
-            ++weekday;
-            if (weekday > 6)
+            if(++weekday > 6)
             {
                 weekday = 0;
                 ++column;
