@@ -450,10 +450,11 @@ f_internal void printHeatMap
     for(uint8_t i = 0; i < 13; ++i)
     {
         uint8_t indexedMonth   = (currentMonth + i) % 12;
-        uint8_t remainingWeeks = (daysInMonth(indexedMonth, leapYear) + weekday + 6) / 7;
+        uint8_t remainingDays  = daysInMonth(indexedMonth, leapYear);
+        uint8_t remainingWeeks = (remainingDays + weekday + 6) / 7;
         if(i == 0)
         {
-            uint8_t remainingDays = daysInMonth(indexedMonth, leapYear) - day_month + 1;
+            remainingDays = daysInMonth(indexedMonth, leapYear) - day_month + 1;
             remainingWeeks = (remainingDays + weekday + 6) / 7;
         }
 
@@ -469,18 +470,14 @@ f_internal void printHeatMap
             printedColumns += 3;
         }
 
-        for(uint8_t d = 0; d < daysInMonth(indexedMonth, leapYear); ++d)
+        for(uint8_t j = 0; j < remainingDays; ++j)
         {
-            if (++weekday == 7)
+            ++weekday;
+            if (weekday > 6)
             {
                 weekday = 0;
                 ++column;
             }
-        }
-
-        if(i == 0)
-        {
-            day_month = 1;
         }
     }
     printf("\n");
