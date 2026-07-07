@@ -26,8 +26,9 @@
 #define RED    0
 #define GREEN  1
 #define BLUE   2
-#define PURPLE 3
-#define YELLOW 4
+#define CYAN   3
+#define PURPLE 4
+#define YELLOW 5
 
 typedef struct gfConf
 {
@@ -70,7 +71,7 @@ const char *days[7] =
 
 #define ANSI_END "\033[0m"
 
-const char *colours[25] =
+const char *colours[30] =
 {
     // reds
     "\033[38;2;100;10;10m",
@@ -90,6 +91,12 @@ const char *colours[25] =
     "\033[38;2;20;20;200m",
     "\033[38;2;20;20;220m",
     "\033[38;2;20;20;255m",
+    // cyans
+    "\033[38;2;10;100;100m",
+    "\033[38;2;20;150;150m",
+    "\033[38;2;50;180;180m",
+    "\033[38;2;80;220;220m",
+    "\033[38;2;100;250;255m",
     // purples
     "\033[38;2;90;0;90m",
     "\033[38;2;120;0;120m",
@@ -178,6 +185,7 @@ f_internal void setColour
 ){
     StringView green_sv  = cstr_sv("green");
     StringView blue_sv   = cstr_sv("blue");
+    StringView cyan_sv   = cstr_sv("cyan");
     StringView purple_sv = cstr_sv("purple");
     StringView yellow_sv = cstr_sv("yellow");
 
@@ -188,6 +196,10 @@ f_internal void setColour
     else if(sv_same(colour, blue_sv))
     {
         config->colour = BLUE;
+    }
+    else if(sv_same(colour, cyan_sv))
+    {
+        config->colour = CYAN;
     }
     else if(sv_same(colour, purple_sv))
     {
