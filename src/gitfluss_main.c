@@ -311,15 +311,15 @@ f_internal void readConfig
         StringView  mono_sv = cstr_sv("mono: ");
         const char* monoloc = sv_find(mono_sv, buffer);
 
-        StringView  heat0_sv = cstr_sv("heat_0: ");
+        StringView  heat0_sv = cstr_sv("heat0: ");
         const char* heat0loc = sv_find(heat0_sv, buffer);
-        StringView  heat1_sv = cstr_sv("heat_1: ");
+        StringView  heat1_sv = cstr_sv("heat1: ");
         const char* heat1loc = sv_find(heat1_sv, buffer);
-        StringView  heat2_sv = cstr_sv("heat_2: ");
+        StringView  heat2_sv = cstr_sv("heat2: ");
         const char* heat2loc = sv_find(heat2_sv, buffer);
-        StringView  heat3_sv = cstr_sv("heat_3: ");
+        StringView  heat3_sv = cstr_sv("heat3: ");
         const char* heat3loc = sv_find(heat3_sv, buffer);
-        StringView  heat4_sv = cstr_sv("heat_4: ");
+        StringView  heat4_sv = cstr_sv("heat4: ");
         const char* heat4loc = sv_find(heat4_sv, buffer);
 
         StringView  char_sv = cstr_sv("character: ");
