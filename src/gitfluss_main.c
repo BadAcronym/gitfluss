@@ -30,6 +30,9 @@
 #define PURPLE 4
 #define YELLOW 5
 
+#define FLAG_INFO 0x01
+#define FLAG_MONO 0x02
+
 typedef struct gfConf
 {
     StringView repositories;
@@ -37,8 +40,17 @@ typedef struct gfConf
     char       *sorted_repos;
     char       *sorted_authors;
     const char *character;
+    const char *mono_0;
+    const char *mono_1;
+    const char *mono_2;
+    const char *mono_3;
+    const char *mono_4;
+    uint8_t    percentile_0;
+    uint8_t    percentile_1;
+    uint8_t    percentile_2;
+    uint8_t    percentile_3;
     uint8_t    colour;
-    uint8_t    info;
+    uint8_t    flags;
 }
 gfConf;
 
@@ -53,14 +65,13 @@ gfPercentiles;
 
 typedef struct gfHeatmapSettings
 {
-    uint32_t      *heatmap;
+    gfConf        *config;
     gfPercentiles *percentiles;
+    uint32_t      *heatmap;
     uint8_t       currentMonth;
     uint8_t       weekday_365;
     uint8_t       day_of_month;
     uint8_t       leapYear;
-    const char    *character;
-    uint8_t       colour;
 }
 gfHeatmapSettings;
 
@@ -297,8 +308,13 @@ f_internal void readConfig
         StringView  info_sv = cstr_sv("info: ");
         const char* infoloc = sv_find(info_sv, buffer);
 
+        StringView  mono_sv = cstr_sv("mono: ");
+        const char* monoloc = sv_find(mono_sv, buffer);
+
         StringView  char_sv = cstr_sv("character: ");
         const char* charloc = sv_find(char_sv, buffer);
+
+        StringView true_sv = cstr_sv("true");
 
         if(authorloc)
         {
@@ -321,12 +337,28 @@ f_internal void readConfig
         }
         else if(infoloc)
         {
-            StringView set_sv  = cstr_sv(buffer.data + info_sv.size);
-            StringView true_sv = cstr_sv("true\n");
+            StringView set_sv = cstr_sv(buffer.data + info_sv.size);
+            if(set_sv.size)
+            {
+                set_sv.size -= 1;
+            }
 
             if(sv_same(set_sv, true_sv))
             {
-                config->info = 1;
+                config->flags |= FLAG_INFO;
+            }
+        }
+        else if(monoloc)
+        {
+            StringView set_sv = cstr_sv(buffer.data + mono_sv.size);
+            if(set_sv.size)
+            {
+                set_sv.size -= 1;
+            }
+
+            if(sv_same(set_sv, true_sv))
+            {
+                config->flags |= FLAG_MONO;
             }
         }
         else if(charloc)
@@ -388,6 +420,7 @@ f_internal void readArgs
         StringView author_ident = cstr_sv("--author");
         StringView colour_ident = cstr_sv("--colour");
         StringView info_ident   = cstr_sv("--info");
+        StringView mono_ident   = cstr_sv("--mono");
         StringView char_ident   = cstr_sv("--char");
 
         if(sv_same(arg, author_ident) && i + 1 < argc)
@@ -407,7 +440,11 @@ f_internal void readArgs
         }
         else if(sv_same(arg, info_ident))
         {
-            config->info = 1;
+            config->flags |= FLAG_INFO;
+        }
+        else if(sv_same(arg, mono_ident))
+        {
+            config->flags |= FLAG_MONO;
         }
         else if(sv_same(arg, char_ident) && i + 1 < argc)
         {
@@ -429,11 +466,52 @@ f_internal void readArgs
 
 f_internal void printCorrespondingHeat
 (
+    gfConf        *config,
     gfPercentiles *percentiles,
-    uint32_t      commit_count,
-    const char    *character,
-    uint8_t       colour
+    uint32_t      commit_count
 ){
+    if(config->flags & FLAG_MONO)
+    {
+        if(!config->mono_0)
+        {
+            config->mono_0 = "░";
+            config->mono_1 = "▒";
+            config->mono_2 = "▒";
+            config->mono_3 = "▓";
+            config->mono_4 = "█";
+        }
+
+        if(!commit_count)
+        {
+            printf(" ");
+            return;
+        }
+        else if(commit_count < percentiles->d20)
+        {
+            printf("%s", config->mono_0);
+        }
+        else if(commit_count < percentiles->d50)
+        {
+            printf("%s", config->mono_1);
+        }
+        else if(commit_count < percentiles->d70)
+        {
+            printf("%s", config->mono_2);
+        }
+        else if(commit_count < percentiles->d90)
+        {
+            printf("%s", config->mono_3);
+        }
+        else
+        {
+            printf("%s", config->mono_4);
+        }
+
+        return;
+    }
+
+    uint8_t    colour     = config->colour;
+    const char *character = config->character;
     if(!character)
     {
         character = "\u25FC";
@@ -519,8 +597,8 @@ f_internal void printHeatMap
         printf(" %s ", days[i]);
         for(int16_t j = i - set->weekday_365; j < 366; j += 7)
         {
-            printCorrespondingHeat(set->percentiles, set->heatmap[365 - j],
-                                   set->character, set->colour);
+            printCorrespondingHeat(set->config, set->percentiles,
+                                   set->heatmap[365 - j]);
         }
         printf("\n");
     }
@@ -697,15 +775,14 @@ int main
         printf("found d90: %u\n", percentiles.d90);
     #endif
 
-    if(config.info)
+    if(config.flags & FLAG_INFO)
     {
         printf("most commits in the last 365 days (%u) made %u days ago.\n",
                max, maxday);
         printf("most commits in single repository (%u) in '"PRI_SV"'.\n", repo_max,
                ARG_SV(biggestRepo));
         printf("\ncommits today: %u ", heatmap[0]);
-        printCorrespondingHeat(&percentiles, heatmap[0], config.character,
-                               config.colour);
+        printCorrespondingHeat(&config, &percentiles, heatmap[0]);
         printf("\n");
     }
 
@@ -782,7 +859,7 @@ int main
         printf("\n");
     #endif
 
-    if(config.info)
+    if(config.flags & FLAG_INFO)
     {
         printf("days since first commit: %lu\n", days_commit);
         printf("\nheatmap (last 365 days):\n");
@@ -790,14 +867,13 @@ int main
     printf("\n");
 
     gfHeatmapSettings set = {0};
+    set.config       = &config;
     set.percentiles  = &percentiles;
     set.heatmap      = heatmap;
     set.currentMonth = currentMonth;
     set.weekday_365  = weekday_365;
     set.day_of_month = day_of_month;
     set.leapYear     = years_epoch % 4 == 2;
-    set.character    = config.character;
-    set.colour       = config.colour;
 
     printHeatMap(&set);
 
