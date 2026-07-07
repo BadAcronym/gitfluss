@@ -492,6 +492,11 @@ f_internal void readArgs
         StringView colour_ident = cstr_sv("--colour");
         StringView info_ident   = cstr_sv("--info");
         StringView mono_ident   = cstr_sv("--mono");
+        StringView heat0_ident  = cstr_sv("--heat0");
+        StringView heat1_ident  = cstr_sv("--heat1");
+        StringView heat2_ident  = cstr_sv("--heat2");
+        StringView heat3_ident  = cstr_sv("--heat3");
+        StringView heat4_ident  = cstr_sv("--heat4");
         StringView char_ident   = cstr_sv("--char");
 
         if(sv_same(arg, author_ident) && i + 1 < argc)
@@ -517,14 +522,53 @@ f_internal void readArgs
         {
             config->flags |= FLAG_MONO;
         }
+        else if(sv_same(arg, heat0_ident) && i + 1 < argc)
+        {
+            StringView chosen_sv  = cstr_sv(argv[i + 1]);
+            char       *small_buf = malloc(8);
+            sv_cstr(chosen_sv, small_buf);
+            config->mono_0 = small_buf;
+            ++i;
+        }
+        else if(sv_same(arg, heat1_ident) && i + 1 < argc)
+        {
+            StringView chosen_sv  = cstr_sv(argv[i + 1]);
+            char       *small_buf = malloc(8);
+            sv_cstr(chosen_sv, small_buf);
+            config->mono_1 = small_buf;
+            ++i;
+        }
+        else if(sv_same(arg, heat2_ident) && i + 1 < argc)
+        {
+            StringView chosen_sv  = cstr_sv(argv[i + 1]);
+            char       *small_buf = malloc(8);
+            sv_cstr(chosen_sv, small_buf);
+            config->mono_2 = small_buf;
+            ++i;
+        }
+        else if(sv_same(arg, heat3_ident) && i + 1 < argc)
+        {
+            StringView chosen_sv  = cstr_sv(argv[i + 1]);
+            char       *small_buf = malloc(8);
+            sv_cstr(chosen_sv, small_buf);
+            config->mono_3 = small_buf;
+            ++i;
+        }
+        else if(sv_same(arg, heat4_ident) && i + 1 < argc)
+        {
+            StringView chosen_sv  = cstr_sv(argv[i + 1]);
+            char       *small_buf = malloc(8);
+            sv_cstr(chosen_sv, small_buf);
+            config->mono_4 = small_buf;
+            ++i;
+        }
         else if(sv_same(arg, char_ident) && i + 1 < argc)
         {
-            StringView chosen_sv = cstr_sv(argv[i + 1]);
-
-            char *small_buf = malloc(8);
+            StringView chosen_sv  = cstr_sv(argv[i + 1]);
+            char       *small_buf = malloc(8);
+            sv_cstr(chosen_sv, small_buf);
             sv_cstr(chosen_sv, small_buf);
             config->character = small_buf;
-
             ++i;
         }
         else
