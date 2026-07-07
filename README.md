@@ -1,9 +1,10 @@
 Status:
 + Linux only for now, win32 needs a small bit of porting
-+ You can configure a list of paths in the configuration file. `~` and `$HOME` will be
-resolved, all other paths must be absolute for now.
-+ You can also configure a list of authors to consider (by email)
-+ You can choose a colour (red is default):
++ You can configure a list of paths in the configuration file or by passing command-line
+  arguments. `~`, `.` and `$HOME` will be resolved, all other paths must be absolute for
+  now.
++ You can configure the application to your liking, with author filtering, custom
+  colours & characters.
 
 The configuration file location is `~/.config/gitfluss/.conf`. Gitfluss will look first
 in the current working directory for a `.conf` file and then in the config directory.
@@ -35,6 +36,9 @@ $HOME/repository/gitfluss
 ```
 
 ![example](screenshots/purple.jpg)
+
+The correspoding heat intensities are calculated based on the `20th`, `50th`, `70th` and
+`90th` percentile of your commit count per day, not including days with 0 commits.
 
 The avaiable colours are `red`(default), `green`, `blue`, `cyan`, `yellow` and `purple`.
 
