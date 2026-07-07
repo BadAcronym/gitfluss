@@ -65,3 +65,22 @@ If the character is an emoji, the ANSI terminal colours will not be able to take
 Keep in mind that if the character is not monospace, the header will appear to be wrong.
 `character: 🪑`
 ![chair](screenshots/chair.jpg)
+
+Monochrome support is also built-in, which avoids outputting ANSI colour escape codes to
+the terminal. `--mono` in the command-line or `mono: true` in the configuration file
+will make gitfluss output in monochrome mode. By default, it will use the full-block
+shading characters:
+
+![shades](screenshots/shades.jpg)
+
+But the `--heat0 .`, `--heat1 o` ... / `heat0: .`, `heat1: o` overrides also work to
+replace the characters below each percentile:
+```
+heat0: .
+heat1: o
+heat2: O
+heat3: 0
+heat4: @
+```
+
+![os](screenshots/os.jpg)
