@@ -30,27 +30,19 @@ info: false
 $HOME/repository/puddle
 $HOME/repository/imgsurf
 $HOME/repository/river2D
-$HOME/repository/river2D_mapedit
 $HOME/repository/river3D
 $HOME/repository/gitfluss
-$HOME/repository/bash-collection
 ```
+
+![example](screenshots/purple.jpg)
 
 With `info: false`, you can hide the additional commit history information.
 
 With `author: any`, (or not specifying an author at all) you can omit the author check
 and count all commits by all authors in the listed repositories.
 
-With `character: ?`, you can actually change the character that's being used to print.
-
-![example](screenshots/purple.jpg)
-
 The avaiable colours are `red`(default), `green`, `blue`, `cyan`, `yellow` and `purple`.
-
-![red theme](screenshots/red.jpg)
-![green theme](screenshots/green.jpg)
-![blue theme](screenshots/blue.jpg)
-![yellow theme](screenshots/yellow.jpg)
+With `character: ?`, you can actually change the character that's being used to print:
 
 `character: o`
 ![o](screenshots/o.jpg)
