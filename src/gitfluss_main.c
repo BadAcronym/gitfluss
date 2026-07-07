@@ -46,7 +46,7 @@ typedef struct gfPercentiles
 {
     uint32_t d20;
     uint32_t d50;
-    uint32_t d75;
+    uint32_t d70;
     uint32_t d90;
 }
 gfPercentiles;
@@ -444,25 +444,25 @@ f_internal void printCorrespondingHeat
         printf(" ");
         return;
     }
-    else if(commit_count > percentiles->d90)
+    else if(commit_count < percentiles->d20)
     {
-        printf("%s", colours[4 + colour * 5]);
+        printf("%s", colours[colour * 5]);
     }
-    else if(commit_count > percentiles->d75)
-    {
-        printf("%s", colours[3 + colour * 5]);
-    }
-    else if(commit_count > percentiles->d50)
-    {
-        printf("%s", colours[2 + colour * 5]);
-    }
-    else if(commit_count > percentiles->d20)
+    else if(commit_count < percentiles->d50)
     {
         printf("%s", colours[1 + colour * 5]);
     }
+    else if(commit_count < percentiles->d70)
+    {
+        printf("%s", colours[2 + colour * 5]);
+    }
+    else if(commit_count < percentiles->d90)
+    {
+        printf("%s", colours[3 + colour * 5]);
+    }
     else
     {
-        printf("%s", colours[colour * 5]);
+        printf("%s", colours[4 + colour * 5]);
     }
 
     printf("%s%s", character, ANSI_END);
@@ -676,24 +676,24 @@ int main
 
     uint16_t d20_sep = (uint16_t)((float)(365 - zerocount) * 0.20f);
     uint16_t d50_sep = (uint16_t)((float)(365 - zerocount) * 0.50f);
-    uint16_t d75_sep = (uint16_t)((float)(365 - zerocount) * 0.75f);
+    uint16_t d70_sep = (uint16_t)((float)(365 - zerocount) * 0.70f);
     uint16_t d90_sep = (uint16_t)((float)(365 - zerocount) * 0.90f);
 
     gfPercentiles percentiles = {0};
     percentiles.d20 = sorted[zerocount + d20_sep];
     percentiles.d50 = sorted[zerocount + d50_sep];
-    percentiles.d75 = sorted[zerocount + d75_sep];
+    percentiles.d70 = sorted[zerocount + d70_sep];
     percentiles.d90 = sorted[zerocount + d90_sep];
 
     #ifdef DEBUG
         printf("found 0-days: %u\n", zerocount);
         printf("found d20_sep: %u\n", d20_sep);
         printf("found d50_sep: %u\n", d50_sep);
-        printf("found d75_sep: %u\n", d75_sep);
+        printf("found d70_sep: %u\n", d70_sep);
         printf("found d90_sep: %u\n", d90_sep);
         printf("found d20: %u\n", percentiles.d20);
         printf("found d50: %u\n", percentiles.d50);
-        printf("found d75: %u\n", percentiles.d75);
+        printf("found d70: %u\n", percentiles.d70);
         printf("found d90: %u\n", percentiles.d90);
     #endif
 
@@ -775,10 +775,10 @@ int main
         printf("palette: ");
         const char *debugChar = "\u25FC";
         printCorrespondingHeat(&percentiles, 1, debugChar, config.colour);
+        printCorrespondingHeat(&percentiles, percentiles.d20, debugChar, config.colour);
         printCorrespondingHeat(&percentiles, percentiles.d50, debugChar, config.colour);
-        printCorrespondingHeat(&percentiles, percentiles.d75, debugChar, config.colour);
+        printCorrespondingHeat(&percentiles, percentiles.d70, debugChar, config.colour);
         printCorrespondingHeat(&percentiles, percentiles.d90, debugChar, config.colour);
-        printCorrespondingHeat(&percentiles, max, debugChar, config.colour);
         printf("\n");
     #endif
 
