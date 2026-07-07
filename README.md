@@ -45,7 +45,7 @@ With `character: ?`, you can actually change the character that's being used to 
 
 ![example](screenshots/purple.jpg)
 
-The avaiable colours are `red`(default), `green`, `blue`, `yellow`, and `purple`.
+The avaiable colours are `red`(default), `green`, `blue`, `cyan`, `yellow` and `purple`.
 
 ![red theme](screenshots/red.jpg)
 ![green theme](screenshots/green.jpg)
