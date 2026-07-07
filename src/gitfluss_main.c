@@ -443,8 +443,6 @@ f_internal void printHeatMap
     const char *character,
     uint8_t    colour
 ){
-    uint8_t column = 0;
-    uint8_t printedColumns  = 0;
     uint8_t current_weekday = 0;
     printf("     ");
     for(uint8_t i = 0; i < 13; ++i)
@@ -462,12 +460,10 @@ f_internal void printHeatMap
         if(remainingWeeks > 3)
         {
             printf("%s", months[indexedMonth]);
-            printedColumns += 3;
 
             for(uint8_t j = 3; j < remainingWeeks; ++j)
             {
                 printf(" ");
-                ++printedColumns;
             }
         }
         else
@@ -475,7 +471,6 @@ f_internal void printHeatMap
             for(uint8_t j = 0; j < remainingWeeks; ++j)
             {
                 printf(" ");
-                ++printedColumns;
             }
         }
 
@@ -484,7 +479,6 @@ f_internal void printHeatMap
             if(++current_weekday > 6)
             {
                 current_weekday = 0;
-                ++column;
             }
         }
     }
