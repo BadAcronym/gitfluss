@@ -84,3 +84,6 @@ heat4: @
 ```
 
 ![os](screenshots/os.jpg)
+
+I am not very skilled at ASCII art as you can see, but those who are may happily use
+this feature.
