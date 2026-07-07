@@ -42,6 +42,28 @@ typedef struct gfConf
 }
 gfConf;
 
+typedef struct gfPercentiles
+{
+    uint32_t d20;
+    uint32_t d50;
+    uint32_t d75;
+    uint32_t d90;
+}
+gfPercentiles;
+
+typedef struct gfHeatmapSettings
+{
+    uint32_t      *heatmap;
+    gfPercentiles *percentiles;
+    uint8_t       currentMonth;
+    uint8_t       weekday_365;
+    uint8_t       day_of_month;
+    uint8_t       leapYear;
+    const char    *character;
+    uint8_t       colour;
+}
+gfHeatmapSettings;
+
 const char *months[12] =
 {
     "Jan",
@@ -407,9 +429,10 @@ f_internal void readArgs
 
 f_internal void printCorrespondingHeat
 (
-    uint32_t   commit_count,
-    const char *character,
-    uint8_t    colour
+    gfPercentiles *percentiles,
+    uint32_t      commit_count,
+    const char    *character,
+    uint8_t       colour
 ){
     if(!character)
     {
@@ -421,25 +444,25 @@ f_internal void printCorrespondingHeat
         printf(" ");
         return;
     }
-    else if(commit_count > 9)
+    else if(commit_count > percentiles->d90)
     {
         printf("%s", colours[4 + colour * 5]);
     }
-    else if(commit_count > 7)
+    else if(commit_count > percentiles->d75)
     {
         printf("%s", colours[3 + colour * 5]);
     }
-    else if(commit_count > 5)
+    else if(commit_count > percentiles->d50)
     {
         printf("%s", colours[2 + colour * 5]);
     }
-    else if(commit_count > 3)
+    else if(commit_count > percentiles->d20)
     {
         printf("%s", colours[1 + colour * 5]);
     }
     else
     {
-        printf("%s", colours[0 + colour * 5]);
+        printf("%s", colours[colour * 5]);
     }
 
     printf("%s%s", character, ANSI_END);
@@ -447,25 +470,20 @@ f_internal void printCorrespondingHeat
 
 f_internal void printHeatMap
 (
-    uint32_t   *heatmap,
-    uint8_t    currentMonth,
-    uint8_t    weekday_365,
-    uint8_t    day_of_month,
-    uint8_t    leapYear,
-    const char *character,
-    uint8_t    colour
+    gfHeatmapSettings *set
 ){
     uint8_t current_weekday = 0;
+
     printf("     ");
     for(uint8_t i = 0; i < 13; ++i)
     {
-        uint8_t indexedMonth   = (currentMonth + i) % 12;
-        uint8_t remainingDays  = daysInMonth(indexedMonth, leapYear);
+        uint8_t indexedMonth   = (set->currentMonth + i) % 12;
+        uint8_t remainingDays  = daysInMonth(indexedMonth, set->leapYear);
         uint8_t remainingWeeks = (remainingDays + current_weekday) / 7;
 
         if(i == 0)
         {
-            remainingDays  -= day_of_month - 1;
+            remainingDays  -= set->day_of_month - 1;
             remainingWeeks = (remainingDays) / 7;
         }
 
@@ -499,9 +517,10 @@ f_internal void printHeatMap
     for(uint8_t i = 0; i < 7; ++i)
     {
         printf(" %s ", days[i]);
-        for(int16_t j = i - weekday_365; j < 366; j += 7)
+        for(int16_t j = i - set->weekday_365; j < 366; j += 7)
         {
-            printCorrespondingHeat(heatmap[365 - j], character, colour);
+            printCorrespondingHeat(set->percentiles, set->heatmap[365 - j],
+                                   set->character, set->colour);
         }
         printf("\n");
     }
@@ -542,6 +561,7 @@ int main
     git_libgit2_init();
 
     uint32_t   heatmap[16384]   = {0};
+    uint32_t   sorted[366]      = {0};
     StringView biggestRepo      = {0};
     uint32_t   repo_max         = 0;
     int64_t    oldestCommitTime = INT64_MAX;
@@ -607,6 +627,10 @@ int main
 
                 ++heatmap[daysSince];
                 ++repoCommitCount;
+                if(daysSince < 366)
+                {
+                    ++sorted[daysSince];
+                }
             }
 
             git_commit_free(commit);
@@ -622,26 +646,66 @@ int main
         git_repository_free(repo);
     }
 
-    uint32_t singleday_max = 0;
-    uint16_t maxday        = 0;
+    uint32_t max       = 0;
+    uint32_t maxday    = 0;
+    uint32_t zerocount = 0;
 
-    for(uint16_t i = 0; i < 365; ++i)
+    for(uint32_t i = 0; i < 365; ++i)
     {
-        if(heatmap[i] > singleday_max)
+        for(uint32_t j = 0; j < 365 - i; ++j)
         {
-            singleday_max = heatmap[i];
-            maxday        = i;
+            if(sorted[j] > max)
+            {
+                max    = sorted[j];
+                maxday = j;
+            }
+
+            if(sorted[j] > sorted[j + 1])
+            {
+                uint32_t tmp  = sorted[j];
+                sorted[j]     = sorted[j + 1];
+                sorted[j + 1] = tmp;
+            }
         }
     }
+
+    for(uint16_t i = 0; i < 365 && !sorted[i]; ++i)
+    {
+        ++zerocount;
+    }
+
+    uint16_t d20_sep = (uint16_t)((float)(365 - zerocount) * 0.20f);
+    uint16_t d50_sep = (uint16_t)((float)(365 - zerocount) * 0.50f);
+    uint16_t d75_sep = (uint16_t)((float)(365 - zerocount) * 0.75f);
+    uint16_t d90_sep = (uint16_t)((float)(365 - zerocount) * 0.90f);
+
+    gfPercentiles percentiles = {0};
+    percentiles.d20 = sorted[zerocount + d20_sep];
+    percentiles.d50 = sorted[zerocount + d50_sep];
+    percentiles.d75 = sorted[zerocount + d75_sep];
+    percentiles.d90 = sorted[zerocount + d90_sep];
+
+    #ifdef DEBUG
+        printf("found 0-days: %u\n", zerocount);
+        printf("found d20_sep: %u\n", d20_sep);
+        printf("found d50_sep: %u\n", d50_sep);
+        printf("found d75_sep: %u\n", d75_sep);
+        printf("found d90_sep: %u\n", d90_sep);
+        printf("found d20: %u\n", percentiles.d20);
+        printf("found d50: %u\n", percentiles.d50);
+        printf("found d75: %u\n", percentiles.d75);
+        printf("found d90: %u\n", percentiles.d90);
+    #endif
 
     if(config.info)
     {
         printf("most commits in the last 365 days (%u) made %u days ago.\n",
-               singleday_max, maxday);
+               max, maxday);
         printf("most commits in single repository (%u) in '"PRI_SV"'.\n", repo_max,
                ARG_SV(biggestRepo));
         printf("\ncommits today: %u ", heatmap[0]);
-        printCorrespondingHeat(heatmap[0], config.character, config.colour);
+        printCorrespondingHeat(&percentiles, heatmap[0], config.character,
+                               config.colour);
         printf("\n");
     }
 
@@ -697,8 +761,7 @@ int main
         ++weekday_365;
         weekday_365 %= 7;
     }
-    // uint8_t weekday_today = 3 + (uint8_t)(days_epoch % 7);
-    uint8_t day_of_month  = (uint8_t)((currDayEnd - currMonthStart) / (24 * 3600));
+    uint8_t day_of_month = (uint8_t)((currDayEnd - currMonthStart) / (24 * 3600));
 
     #ifdef DEBUG
         printf("\nfull days since epoch: %lu\n", days_epoch);
@@ -711,11 +774,11 @@ int main
         printf("day of the month, today: %u\n", day_of_month);
         printf("palette: ");
         const char *debugChar = "\u25FC";
-        printCorrespondingHeat(2, debugChar, config.colour);
-        printCorrespondingHeat(4, debugChar, config.colour);
-        printCorrespondingHeat(6, debugChar, config.colour);
-        printCorrespondingHeat(8, debugChar, config.colour);
-        printCorrespondingHeat(10, debugChar, config.colour);
+        printCorrespondingHeat(&percentiles, 1, debugChar, config.colour);
+        printCorrespondingHeat(&percentiles, percentiles.d50, debugChar, config.colour);
+        printCorrespondingHeat(&percentiles, percentiles.d75, debugChar, config.colour);
+        printCorrespondingHeat(&percentiles, percentiles.d90, debugChar, config.colour);
+        printCorrespondingHeat(&percentiles, max, debugChar, config.colour);
         printf("\n");
     #endif
 
@@ -724,10 +787,19 @@ int main
         printf("days since first commit: %lu\n", days_commit);
         printf("\nheatmap (last 365 days):\n");
     }
-
     printf("\n");
-    printHeatMap(heatmap, currentMonth, weekday_365, day_of_month,
-                 years_epoch % 4 == 2, config.character, config.colour);
+
+    gfHeatmapSettings set = {0};
+    set.percentiles  = &percentiles;
+    set.heatmap      = heatmap;
+    set.currentMonth = currentMonth;
+    set.weekday_365  = weekday_365;
+    set.day_of_month = day_of_month;
+    set.leapYear     = years_epoch % 4 == 2;
+    set.character    = config.character;
+    set.colour       = config.colour;
+
+    printHeatMap(&set);
 
     if(config.character)
     {
