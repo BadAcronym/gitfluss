@@ -475,9 +475,21 @@ f_internal void printCorrespondingHeat
         if(!config->mono_0)
         {
             config->mono_0 = "░";
+        }
+        if(!config->mono_1)
+        {
             config->mono_1 = "▒";
+        }
+        if(!config->mono_2)
+        {
             config->mono_2 = "▒";
+        }
+        if(!config->mono_3)
+        {
             config->mono_3 = "▓";
+        }
+        if(!config->mono_4)
+        {
             config->mono_4 = "█";
         }
 
