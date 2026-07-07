@@ -311,6 +311,17 @@ f_internal void readConfig
         StringView  mono_sv = cstr_sv("mono: ");
         const char* monoloc = sv_find(mono_sv, buffer);
 
+        StringView  heat0_sv = cstr_sv("heat_0: ");
+        const char* heat0loc = sv_find(heat0_sv, buffer);
+        StringView  heat1_sv = cstr_sv("heat_1: ");
+        const char* heat1loc = sv_find(heat1_sv, buffer);
+        StringView  heat2_sv = cstr_sv("heat_2: ");
+        const char* heat2loc = sv_find(heat2_sv, buffer);
+        StringView  heat3_sv = cstr_sv("heat_3: ");
+        const char* heat3loc = sv_find(heat3_sv, buffer);
+        StringView  heat4_sv = cstr_sv("heat_4: ");
+        const char* heat4loc = sv_find(heat4_sv, buffer);
+
         StringView  char_sv = cstr_sv("character: ");
         const char* charloc = sv_find(char_sv, buffer);
 
@@ -361,16 +372,76 @@ f_internal void readConfig
                 config->flags |= FLAG_MONO;
             }
         }
-        else if(charloc)
+        else if(heat0loc)
         {
-            StringView chosen_sv = cstr_sv(buffer.data + char_sv.size);
-            if(chosen_sv.size)
+            StringView set_sv = cstr_sv(buffer.data + heat0_sv.size);
+            if(set_sv.size)
             {
-                chosen_sv.size -= 1;
+                set_sv.size -= 1;
             }
 
             char *small_buf = malloc(8);
-            sv_cstr(chosen_sv, small_buf);
+            sv_cstr(set_sv, small_buf);
+            config->mono_0 = small_buf;
+        }
+        else if(heat1loc)
+        {
+            StringView set_sv = cstr_sv(buffer.data + heat1_sv.size);
+            if(set_sv.size)
+            {
+                set_sv.size -= 1;
+            }
+
+            char *small_buf = malloc(8);
+            sv_cstr(set_sv, small_buf);
+            config->mono_1 = small_buf;
+        }
+        else if(heat2loc)
+        {
+            StringView set_sv = cstr_sv(buffer.data + heat2_sv.size);
+            if(set_sv.size)
+            {
+                set_sv.size -= 1;
+            }
+
+            char *small_buf = malloc(8);
+            sv_cstr(set_sv, small_buf);
+            config->mono_2 = small_buf;
+        }
+        else if(heat3loc)
+        {
+            StringView set_sv = cstr_sv(buffer.data + heat3_sv.size);
+            if(set_sv.size)
+            {
+                set_sv.size -= 1;
+            }
+
+            char *small_buf = malloc(8);
+            sv_cstr(set_sv, small_buf);
+            config->mono_3 = small_buf;
+        }
+        else if(heat4loc)
+        {
+            StringView set_sv = cstr_sv(buffer.data + heat4_sv.size);
+            if(set_sv.size)
+            {
+                set_sv.size -= 1;
+            }
+
+            char *small_buf = malloc(8);
+            sv_cstr(set_sv, small_buf);
+            config->mono_4 = small_buf;
+        }
+        else if(charloc)
+        {
+            StringView set_sv = cstr_sv(buffer.data + char_sv.size);
+            if(set_sv.size)
+            {
+                set_sv.size -= 1;
+            }
+
+            char *small_buf = malloc(8);
+            sv_cstr(set_sv, small_buf);
             config->character = small_buf;
         }
         else
