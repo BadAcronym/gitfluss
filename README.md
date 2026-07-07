@@ -36,12 +36,13 @@ $HOME/repository/gitfluss
 
 ![example](screenshots/purple.jpg)
 
+The avaiable colours are `red`(default), `green`, `blue`, `cyan`, `yellow` and `purple`.
+
 With `info: false`, you can hide the additional commit history information.
 
 With `author: any`, (or not specifying an author at all) you can omit the author check
 and count all commits by all authors in the listed repositories.
 
-The avaiable colours are `red`(default), `green`, `blue`, `cyan`, `yellow` and `purple`.
 With `character: ?`, you can actually change the character that's being used to print:
 
 `character: o`
