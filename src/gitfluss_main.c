@@ -438,43 +438,52 @@ f_internal void printHeatMap
     uint32_t   *heatmap,
     uint8_t    currentMonth,
     uint8_t    weekday_365,
-    uint8_t    weekday,
-    uint8_t    day_month,
+    uint8_t    day_of_month,
     uint8_t    leapYear,
     const char *character,
     uint8_t    colour
 ){
     uint8_t column = 0;
-    uint8_t printedColumns = 0;
+    uint8_t printedColumns  = 0;
+    uint8_t current_weekday = 0;
     printf("     ");
     for(uint8_t i = 0; i < 13; ++i)
     {
         uint8_t indexedMonth   = (currentMonth + i) % 12;
         uint8_t remainingDays  = daysInMonth(indexedMonth, leapYear);
-        uint8_t remainingWeeks = (remainingDays + weekday + 6) / 7;
+        uint8_t remainingWeeks = (remainingDays + current_weekday) / 7;
+
         if(i == 0)
         {
-            remainingDays = daysInMonth(indexedMonth, leapYear) - day_month + 1;
-            remainingWeeks = (remainingDays + weekday + 6) / 7;
+            remainingDays  -= day_of_month - 1;
+            remainingWeeks = (remainingDays) / 7;
         }
 
         if(remainingWeeks > 3)
         {
-            while(printedColumns < column)
+            printf("%s", months[indexedMonth]);
+            printedColumns += 3;
+
+            for(uint8_t j = 3; j < remainingWeeks; ++j)
             {
                 printf(" ");
                 ++printedColumns;
             }
-
-            printf("%s", months[indexedMonth]);
-            printedColumns += 3;
+        }
+        else
+        {
+            for(uint8_t j = 0; j < remainingWeeks; ++j)
+            {
+                printf(" ");
+                ++printedColumns;
+            }
         }
 
         for(uint8_t j = 0; j < remainingDays; ++j)
         {
-            if(++weekday > 6)
+            if(++current_weekday > 6)
             {
-                weekday = 0;
+                current_weekday = 0;
                 ++column;
             }
         }
@@ -486,10 +495,6 @@ f_internal void printHeatMap
         printf(" %s ", days[i]);
         for(int16_t j = i - weekday_365; j < 366; j += 7)
         {
-            if(j < 0 && j >= weekday_365)
-            {
-                continue;
-            }
             printCorrespondingHeat(heatmap[365 - j], character, colour);
         }
         printf("\n");
@@ -669,19 +674,24 @@ int main
         }
 
         uint8_t daysThisMonth = daysInMonth(currentMonth, years_epoch % 4 == 2);
+
         i += daysThisMonth;
+        if(currMonthStart + daysThisMonth * 24 * 3600 > now)
+        {
+            continue;
+        }
         ++currentMonth;
         currMonthStart += daysThisMonth * 24 * 3600;
     }
 
     int64_t days_commit = (now - oldestCommitTime) / (24 * 3600);
-    uint8_t weekday_365 = 3 + (uint8_t)((days_epoch - 365) % 7);
+    uint8_t weekday_365 = (3 + (uint8_t)(days_epoch - 364)) % 7;
     if(years_epoch % 4 == 2)
     {
         ++weekday_365;
         weekday_365 %= 7;
     }
-    uint8_t weekday_today = 3 + (uint8_t)(days_epoch % 7);
+    // uint8_t weekday_today = 3 + (uint8_t)(days_epoch % 7);
     uint8_t day_of_month  = (uint8_t)((currDayEnd - currMonthStart) / (24 * 3600));
 
     #ifdef DEBUG
@@ -690,7 +700,7 @@ int main
         printf("now, unix time: %lu\n", now);
         printf("current year start: %lu\n", currYearStart);
         printf("current month: %u\n", currentMonth);
-        // printf("current day start: %lu\n", currDayStart);
+        printf("current month start: %lu\n", currMonthStart);
         printf("weekday 365 days ago: %s\n", days[weekday_365]);
         printf("day of the month, today: %u\n", day_of_month);
         printf("palette: ");
@@ -710,7 +720,7 @@ int main
     }
 
     printf("\n");
-    printHeatMap(heatmap, currentMonth, weekday_365, weekday_today, day_of_month,
+    printHeatMap(heatmap, currentMonth, weekday_365, day_of_month,
                  years_epoch % 4 == 2, config.character, config.colour);
 
     if(config.character)
