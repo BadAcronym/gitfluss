@@ -978,11 +978,11 @@ int main
         printf("day of the month, today: %u\n", day_of_month);
         printf("palette: ");
         const char *debugChar = "\u25FC";
-        printCorrespondingHeat(&percentiles, 1, debugChar, config.colour);
-        printCorrespondingHeat(&percentiles, percentiles.d20, debugChar, config.colour);
-        printCorrespondingHeat(&percentiles, percentiles.d50, debugChar, config.colour);
-        printCorrespondingHeat(&percentiles, percentiles.d70, debugChar, config.colour);
-        printCorrespondingHeat(&percentiles, percentiles.d90, debugChar, config.colour);
+        printCorrespondingHeat(&config, &percentiles, 1);
+        printCorrespondingHeat(&config, &percentiles, percentiles.d20);
+        printCorrespondingHeat(&config, &percentiles, percentiles.d50);
+        printCorrespondingHeat(&config, &percentiles, percentiles.d70);
+        printCorrespondingHeat(&config, &percentiles, percentiles.d90);
         printf("\n");
     #endif
 
