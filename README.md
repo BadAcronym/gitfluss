@@ -6,6 +6,13 @@ Status:
 + You can configure the application to your liking, with author filtering, custom
   colours & characters.
 
+Plans:
++ Allow overwriting percentiles
++ Add more (optional) repository-specific data displays
++ Windows port
++ Add more (optional) years to the heatmap display
++ Allow custom RGB colour values
+
 The configuration file location is `~/.config/gitfluss/.conf`. Gitfluss will look first
 in the current working directory for a `.conf` file and then in the config directory.
 
