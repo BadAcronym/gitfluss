@@ -292,6 +292,18 @@ f_internal void readConfig
         }
     }
 
+    StringView author_sv = cstr_sv("author: ");
+    StringView colour_sv = cstr_sv("colour: ");
+    StringView info_sv   = cstr_sv("info: ");
+    StringView mono_sv   = cstr_sv("mono: ");
+    StringView heat0_sv  = cstr_sv("heat0: ");
+    StringView heat1_sv  = cstr_sv("heat1: ");
+    StringView heat2_sv  = cstr_sv("heat2: ");
+    StringView heat3_sv  = cstr_sv("heat3: ");
+    StringView heat4_sv  = cstr_sv("heat4: ");
+    StringView char_sv   = cstr_sv("character: ");
+    StringView true_sv   = cstr_sv("true");
+
     char buf[bufsize];
     while(fgets(buf, bufsize, file))
     {
@@ -299,34 +311,14 @@ f_internal void readConfig
         buffer.data = buf;
         buffer.size = bufsize;
 
-        StringView  author_sv = cstr_sv("author: ");
+        StringView comment_sv  = cstr_sv("//");
+        const char *commentloc = sv_find(comment_sv, buffer);
+        if(commentloc == buf)
+        {
+            continue;
+        }
+
         const char* authorloc = sv_find(author_sv, buffer);
-
-        StringView  colour_sv = cstr_sv("colour: ");
-        const char* colourloc = sv_find(colour_sv, buffer);
-
-        StringView  info_sv = cstr_sv("info: ");
-        const char* infoloc = sv_find(info_sv, buffer);
-
-        StringView  mono_sv = cstr_sv("mono: ");
-        const char* monoloc = sv_find(mono_sv, buffer);
-
-        StringView  heat0_sv = cstr_sv("heat0: ");
-        const char* heat0loc = sv_find(heat0_sv, buffer);
-        StringView  heat1_sv = cstr_sv("heat1: ");
-        const char* heat1loc = sv_find(heat1_sv, buffer);
-        StringView  heat2_sv = cstr_sv("heat2: ");
-        const char* heat2loc = sv_find(heat2_sv, buffer);
-        StringView  heat3_sv = cstr_sv("heat3: ");
-        const char* heat3loc = sv_find(heat3_sv, buffer);
-        StringView  heat4_sv = cstr_sv("heat4: ");
-        const char* heat4loc = sv_find(heat4_sv, buffer);
-
-        StringView  char_sv = cstr_sv("character: ");
-        const char* charloc = sv_find(char_sv, buffer);
-
-        StringView true_sv = cstr_sv("true");
-
         if(authorloc)
         {
             StringView author = cstr_sv(buffer.data + author_sv.size);
@@ -336,8 +328,11 @@ f_internal void readConfig
             }
 
             addAuthor(config, author);
+            continue;
         }
-        else if(colourloc)
+
+        const char* colourloc = sv_find(colour_sv, buffer);
+        if(colourloc)
         {
             StringView chosen_sv = cstr_sv(buffer.data + colour_sv.size);
             if(chosen_sv.size)
@@ -346,7 +341,9 @@ f_internal void readConfig
             }
             setColour(config, chosen_sv);
         }
-        else if(infoloc)
+
+        const char* infoloc = sv_find(info_sv, buffer);
+        if(infoloc)
         {
             StringView set_sv = cstr_sv(buffer.data + info_sv.size);
             if(set_sv.size)
@@ -359,7 +356,9 @@ f_internal void readConfig
                 config->flags |= FLAG_INFO;
             }
         }
-        else if(monoloc)
+
+        const char* monoloc = sv_find(mono_sv, buffer);
+        if(monoloc)
         {
             StringView set_sv = cstr_sv(buffer.data + mono_sv.size);
             if(set_sv.size)
@@ -372,7 +371,9 @@ f_internal void readConfig
                 config->flags |= FLAG_MONO;
             }
         }
-        else if(heat0loc)
+
+        const char* heat0loc = sv_find(heat0_sv, buffer);
+        if(heat0loc)
         {
             StringView set_sv = cstr_sv(buffer.data + heat0_sv.size);
             if(set_sv.size)
@@ -384,7 +385,9 @@ f_internal void readConfig
             sv_cstr(set_sv, small_buf);
             config->mono_0 = small_buf;
         }
-        else if(heat1loc)
+
+        const char* heat1loc = sv_find(heat1_sv, buffer);
+        if(heat1loc)
         {
             StringView set_sv = cstr_sv(buffer.data + heat1_sv.size);
             if(set_sv.size)
@@ -396,7 +399,9 @@ f_internal void readConfig
             sv_cstr(set_sv, small_buf);
             config->mono_1 = small_buf;
         }
-        else if(heat2loc)
+
+        const char* heat2loc = sv_find(heat2_sv, buffer);
+        if(heat2loc)
         {
             StringView set_sv = cstr_sv(buffer.data + heat2_sv.size);
             if(set_sv.size)
@@ -408,7 +413,9 @@ f_internal void readConfig
             sv_cstr(set_sv, small_buf);
             config->mono_2 = small_buf;
         }
-        else if(heat3loc)
+
+        const char* heat3loc = sv_find(heat3_sv, buffer);
+        if(heat3loc)
         {
             StringView set_sv = cstr_sv(buffer.data + heat3_sv.size);
             if(set_sv.size)
@@ -420,7 +427,9 @@ f_internal void readConfig
             sv_cstr(set_sv, small_buf);
             config->mono_3 = small_buf;
         }
-        else if(heat4loc)
+
+        const char* heat4loc = sv_find(heat4_sv, buffer);
+        if(heat4loc)
         {
             StringView set_sv = cstr_sv(buffer.data + heat4_sv.size);
             if(set_sv.size)
@@ -431,8 +440,11 @@ f_internal void readConfig
             char *small_buf = malloc(8);
             sv_cstr(set_sv, small_buf);
             config->mono_4 = small_buf;
+            continue;
         }
-        else if(charloc)
+
+        const char* charloc = sv_find(char_sv, buffer);
+        if(charloc)
         {
             StringView set_sv = cstr_sv(buffer.data + char_sv.size);
             if(set_sv.size)
@@ -443,16 +455,15 @@ f_internal void readConfig
             char *small_buf = malloc(8);
             sv_cstr(set_sv, small_buf);
             config->character = small_buf;
+            continue;
         }
-        else
+
+        StringView path = cstr_sv(buffer.data);
+        if(path.size)
         {
-            StringView path = cstr_sv(buffer.data);
-            if(path.size)
-            {
-                path.size -= 1;
-            }
-            addPath(config, path);
+            path.size -= 1;
         }
+        addPath(config, path);
     }
 
     sv_sort_by_delim(config->authors, ';', config->sorted_authors);
