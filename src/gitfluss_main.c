@@ -29,6 +29,7 @@
 #define CYAN   3
 #define PURPLE 4
 #define YELLOW 5
+#define WHITE  6
 
 #define FLAG_INFO 0x01
 #define FLAG_MONO 0x02
@@ -104,7 +105,7 @@ const char *days[7] =
 
 #define ANSI_END "\033[0m"
 
-const char *colours[30] =
+const char *colours[35] =
 {
     // reds
     "\033[38;2;80;10;10m",
@@ -142,6 +143,12 @@ const char *colours[30] =
     "\033[38;2;175;175;0m",
     "\033[38;2;200;200;0m",
     "\033[38;2;255;255;0m",
+    // whites
+    "\033[38;2;125;125;125m",
+    "\033[38;2;150;150;150m",
+    "\033[38;2;175;175;175m",
+    "\033[38;2;220;220;220m",
+    "\033[38;2;255;255;255m",
 };
 
 f_internal void addAuthor
@@ -221,6 +228,7 @@ f_internal void setColour
     StringView cyan_sv   = cstr_sv("cyan");
     StringView purple_sv = cstr_sv("purple");
     StringView yellow_sv = cstr_sv("yellow");
+    StringView white_sv  = cstr_sv("white");
 
     if(sv_same(colour, green_sv))
     {
@@ -241,6 +249,10 @@ f_internal void setColour
     else if(sv_same(colour, yellow_sv))
     {
         config->colour = YELLOW;
+    }
+    else if(sv_same(colour, white_sv))
+    {
+        config->colour = WHITE;
     }
 
     #ifdef DEBUG
