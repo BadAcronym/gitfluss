@@ -28,8 +28,9 @@
 #define BLUE   2
 #define CYAN   3
 #define PURPLE 4
-#define YELLOW 5
-#define WHITE  6
+#define PINK   5
+#define YELLOW 6
+#define WHITE  7
 
 #define FLAG_INFO 0x01
 #define FLAG_MONO 0x02
@@ -105,7 +106,7 @@ const char *days[7] =
 
 #define ANSI_END "\033[0m"
 
-const char *colours[35] =
+const char *colours[40] =
 {
     // reds
     "\033[38;2;80;10;10m",
@@ -137,6 +138,12 @@ const char *colours[35] =
     "\033[38;2;175;0;175m",
     "\033[38;2;200;0;200m",
     "\033[38;2;255;0;255m",
+    // pinks
+    "\033[38;2;135;0;55m",
+    "\033[38;2;160;10;75m",
+    "\033[38;2;185;25;95m",
+    "\033[38;2;210;40;115m",
+    "\033[38;2;255;100;160m",
     // yellows
     "\033[38;2;90;90;0m",
     "\033[38;2;120;120;0m",
@@ -227,6 +234,7 @@ f_internal void setColour
     StringView blue_sv   = cstr_sv("blue");
     StringView cyan_sv   = cstr_sv("cyan");
     StringView purple_sv = cstr_sv("purple");
+    StringView pink_sv   = cstr_sv("pink");
     StringView yellow_sv = cstr_sv("yellow");
     StringView white_sv  = cstr_sv("white");
 
@@ -245,6 +253,10 @@ f_internal void setColour
     else if(sv_same(colour, purple_sv))
     {
         config->colour = PURPLE;
+    }
+    else if(sv_same(colour, pink_sv))
+    {
+        config->colour = PINK;
     }
     else if(sv_same(colour, yellow_sv))
     {
