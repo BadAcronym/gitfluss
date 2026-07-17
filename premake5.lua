@@ -47,7 +47,9 @@ project("gitfluss")
         files({"./src/linux_gitfluss*",
                "./include/linux_gitfluss*",
                "./src/gitfluss_*",
-               "./include/gitfluss_*"})
+               "./include/gitfluss_*",
+               "./vendor/puddle/src/linux*",
+               "./vendor/puddle/src/string_view.c"})
         linkoptions({"-lgit2", "-fuse-ld=mold"})
         links("git2:static")
         buildoptions({"-Wextra", "-Wall", "-Wpedantic", "-Wconversion", "-Wshadow",
@@ -62,7 +64,9 @@ project("gitfluss")
         files({"./src/win32_gitfluss*",
                "./include/win32_gitfluss*",
                "./src/gitfluss_*",
-               "./include/gitfluss_*"})
+               "./include/gitfluss_*",
+               "./vendor/puddle/src/win32*",
+               "./vendor/puddle/src/string_view.c"})
         buildoptions{"/wd4068", "/wd4100"}
         links("git2.lib")
 
