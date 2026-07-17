@@ -1,7 +1,7 @@
 #include "gitfluss.h"
 
-#define STRING_VIEW_IMPL
-#include "string_view.h"
+#define PD_PATH_IMPL
+#include "pd_path.h"
 
 #include <git2.h>
 
@@ -207,7 +207,7 @@ f_internal void addPath
         config->repositories = cstr_sv(repositories_cstr);
 
         char resolved[PATH_MAX];
-        gfExpandPath(path_cstr, resolved);
+        pdExpandPath(path_cstr, resolved);
         StringView resolved_sv = cstr_sv(resolved);
 
         sv_concat(config->repositories, resolved_sv, repositories_cstr);
@@ -216,7 +216,7 @@ f_internal void addPath
     else
     {
         char *resolved = calloc(PATH_MAX, 1);
-        gfExpandPath(path_cstr, resolved);
+        pdExpandPath(path_cstr, resolved);
         config->repositories = cstr_sv(resolved);
     }
 
@@ -301,20 +301,8 @@ f_internal void readConfig
 ){
     char path_expanded[PATH_MAX];
     char fallback_expanded[PATH_MAX];
-    gfExpandPath(CONF_PATH, path_expanded);
-    gfExpandPath(CONF_FALLBACK, fallback_expanded);
-
-    FILE *file = fopen(path_expanded, "r");
-    if(!file)
-    {
-        file = fopen(fallback_expanded, "r");
-        if(!file)
-        {
-            fprintf(stderr, "\033[33;3mWARNING: could not open configuration file."
-                    "\033[0m\n");
-            return;
-        }
-    }
+    pdExpandPath(CONF_PATH, path_expanded);
+    pdExpandPath(CONF_FALLBACK, fallback_expanded);
 
     StringView author_sv = cstr_sv("author: ");
     StringView colour_sv = cstr_sv("colour: ");
@@ -327,6 +315,18 @@ f_internal void readConfig
     StringView heat4_sv  = cstr_sv("heat4: ");
     StringView char_sv   = cstr_sv("character: ");
     StringView true_sv   = cstr_sv("true");
+
+    FILE *file = fopen(path_expanded, "r");
+    if(!file)
+    {
+        file = fopen(fallback_expanded, "r");
+        if(!file)
+        {
+            fprintf(stderr, "\033[33;3mWARNING: could not open configuration file."
+                    "\033[0m\n");
+            return;
+        }
+    }
 
     char buf[bufsize];
     while(fgets(buf, bufsize, file))
