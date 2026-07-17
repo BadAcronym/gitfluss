@@ -11,12 +11,12 @@
 #define f_internal static
 
 #ifdef BUILD_LINUX
-    #define CONF_PATH     ".conf"
+    #define CONF_PATH     ".gitflussconf"
     #define CONF_FALLBACK "~/.config/gitfluss/.conf"
 #endif
 #ifdef BUILD_WINDOWS
     #define CONF_PATH     "gitfluss.ini"
-    #define CONF_FALLBACK "~\\.config\\gitfluss.ini"
+    #define CONF_FALLBACK "~\\.config\\gitfluss\\gitfluss.ini"
 #endif
 
 #define bufsize     8192
