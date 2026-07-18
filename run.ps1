@@ -25,11 +25,9 @@ if($build -eq "asan" -or $build -eq "debug" -or $build -eq "release")
     Write-Host ""
     Write-Host "compiling gitfluss..." -ForegroundColor Cyan
     Write-Host ""
-    premake5 vs2026
 
-#     translate this
-#     pushd ./build/ > /dev/null
-#     make config=$build\_linux
+    premake5 vs2026
+    &MSBuild ./build/gitfluss.sln -p:Configuration=$build\_windows
 }
 else
 {
