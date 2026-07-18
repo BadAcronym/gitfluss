@@ -2,7 +2,13 @@
 
 workspace("gitfluss")
     configurations({"debug", "asan", "release"})
-    platforms({"linux", "windows"})
+
+    if string.sub(_ACTION, 1, 2) == "vs" then
+        platforms { "windows" }
+    else
+        platforms { "linux" }
+    end
+
     location("build")
     architecture("x86_64")
 
@@ -39,8 +45,8 @@ project("gitfluss")
         symbols("Off")
         optimize("Speed")
 
-    filter("platforms:Linux")
-        system("Linux")
+    filter("platforms:linux")
+        system("linux")
         defines("BUILD_LINUX")
         targetdir("bin/%{cfg.buildcfg}")
         objdir("obj/%{cfg.buildcfg}")
@@ -56,8 +62,8 @@ project("gitfluss")
                       "-Wsign-compare"})
         toolset("clang")
 
-    filter("platforms:Windows")
-        system("Windows")
+    filter("platforms:windows")
+        system("windows")
         defines("BUILD_WINDOWS")
         targetdir("bin/%{cfg.buildcfg}")
         objdir("obj/")
@@ -68,23 +74,24 @@ project("gitfluss")
                "./vendor/puddle/src/win32*",
                "./vendor/puddle/src/string_view.c"})
         buildoptions{"/wd4068", "/wd4100"}
+        toolset("clang-cl")
         links("git2.lib")
 
-    filter({"platforms:Linux", "configurations:debug or asan"})
+    filter({"platforms:linux", "configurations:debug or asan"})
         buildoptions({"-gfull", "-O1"})
         linkoptions({"-gfull", "-O1"})
 
-    filter({"platforms:Linux", "configurations:asan"})
+    filter({"platforms:linux", "configurations:asan"})
         buildoptions({"-fsanitize=address,leak,undefined", "-fno-omit-frame-pointer",
                       "-static-libasan"})
         linkoptions({"-fsanitize=address,leak,undefined", "-fno-omit-frame-pointer",
                      "-static-libasan"})
 
-    filter({"platforms:Windows", "configurations:debug or asan"})
+    filter({"platforms:windows", "configurations:debug or asan"})
 
-    filter({"platforms:Windows", "configurations:asan"})
+    filter({"platforms:windows", "configurations:asan"})
         editandcontinue("Off")
         buildoptions({"/fsanitize=address", "/Zi", "/INCREMENTAL:NO"})
 
-    filter({"platforms:Windows", "configurations:release"})
+    filter({"platforms:windows", "configurations:release"})
         linkoptions("/NODEFAULTLIB:MSVCRTD")
