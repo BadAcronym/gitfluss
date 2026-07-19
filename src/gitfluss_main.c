@@ -15,6 +15,11 @@
     #define CONF_FALLBACK "~/.config/gitfluss/.conf"
 #endif
 #ifdef BUILD_WINDOWS
+    #include <fcntl.h>
+    #include <io.h>  
+    #include <locale.h>
+    #include <windows.h>
+ 
     #define CONF_PATH     "gitfluss.ini"
     #define CONF_FALLBACK "~\\.config\\gitfluss\\gitfluss.ini"
 #endif
@@ -620,6 +625,12 @@ f_internal void printCorrespondingHeat
     gfPercentiles *percentiles,
     uint32_t      commit_count
 ){
+    if(!commit_count)
+    {
+        printf(" ");
+        return;
+    }
+
     if(config->flags & FLAG_MONO)
     {
         if(!config->mono_0)
@@ -643,12 +654,7 @@ f_internal void printCorrespondingHeat
             config->mono_4 = "█";
         }
 
-        if(!commit_count)
-        {
-            printf(" ");
-            return;
-        }
-        else if(commit_count < percentiles->d20)
+        if(commit_count < percentiles->d20)
         {
             printf("%s", config->mono_0);
         }
@@ -679,12 +685,7 @@ f_internal void printCorrespondingHeat
         character = "\u25FC";
     }
 
-    if(!commit_count)
-    {
-        printf(" ");
-        return;
-    }
-    else if(commit_count < percentiles->d20)
+    if(commit_count < percentiles->d20)
     {
         printf("%s", colours[colour * 5]);
     }
@@ -713,8 +714,8 @@ f_internal void printHeatMap
     gfHeatmapSettings *set
 ){
     uint8_t current_weekday = 0;
-
     printf("     ");
+
     for(uint8_t i = 0; i < 13; ++i)
     {
         uint8_t indexedMonth   = (set->currentMonth + i) % 12;
@@ -773,6 +774,11 @@ int main
     int  argc,
     char **argv
 ){
+    #ifdef BUILD_WINDOWS
+    SetConsoleOutputCP(CP_UTF8);
+    SetConsoleCP(CP_UTF8);
+    #endif
+
     char sorted_repos[PATH_MAX * 100];
     char sorted_authors[PATH_MAX * 2];
     char biggestRepo_buf[PATH_MAX + 1];
