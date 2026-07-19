@@ -74,7 +74,7 @@ project("gitfluss")
                "./vendor/puddle/src/win32*",
                "./vendor/puddle/src/string_view.c"})
         buildoptions{"/wd4068", "/wd4100"}
-        toolset("clang-cl")
+        toolset("msc")
         links("git2.lib")
 
     filter({"platforms:linux", "configurations:debug or asan"})

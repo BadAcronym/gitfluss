@@ -35,14 +35,15 @@ else
      exit -2;
 }
 
-# if [[ $? != 0 ]]
-# then
-#     echo -e "\033[31m\nERROR: failed to compile gitfluss.\n\033[0m"
-#     exit -1;
-# fi
-# 
-# echo -e "\n"
-# 
+if($LASTEXITCODE -ne 0)
+{
+     Write-Host "`nERROR: failed to compile gitfluss.`n" -ForegroundColor Red
+     exit -1;
+}
+
+Write-Host "`n"
+
+ 
 # if [[ $2 = "--compile-only" ]]
 # then
 #     exit 0;
