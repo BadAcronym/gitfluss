@@ -32,7 +32,7 @@ then
     pushd ./build/ > /dev/null
     make config=$build\_linux
 else
-    echo -e "\033[31m\nERROR: invalid make config: $build.\033[0m"
+    echo -e "\033[31m\nERROR: invalid make config: '$build'.\033[0m"
     exit -2;
 fi
 
