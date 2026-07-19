@@ -49,6 +49,5 @@ Write-Host "`n"
 # fi
 #
 # popd > /dev/null
-#
-# chmod +x ./bin/$build/gitfluss
-# ./bin/$build/gitfluss
+
+&./bin/$build/gitfluss
