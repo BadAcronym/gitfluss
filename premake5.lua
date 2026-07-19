@@ -3,7 +3,7 @@
 workspace("gitfluss")
     configurations({"debug", "asan", "release"})
 
-    if string.sub(_ACTION, 1, 2) == "vs" then
+    if package.config:sub(1,1) == '\\' then
         platforms { "windows" }
     else
         platforms { "linux" }
