@@ -18,7 +18,9 @@ project("gitfluss")
     warnings("Extra")
     targetname("gitfluss")
     libdirs({"./vendor/river2D/bin/%{cfg.buildcfg}/",
-             "./vendor/river2D/vendor/imgsurf/bin/%{cfg.buildcfg}/"})
+             "./vendor/river2D/vendor/imgsurf/bin/%{cfg.buildcfg}/",
+             "./vendor/libgit2/build/Release/",
+             "./vendor/libgit2/build/Debug/"})
     includedirs({"./include/",
                  "/usr/include/",
                  "./vendor/libgit2/include/",
