@@ -29,6 +29,7 @@ project("gitfluss")
                  "./vendor/river2D/vendor/imgsurf/include"})
     debugdir("./")
     kind("ConsoleApp")
+    links{"git2"}
 
     filter("configurations:asan")
         defines{"ASAN"}
@@ -60,7 +61,6 @@ project("gitfluss")
                "./vendor/puddle/src/linux*",
                "./vendor/puddle/src/string_view.c"})
         linkoptions({"-lgit2", "-fuse-ld=mold"})
-        links("git2:static")
         buildoptions({"-Wextra", "-Wall", "-Wpedantic", "-Wconversion", "-Wshadow",
                       "-Wsign-compare"})
         toolset("clang")
@@ -78,7 +78,6 @@ project("gitfluss")
                "./vendor/puddle/src/string_view.c"})
         buildoptions{"/wd4068", "/wd4100"}
         toolset("msc")
-        links("git2.lib")
 
     filter({"platforms:linux", "configurations:debug or asan"})
         buildoptions({"-gfull", "-O1"})
