@@ -1,18 +1,20 @@
 param($build)
 
+$PSStyle.OutputRendering = "Ansi"
+
 if(-Not(Test-Path "./obj/"))
 {
-    mkdir "./obj/"    
+    mkdir "./obj/"
 }
 
 if(-Not(Test-Path "./build/"))
 {
-    mkdir "./build/"    
+    mkdir "./build/"
 }
 
 if(-Not(Test-Path "./bin/"))
 {
-    mkdir "./bin/"    
+    mkdir "./bin/"
 }
 
 if($build -eq $null)
@@ -23,7 +25,7 @@ if($build -eq $null)
 if($build -eq "asan" -or $build -eq "debug" -or $build -eq "release")
 {
     Write-Host ""
-    Write-Host "compiling gitfluss..." -ForegroundColor Cyan
+    Write-Host "`033[36mcompiling gitfluss...`033[0m"
     Write-Host ""
 
     premake5 vs2026
@@ -43,13 +45,12 @@ if($LASTEXITCODE -ne 0)
 
 Write-Host "`n"
 
- 
 # if [[ $2 = "--compile-only" ]]
 # then
 #     exit 0;
 # fi
-# 
+#
 # popd > /dev/null
-# 
+#
 # chmod +x ./bin/$build/gitfluss
 # ./bin/$build/gitfluss
