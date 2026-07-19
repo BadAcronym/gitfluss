@@ -822,7 +822,7 @@ int main
                     ARG_SV(repository));
         #endif
 
-        char current_repo_cstr[repository.size + 1];
+        char current_repo_cstr[4096];
         sv_cstr(repository, current_repo_cstr);
 
         git_repository_open(&repo, current_repo_cstr);
