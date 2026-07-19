@@ -27,7 +27,7 @@ if($build -eq "asan" -or $build -eq "debug" -or $build -eq "release")
     Write-Host ""
 
     premake5 vs2026
-    &MSBuild ./build/gitfluss.sln -p:Configuration=$build\_windows
+    &MSBuild ./build/gitfluss.sln -p:Configuration=$build
 }
 else
 {
