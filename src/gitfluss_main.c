@@ -19,6 +19,10 @@
     #include <io.h>  
     #include <locale.h>
     #include <windows.h>
+
+    #ifndef ENABLE_VIRTUAL_TERMINAL_PROCESSING
+    #define ENABLE_VIRTUAL_TERMINAL_PROCESSING  0x0004
+    #endif
  
     #define CONF_PATH     "gitfluss.ini"
     #define CONF_FALLBACK "~\\.config\\gitfluss\\gitfluss.ini"
@@ -682,7 +686,7 @@ f_internal void printCorrespondingHeat
     const char *character = config->character;
     if(!character)
     {
-        character = "\u25FC";
+        character = "\xE2\x97\xBC"; 
     }
 
     if(commit_count < percentiles->d20)
@@ -775,8 +779,13 @@ int main
     char **argv
 ){
     #ifdef BUILD_WINDOWS
+    _setmode(_fileno(stdout), _O_BINARY);
     SetConsoleOutputCP(CP_UTF8);
     SetConsoleCP(CP_UTF8);
+
+    HANDLE hOutput = GetStdHandle(STD_OUTPUT_HANDLE);
+    SetConsoleMode(hOutput, ENABLE_PROCESSED_OUTPUT | 
+                            ENABLE_VIRTUAL_TERMINAL_PROCESSING);
     #endif
 
     char sorted_repos[PATH_MAX * 100];
