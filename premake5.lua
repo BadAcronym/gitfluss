@@ -4,7 +4,7 @@ workspace("gitfluss")
     configurations({"debug", "asan", "release"})
 
     if package.config:sub(1,1) == '\\' then
-        platforms { "windows" }
+        platforms { "x64" }
     else
         platforms { "linux" }
     end
@@ -21,6 +21,7 @@ project("gitfluss")
              "./vendor/river2D/vendor/imgsurf/bin/%{cfg.buildcfg}/"})
     includedirs({"./include/",
                  "/usr/include/",
+                 "./vendor/libgit2/include/",
                  "./vendor/puddle/include/",
                  "./vendor/river2D/include/",
                  "./vendor/river2D/vendor/imgsurf/include"})
@@ -49,7 +50,7 @@ project("gitfluss")
         system("linux")
         defines("BUILD_LINUX")
         targetdir("bin/%{cfg.buildcfg}")
-        objdir("obj/%{cfg.buildcfg}")
+        objdir("obj")
         files({"./src/linux_gitfluss*",
                "./include/linux_gitfluss*",
                "./src/gitfluss_*",
@@ -62,11 +63,11 @@ project("gitfluss")
                       "-Wsign-compare"})
         toolset("clang")
 
-    filter("platforms:windows")
+    filter("platforms:x64")
         system("windows")
         defines("BUILD_WINDOWS")
         targetdir("bin/%{cfg.buildcfg}")
-        objdir("obj/")
+        objdir("obj/%{cfg.buildcfg}")
         files({"./src/win32_gitfluss*",
                "./include/win32_gitfluss*",
                "./src/gitfluss_*",
@@ -87,11 +88,11 @@ project("gitfluss")
         linkoptions({"-fsanitize=address,leak,undefined", "-fno-omit-frame-pointer",
                      "-static-libasan"})
 
-    filter({"platforms:windows", "configurations:debug or asan"})
+    filter({"platforms:x64", "configurations:debug or asan"})
 
-    filter({"platforms:windows", "configurations:asan"})
+    filter({"platforms:x64", "configurations:asan"})
         editandcontinue("Off")
         buildoptions({"/fsanitize=address", "/Zi", "/INCREMENTAL:NO"})
 
-    filter({"platforms:windows", "configurations:release"})
+    filter({"platforms:x64", "configurations:release"})
         linkoptions("/NODEFAULTLIB:MSVCRTD")

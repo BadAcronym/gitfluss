@@ -27,7 +27,7 @@ if($build -eq "asan" -or $build -eq "debug" -or $build -eq "release")
     Write-Host "`ncompiling gitfluss...`n" -Fore Cyan
 
     premake5 vs2026
-    &MSBuild ./build/gitfluss.sln -p:Configuration=$build
+    &MSBuild ./build/gitfluss.slnx -p:Configuration=$build 
 }
 else
 {
