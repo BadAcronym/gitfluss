@@ -683,7 +683,7 @@ f_internal void printCorrespondingHeat
     const char *character = config->character;
     if(!character)
     {
-        character = "\xE2\x97\xBC";
+        character = "\u25FC";
     }
 
     if(commit_count < percentiles->d20)
