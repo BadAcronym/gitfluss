@@ -1,6 +1,4 @@
 #include "gitfluss.h"
-
-#define PD_PATH_IMPL
 #include "pd_path.h"
 
 #include <git2.h>
@@ -16,14 +14,13 @@
 #endif
 #ifdef BUILD_WINDOWS
     #include <fcntl.h>
-    #include <io.h>  
-    #include <locale.h>
+    #include <io.h>
     #include <windows.h>
 
     #ifndef ENABLE_VIRTUAL_TERMINAL_PROCESSING
     #define ENABLE_VIRTUAL_TERMINAL_PROCESSING  0x0004
     #endif
- 
+
     #define CONF_PATH     "gitfluss.ini"
     #define CONF_FALLBACK "~\\.config\\gitfluss\\gitfluss.ini"
 #endif
@@ -205,7 +202,7 @@ f_internal void addPath
 ){
     StringView sep = cstr_sv(";");
 
-    char path_cstr[4096];
+    char path_cstr[path.size + 1];
     sv_cstr(path, path_cstr);
 
     if(config->repositories.data)
@@ -686,7 +683,7 @@ f_internal void printCorrespondingHeat
     const char *character = config->character;
     if(!character)
     {
-        character = "\xE2\x97\xBC"; 
+        character = "\xE2\x97\xBC";
     }
 
     if(commit_count < percentiles->d20)
@@ -784,7 +781,7 @@ int main
     SetConsoleCP(CP_UTF8);
 
     HANDLE hOutput = GetStdHandle(STD_OUTPUT_HANDLE);
-    SetConsoleMode(hOutput, ENABLE_PROCESSED_OUTPUT | 
+    SetConsoleMode(hOutput, ENABLE_PROCESSED_OUTPUT |
                             ENABLE_VIRTUAL_TERMINAL_PROCESSING);
     #endif
 
@@ -837,7 +834,7 @@ int main
                     ARG_SV(repository));
         #endif
 
-        char current_repo_cstr[4096];
+        char current_repo_cstr[repository.size + 1];
         sv_cstr(repository, current_repo_cstr);
 
         git_repository_open(&repo, current_repo_cstr);
