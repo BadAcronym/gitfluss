@@ -4,7 +4,7 @@ workspace("gitfluss")
     configurations({"debug", "asan", "release"})
 
     if package.config:sub(1,1) == '\\' then
-        platforms { "x64" }
+        platforms { "windows" }
     else
         platforms { "linux" }
     end
@@ -29,6 +29,8 @@ project("gitfluss")
                  "./vendor/river2D/vendor/imgsurf/include"})
     debugdir("./")
     kind("ConsoleApp")
+    toolset("clang")
+    buildoptions({"-Wextra", "-Wall", "-Wpedantic", "-Wconversion", "-Wshadow", "-Wsign-compare"})
     links{"git2"}
 
     filter("configurations:asan")
@@ -61,11 +63,8 @@ project("gitfluss")
                "./vendor/puddle/src/linux*",
                "./vendor/puddle/src/string_view.c"})
         linkoptions({"-lgit2", "-fuse-ld=mold"})
-        buildoptions({"-Wextra", "-Wall", "-Wpedantic", "-Wconversion", "-Wshadow",
-                      "-Wsign-compare"})
-        toolset("clang")
 
-    filter("platforms:x64")
+    filter("platforms:windows")
         system("windows")
         defines("BUILD_WINDOWS")
         targetdir("bin/%{cfg.buildcfg}")
@@ -76,8 +75,6 @@ project("gitfluss")
                "./include/gitfluss_*",
                "./vendor/puddle/src/win32*",
                "./vendor/puddle/src/string_view.c"})
-        buildoptions{"/wd4068", "/wd4100"}
-        toolset("msc")
 
     filter({"platforms:linux", "configurations:debug or asan"})
         buildoptions({"-gfull", "-O1"})
@@ -89,11 +86,13 @@ project("gitfluss")
         linkoptions({"-fsanitize=address,leak,undefined", "-fno-omit-frame-pointer",
                      "-static-libasan"})
 
-    filter({"platforms:x64", "configurations:debug or asan"})
+    filter({"platforms:windows", "configurations:debug or asan"})
 
-    filter({"platforms:x64", "configurations:asan"})
-        editandcontinue("Off")
+    filter({"platforms:windows", "configurations:asan"})
+        toolset("clang-cl")
         buildoptions({"/fsanitize=address", "/Zi", "/INCREMENTAL:NO"})
+        linkoptions{"/link clang_rt.asan_dynamic-x86_64.lib clang_rt.asan_dynamic_runtime_thunk-x86_64.lib"}
+        editandcontinue("Off")
 
-    filter({"platforms:x64", "configurations:release"})
-        linkoptions("/NODEFAULTLIB:MSVCRTD")
+    -- filter({"platforms:windows", "configurations:release"})
+    --     linkoptions("/NODEFAULTLIB:MSVCRTD")

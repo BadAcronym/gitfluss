@@ -1,6 +1,8 @@
-param($build)
-
-$PSStyle.OutputRendering = "Ansi"
+param
+(
+    [Parameter(Position = 0)][string]$build,
+    [Parameter(Position = 1)][string]$compile_only
+)
 
 if(-Not(Test-Path "./obj/"))
 {
@@ -17,7 +19,7 @@ if(-Not(Test-Path "./bin/"))
     mkdir "./bin/"
 }
 
-if($build -eq $null)
+if($build -eq $null -or $build -eq "")
 {
     $build = "release"
 }
@@ -26,8 +28,10 @@ if($build -eq "asan" -or $build -eq "debug" -or $build -eq "release")
 {
     Write-Host "`ncompiling gitfluss...`n" -Fore Cyan
 
-    premake5 vs2026
-    &MSBuild ./build/gitfluss.slnx -p:Configuration=$build 
+    premake5 gmake
+    pushd "./build/"
+    make config=$build`_windows
+    popd
 }
 else
 {
@@ -43,11 +47,9 @@ if($LASTEXITCODE -ne 0)
 
 Write-Host "`n"
 
-# if [[ $2 = "--compile-only" ]]
-# then
-#     exit 0;
-# fi
-#
-# popd > /dev/null
+if($compile_only -eq "--compile-only")
+{
+    exit 0;
+}
 
 &./bin/$build/gitfluss
