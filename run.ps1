@@ -32,6 +32,13 @@ if($build -eq "asan" -or $build -eq "debug" -or $build -eq "release")
     pushd "./build/"
     make config=$build`_windows
     popd
+
+    $dllPath = "./vendor/libgit2/build/Debug/git2.dll"
+
+    if(Test-Path $dllPath)
+    {
+        cp $dllPath "./bin/$build/"
+    }
 }
 else
 {
