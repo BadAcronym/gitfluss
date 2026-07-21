@@ -43,6 +43,8 @@ project("gitfluss")
         runtime("debug")
         symbols("On")
         optimize("Off")
+        buildoptions({"-gfull", "-O1"})
+        linkoptions({"-gfull", "-O1"})
 
     filter("configurations:release")
         defines{"NDEBUG"}
@@ -75,18 +77,17 @@ project("gitfluss")
                "./include/gitfluss_*",
                "./vendor/puddle/src/win32*",
                "./vendor/puddle/src/string_view.c"})
+        linkoptions({"-lgit2"})
 
-    filter({"platforms:linux", "configurations:debug or asan"})
-        buildoptions({"-gfull", "-O1"})
-        linkoptions({"-gfull", "-O1"})
+    filter({"platforms:windows", "configurations:debug or asan"})
+        buildoptions({"-gcodeview"})
+        linkoptions({"-gcodeview"})
 
     filter({"platforms:linux", "configurations:asan"})
         buildoptions({"-fsanitize=address,leak,undefined", "-fno-omit-frame-pointer",
                       "-static-libasan"})
         linkoptions({"-fsanitize=address,leak,undefined", "-fno-omit-frame-pointer",
                      "-static-libasan"})
-
-    filter({"platforms:windows", "configurations:debug or asan"})
 
     filter({"platforms:windows", "configurations:asan"})
         toolset("clang-cl")
