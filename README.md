@@ -14,7 +14,9 @@ Plans:
 
 The configuration file location is `~/.config/gitfluss/.conf`. Gitfluss will look first
 in the current working directory for a `.gitflussconf` file and then in the config
-directory for a `.conf` file. On windows, `$HOME` equates to `$env:USERPROFILE`.
+directory for a `.conf` file.
+On windows, `~` or `$HOME` equates to `$env:USERPROFILE` and the paths are
+`~/.config/gitfluss/gitfluss.ini` or locally, `gitfluss.ini`.
 
 If, instead, command-line arguments are provided, the configuration file will not be
 read, for example:
