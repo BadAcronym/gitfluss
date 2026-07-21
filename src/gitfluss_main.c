@@ -1024,7 +1024,6 @@ int main
         printf("weekday 365 days ago: %s\n", days[weekday_365]);
         printf("day of the month, today: %u\n", day_of_month);
         printf("palette: ");
-        const char *debugChar = "\u25FC";
         printCorrespondingHeat(&config, &percentiles, 1);
         printCorrespondingHeat(&config, &percentiles, percentiles.d20);
         printCorrespondingHeat(&config, &percentiles, percentiles.d50);
