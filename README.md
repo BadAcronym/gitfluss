@@ -1,5 +1,5 @@
 Status:
-+ Linux only for now, win32 needs a small bit of porting
++ linux + windows versions, windows version has a quirk or two
 + You can configure a list of paths in the configuration file or by passing command-line
   arguments. `~`, `.` and `$HOME` will be resolved, all other paths must be absolute for
   now.
@@ -9,12 +9,12 @@ Status:
 Plans:
 + Allow overwriting percentiles
 + Add more (optional) repository-specific data displays
-+ Windows port
 + Add more (optional) years to the heatmap display
 + Allow custom RGB colour values
 
 The configuration file location is `~/.config/gitfluss/.conf`. Gitfluss will look first
-in the current working directory for a `.conf` file and then in the config directory.
+in the current working directory for a `.gitflussconf` file and then in the config
+directory for a `.conf` file. On windows, `$HOME` equates to `$env:USERPROFILE`.
 
 If, instead, command-line arguments are provided, the configuration file will not be
 read, for example:
