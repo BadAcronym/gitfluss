@@ -1,16 +1,16 @@
 Write-Host "cleaning up gitfluss builds..." -ForegroundColor Yellow
 
-if(-Not(Test-Path "./obj/"))
+if(Test-Path "./obj/")
 {
     rm "./obj/" -Recurse -Force
 }
 
-if(-Not(Test-Path "./bin/"))
+if(Test-Path "./bin/")
 {
     rm "./bin/" -Recurse -Force
 }
 
-if(-Not(Test-Path "./build/"))
+if(Test-Path "./build/")
 {
     rm "./build/" -Recurse -Force
 }
