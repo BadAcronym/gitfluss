@@ -2,12 +2,7 @@
 
 workspace("gitfluss")
     configurations({"debug", "asan", "release"})
-
-    if package.config:sub(1,1) == '\\' then
-        platforms { "windows" }
-    else
-        platforms { "linux" }
-    end
+    platforms({"windows", "linux"})
 
     location("build")
     architecture("x86_64")
