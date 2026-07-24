@@ -1,3 +1,7 @@
+Gitfluss is a neat little cmd git stats view that will pull data from local
+repositories, so you can view a unified heatmap across all your projects, whether local
+only or cloned from any remote server.
+
 Status:
 + linux + windows versions, windows version has a quirk or two
 + You can configure a list of paths in the configuration file or by passing command-line
