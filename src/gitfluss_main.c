@@ -242,6 +242,13 @@ f_internal void addAuthorlist
             buffer.size -= 1;
         }
 
+        StringView comment_sv  = cstr_sv("//");
+        const char *commentloc = sv_find(comment_sv, buffer);
+        if(commentloc == buf)
+        {
+            continue;
+        }
+
         addAuthor(config, buffer);
     }
 
@@ -348,6 +355,13 @@ f_internal void addPathlist
         if(buf[buffer.size - 1] == '\n')
         {
             buffer.size -= 1;
+        }
+
+        StringView comment_sv  = cstr_sv("//");
+        const char *commentloc = sv_find(comment_sv, buffer);
+        if(commentloc == buf)
+        {
+            continue;
         }
 
         addPath(config, buffer);
