@@ -248,15 +248,10 @@ f_internal void addPath
     gfConf     *config,
     StringView path
 ){
-    if(pdVerifyPath(path) != PD_TYPE_DIRECTORY)
-    {
-        return;
-    }
-
-    StringView sep = cstr_sv(";");
-
     char path_cstr[path.size + 1];
     sv_cstr(path, path_cstr);
+
+    StringView sep = cstr_sv(";");
 
     if(config->repositories.data)
     {
@@ -269,6 +264,13 @@ f_internal void addPath
         pdExpandPath(path_cstr, resolved);
         StringView resolved_sv = cstr_sv(resolved);
 
+        if(pdVerifyPath(resolved_sv) != PD_TYPE_DIRECTORY)
+        {
+            fprintf(stderr, "\033[33;3mWARNING: path '"PRI_SV"' is not a directory."
+                            "\033[0m\n", ARG_SV(resolved_sv));
+            return;
+        }
+
         sv_concat(config->repositories, resolved_sv, repositories_cstr);
         config->repositories = cstr_sv(repositories_cstr);
     }
@@ -276,7 +278,15 @@ f_internal void addPath
     {
         char *resolved = calloc(PATH_MAX, 1);
         pdExpandPath(path_cstr, resolved);
-        config->repositories = cstr_sv(resolved);
+        StringView resolved_sv = cstr_sv(resolved);
+        config->repositories = resolved_sv;
+
+        if(pdVerifyPath(resolved_sv) != PD_TYPE_DIRECTORY)
+        {
+            fprintf(stderr, "\033[33;3mWARNING: path '"PRI_SV"' is not a directory."
+                            "\033[0m\n", ARG_SV(resolved_sv));
+            return;
+        }
     }
 
     #ifdef DEBUG
