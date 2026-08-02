@@ -195,11 +195,64 @@ f_internal void addAuthor
     #endif
 }
 
+f_internal void addAuthorlist
+(
+    gfConf     *config,
+    StringView path
+){
+    char path_cstr[4096];
+    sv_cstr(path, path_cstr);
+
+    char path_expanded_cstr[4096];
+    pdExpandPath(path_cstr, path_expanded_cstr);
+
+    StringView path_expanded = cstr_sv(path_expanded_cstr);
+
+    if(pdVerifyPath(path_expanded) != PD_TYPE_FILE)
+    {
+        #ifdef DEBUG
+        fprintf(stderr, "\033[33;1mWARNING: tasked with opening author list file: '"
+                PRI_SV"', no such file exists.\033[0m\n", ARG_SV(path_expanded));
+        #endif
+        return;
+    }
+
+    FILE *file = fopen(path_expanded_cstr, "r");
+    if(!file)
+    {
+        #ifdef DEBUG
+        fprintf(stderr, "\033[33;1mWARNING: tasked with opening author list file: '"
+                        PRI_SV"', failed to open.\033[0m\n", ARG_SV(path_expanded));
+        #endif
+        return;
+    }
+
+    char buf[bufsize];
+    while(fgets(buf, bufsize, file))
+    {
+        StringView buffer = cstr_sv(buf);
+
+        if(buf[buffer.size - 1 ] == '\n')
+        {
+            buffer.size -= 1;
+        }
+
+        addAuthor(config, buffer);
+    }
+
+    fclose(file);
+}
+
 f_internal void addPath
 (
     gfConf     *config,
     StringView path
 ){
+    if(pdVerifyPath(path) != PD_TYPE_DIRECTORY)
+    {
+        return;
+    }
+
     StringView sep = cstr_sv(";");
 
     char path_cstr[path.size + 1];
@@ -229,6 +282,13 @@ f_internal void addPath
     #ifdef DEBUG
         fprintf(stderr, "path list: "PRI_SV"\n", ARG_SV(config->repositories));
     #endif
+}
+
+f_internal void addPathlist
+(
+    gfConf     *config,
+    StringView path
+){
 }
 
 f_internal void setColour
@@ -310,6 +370,9 @@ f_internal void readConfig
     pdExpandPath(CONF_PATH, path_expanded);
     pdExpandPath(CONF_FALLBACK, fallback_expanded);
 
+    StringView authorlist_sv = cstr_sv("authorlist:");
+    StringView repolist_sv   = cstr_sv("repolist:");
+
     StringView author_sv = cstr_sv("author:");
     StringView colour_sv = cstr_sv("colour:");
     StringView info_sv   = cstr_sv("info:");
@@ -345,6 +408,32 @@ f_internal void readConfig
         const char *commentloc = sv_find(comment_sv, buffer);
         if(commentloc == buf)
         {
+            continue;
+        }
+
+        const char* authorlistloc = sv_find(authorlist_sv, buffer);
+        if(authorlistloc)
+        {
+            StringView authorlist = cstr_sv(buffer.data + authorlist_sv.size + 1);
+            if(authorlist.size)
+            {
+                authorlist.size -= 1;
+            }
+
+            addAuthorlist(config, authorlist);
+            continue;
+        }
+
+        const char* repolistloc = sv_find(repolist_sv, buffer);
+        if(repolistloc)
+        {
+            StringView repolist = cstr_sv(buffer.data + repolist_sv.size + 1);
+            if(repolist.size)
+            {
+                repolist.size -= 1;
+            }
+
+            addPathlist(config, repolist);
             continue;
         }
 
@@ -808,6 +897,13 @@ int main
         addAuthor(&config, any_author);
     }
 
+    if(!config.repositories.data)
+    {
+        StringView fallback = cstr_sv(".");
+        addPath(&config, fallback);
+    }
+
+    // ASAN: addition of unsigned offset overflowed... what?
     uint32_t repository_count = sv_count_by_delim(config.repositories, ';');
 
     git_libgit2_init();
