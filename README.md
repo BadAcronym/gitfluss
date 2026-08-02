@@ -48,6 +48,29 @@ $HOME/repository/river3D
 $HOME/repository/gitfluss
 ```
 
+Alternatively, lists of authors and files are supported as follows:
+configuration file:
+```
+authorlist: ~/mydir/authorlist_file
+repolist: ~/mydir/repolist_file
+```
+
+`~/mydir/authorlist_file`:
+```
+author@provider.com
+another_author@workplace.org
+...
+```
+
+`~/mydir/repolist_file`:
+```
+$HOME/repository/puddle
+$HOME/repository/imgsurf
+...
+```
+
+comments are supported in all files, preceded with `//` (C-style).
+
 ![example](screenshots/purple.jpg)
 
 The correspoding heat intensities are calculated based on the `20th`, `50th`, `70th` and
