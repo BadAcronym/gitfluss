@@ -169,6 +169,11 @@ f_internal void addAuthor
     gfConf     *config,
     StringView author
 ){
+    if(!author.size)
+    {
+        return;
+    }
+
     StringView sep = cstr_sv(";");
 
     if(config->authors.data)
@@ -232,7 +237,7 @@ f_internal void addAuthorlist
     {
         StringView buffer = cstr_sv(buf);
 
-        if(buf[buffer.size - 1 ] == '\n')
+        if(buf[buffer.size - 1] == '\n')
         {
             buffer.size -= 1;
         }
@@ -248,6 +253,11 @@ f_internal void addPath
     gfConf     *config,
     StringView path
 ){
+    if(!path.size)
+    {
+        return;
+    }
+
     char path_cstr[path.size + 1];
     sv_cstr(path, path_cstr);
 
@@ -266,8 +276,10 @@ f_internal void addPath
 
         if(pdVerifyPath(resolved_sv) != PD_TYPE_DIRECTORY)
         {
+            #ifdef DEBUG
             fprintf(stderr, "\033[33;3mWARNING: path '"PRI_SV"' is not a directory."
                             "\033[0m\n", ARG_SV(resolved_sv));
+            #endif
             return;
         }
 
@@ -283,8 +295,10 @@ f_internal void addPath
 
         if(pdVerifyPath(resolved_sv) != PD_TYPE_DIRECTORY)
         {
+            #ifdef DEBUG
             fprintf(stderr, "\033[33;3mWARNING: path '"PRI_SV"' is not a directory."
                             "\033[0m\n", ARG_SV(resolved_sv));
+            #endif
             return;
         }
     }
@@ -299,6 +313,47 @@ f_internal void addPathlist
     gfConf     *config,
     StringView path
 ){
+    char path_cstr[4096];
+    sv_cstr(path, path_cstr);
+
+    char path_expanded_cstr[4096];
+    pdExpandPath(path_cstr, path_expanded_cstr);
+
+    StringView path_expanded = cstr_sv(path_expanded_cstr);
+
+    if(pdVerifyPath(path_expanded) != PD_TYPE_FILE)
+    {
+        #ifdef DEBUG
+        fprintf(stderr, "\033[33;1mWARNING: tasked with opening path list file: '"
+                PRI_SV"', no such file exists.\033[0m\n", ARG_SV(path_expanded));
+        #endif
+        return;
+    }
+
+    FILE *file = fopen(path_expanded_cstr, "r");
+    if(!file)
+    {
+        #ifdef DEBUG
+        fprintf(stderr, "\033[33;1mWARNING: tasked with opening path list file: '"
+                        PRI_SV"', failed to open.\033[0m\n", ARG_SV(path_expanded));
+        #endif
+        return;
+    }
+
+    char buf[bufsize];
+    while(fgets(buf, bufsize, file))
+    {
+        StringView buffer = cstr_sv(buf);
+
+        if(buf[buffer.size - 1] == '\n')
+        {
+            buffer.size -= 1;
+        }
+
+        addPath(config, buffer);
+    }
+
+    fclose(file);
 }
 
 f_internal void setColour
