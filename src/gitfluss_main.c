@@ -920,7 +920,6 @@ int main
         addPath(&config, fallback);
     }
 
-    // ASAN: addition of unsigned offset overflowed... what?
     uint32_t repository_count = sv_count_by_delim(config.repositories, ';');
 
     git_libgit2_init();
