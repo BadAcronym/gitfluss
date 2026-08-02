@@ -469,6 +469,7 @@ f_internal void readConfig
                 chosen_sv.size -= 1;
             }
             setColour(config, chosen_sv);
+            continue;
         }
 
         const char* infoloc = sv_find(info_sv, buffer);
@@ -484,6 +485,7 @@ f_internal void readConfig
             {
                 config->flags |= FLAG_INFO;
             }
+            continue;
         }
 
         const char* monoloc = sv_find(mono_sv, buffer);
@@ -499,6 +501,7 @@ f_internal void readConfig
             {
                 config->flags |= FLAG_MONO;
             }
+            continue;
         }
 
         const char* heat0loc = sv_find(heat0_sv, buffer);
@@ -513,6 +516,7 @@ f_internal void readConfig
             char *small_buf = malloc(8);
             sv_cstr(set_sv, small_buf);
             config->mono_0 = small_buf;
+            continue;
         }
 
         const char* heat1loc = sv_find(heat1_sv, buffer);
@@ -527,6 +531,7 @@ f_internal void readConfig
             char *small_buf = malloc(8);
             sv_cstr(set_sv, small_buf);
             config->mono_1 = small_buf;
+            continue;
         }
 
         const char* heat2loc = sv_find(heat2_sv, buffer);
@@ -541,6 +546,7 @@ f_internal void readConfig
             char *small_buf = malloc(8);
             sv_cstr(set_sv, small_buf);
             config->mono_2 = small_buf;
+            continue;
         }
 
         const char* heat3loc = sv_find(heat3_sv, buffer);
@@ -555,6 +561,7 @@ f_internal void readConfig
             char *small_buf = malloc(8);
             sv_cstr(set_sv, small_buf);
             config->mono_3 = small_buf;
+            continue;
         }
 
         const char* heat4loc = sv_find(heat4_sv, buffer);
