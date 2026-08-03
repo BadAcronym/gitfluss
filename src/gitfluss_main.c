@@ -27,7 +27,6 @@
 
 #define bufsize     8192
 #define PATH_MAX    4096
-#define MAX_AUTHORS 1024
 
 #define RED    0
 #define GREEN  1
@@ -1025,6 +1024,11 @@ int main
         StringView any_sv     = cstr_sv("any");
         uint8_t    any_author = 0;
 
+        uint32_t   authorcount = sv_count_by_delim(config.authors, ';');
+        StringView authorlist[authorcount];
+
+        sv_separate_by_delim(config.authors, authorlist, ';');
+
         while(!git_revwalk_next(&oid, revwalk))
         {
             git_commit *commit = 0;
@@ -1036,14 +1040,14 @@ int main
             git_time   commit_time = sign->when;
             uint8_t    counts      = any_author;
 
-            for(uint16_t j = 0; !counts && j < MAX_AUTHORS; ++j)
+            for(uint16_t j = 0; !counts && j < authorcount; ++j)
             {
-                StringView author = sv_find_by_delim(config.authors, ';', j);
-                if(sv_same(author, author_mail))
+                // PERF: this is bad. Really bad for 5+ authors, already.
+                if(sv_same(authorlist[j], author_mail))
                 {
                     counts = 1;
                 }
-                else if(sv_same(author, any_sv))
+                else if(sv_same(authorlist[j], any_sv))
                 {
                     counts     = 1;
                     any_author = 1;
