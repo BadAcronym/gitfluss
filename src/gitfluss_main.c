@@ -1000,6 +1000,12 @@ int main
     int64_t    now              = gfQueryTime();
     int64_t    currDayEnd       = now - now % (24 * 3600) + 24 * 3600;
 
+    StringView any_sv      = cstr_sv("any");
+    uint32_t   authorcount = sv_count_by_delim(config.authors, ';');
+    StringView authorlist[authorcount];
+
+    sv_separate_by_delim(config.authors, authorlist, ';');
+
     for(uint32_t i = 0; i < repository_count; ++i)
     {
         git_repository *repo    = 0;
@@ -1021,13 +1027,7 @@ int main
         git_revwalk_new(&revwalk, repo);
         git_revwalk_push_head(revwalk);
 
-        StringView any_sv     = cstr_sv("any");
         uint8_t    any_author = 0;
-
-        uint32_t   authorcount = sv_count_by_delim(config.authors, ';');
-        StringView authorlist[authorcount];
-
-        sv_separate_by_delim(config.authors, authorlist, ';');
 
         while(!git_revwalk_next(&oid, revwalk))
         {
