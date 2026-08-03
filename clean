@@ -17,4 +17,14 @@ then
     rm ./build/ -rf
 fi
 
+for out in callgrind.*
+do
+    if [[ ! -f $out ]]
+    then
+        continue;
+    fi
+
+    rm $out
+done
+
 echo -e "\033[32mcleaned gitfluss!\n\033[0m"
