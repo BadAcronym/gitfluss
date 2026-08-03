@@ -1042,7 +1042,6 @@ int main
 
             for(uint16_t j = 0; !counts && j < authorcount; ++j)
             {
-                // PERF: this is bad. Really bad for 5+ authors, already.
                 if(sv_same(authorlist[j], author_mail))
                 {
                     counts = 1;
