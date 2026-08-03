@@ -1006,6 +1006,8 @@ int main
 
     sv_separate_by_delim(config.authors, authorlist, ';');
 
+    uint64_t commitCount = 0;
+
     for(uint32_t i = 0; i < repository_count; ++i)
     {
         git_repository *repo    = 0;
@@ -1031,6 +1033,7 @@ int main
 
         while(!git_revwalk_next(&oid, revwalk))
         {
+            ++commitCount;
             git_commit *commit = 0;
             git_commit_lookup(&commit, repo, &oid);
 
@@ -1214,6 +1217,8 @@ int main
         printCorrespondingHeat(&config, &percentiles, percentiles.d70);
         printCorrespondingHeat(&config, &percentiles, percentiles.d90);
         printf("\n");
+
+        printf("total read commit count: %lu\n", commitCount);
     #endif
 
     if(config.flags & FLAG_INFO)
