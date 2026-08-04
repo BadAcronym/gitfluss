@@ -1006,7 +1006,9 @@ int main
 
     sv_separate_by_delim(config.authors, authorlist, ';');
 
+    #ifdef DEBUG
     uint64_t commitCount = 0;
+    #endif
 
     for(uint32_t i = 0; i < repository_count; ++i)
     {
