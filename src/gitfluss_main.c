@@ -1035,7 +1035,9 @@ int main
 
         while(!git_revwalk_next(&oid, revwalk))
         {
+            #ifdef DEBUG
             ++commitCount;
+            #endif
             git_commit *commit = 0;
             git_commit_lookup(&commit, repo, &oid);
 
