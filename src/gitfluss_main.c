@@ -1046,6 +1046,10 @@ f_internal void gatherData
         git_revwalk_free(revwalk);
         git_repository_free(repo);
     }
+
+    #ifdef DEBUG
+        printf("\ntotal read commit count: %lu\n\n", commitCount);
+    #endif
 }
 
 f_internal void displayData
@@ -1186,14 +1190,12 @@ f_internal void displayData
         printf("weekday 365 days ago: %s\n", days[weekday_365]);
         printf("day of the month, today: %u\n", day_of_month);
         printf("palette: ");
-        printCorrespondingHeat(&config, &percentiles, 1);
-        printCorrespondingHeat(&config, &percentiles, percentiles.d20);
-        printCorrespondingHeat(&config, &percentiles, percentiles.d50);
-        printCorrespondingHeat(&config, &percentiles, percentiles.d70);
-        printCorrespondingHeat(&config, &percentiles, percentiles.d90);
+        printCorrespondingHeat(config, &percentiles, 1);
+        printCorrespondingHeat(config, &percentiles, percentiles.d20);
+        printCorrespondingHeat(config, &percentiles, percentiles.d50);
+        printCorrespondingHeat(config, &percentiles, percentiles.d70);
+        printCorrespondingHeat(config, &percentiles, percentiles.d90);
         printf("\n");
-
-        printf("total read commit count: %lu\n", commitCount);
     #endif
 
     if(config->flags & FLAG_INFO)
