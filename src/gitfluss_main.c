@@ -83,6 +83,21 @@ typedef struct gfHeatmapSettings
 }
 gfHeatmapSettings;
 
+typedef struct gfDisplaySettings
+{
+    StringView biggestRepo;
+    uint32_t   repositoryCount;
+    uint32_t   personalCommitCount;
+    uint32_t   repoMax;
+    uint32_t   *heatmap;
+    uint32_t   *sorted;
+    int64_t    now;
+    int64_t    currDayEnd;
+    int64_t    oldestCommitTime;
+    char       *biggestRepoBuf;
+}
+gfDisplaySettings;
+
 const char *months[12] =
 {
     "Jan",
@@ -947,15 +962,8 @@ f_internal void printHeatMap
 
 f_internal void gatherData
 (
-    gfConf     *config,
-    uint32_t   repositoryCount,
-    int64_t    currDayEnd,
-    int64_t    *oldestCommitTime,
-    uint32_t   *repoMax,
-    StringView *biggestRepo,
-    char       *biggestRepoBuf,
-    uint32_t   *heatmap,
-    uint32_t   *sorted
+    gfConf            *config,
+    gfDisplaySettings *set
 ){
     git_libgit2_init();
 
@@ -969,7 +977,7 @@ f_internal void gatherData
     uint64_t commitCount = 0;
     #endif
 
-    for(uint32_t i = 0; i < repositoryCount; ++i)
+    for(uint32_t i = 0; i < set->repositoryCount; ++i)
     {
         git_repository *repo    = 0;
         git_revwalk    *revwalk = 0;
@@ -1021,27 +1029,28 @@ f_internal void gatherData
 
             if(counts)
             {
-                int64_t daysSince = (currDayEnd - commit_time.time) / (24 * 3600);
-                if(commit_time.time < *oldestCommitTime)
+                int64_t daysSince = (set->currDayEnd - commit_time.time) / (24 * 3600);
+                if(commit_time.time < set->oldestCommitTime)
                 {
-                    *oldestCommitTime = commit_time.time;
+                    set->oldestCommitTime = commit_time.time;
                 }
 
-                ++heatmap[daysSince];
+                ++set->heatmap[daysSince];
                 ++repoCommitCount;
+                ++set->personalCommitCount;
                 if(daysSince < 366)
                 {
-                    ++sorted[daysSince];
+                    ++set->sorted[daysSince];
                 }
             }
 
             git_commit_free(commit);
         }
 
-        if(repoCommitCount > *repoMax)
+        if(repoCommitCount > set->repoMax)
         {
-            *biggestRepo = cstr_sv_cpy(current_repo_cstr, biggestRepoBuf);
-            *repoMax     = repoCommitCount;
+            set->biggestRepo = cstr_sv_cpy(current_repo_cstr, set->biggestRepoBuf);
+            set->repoMax     = repoCommitCount;
         }
 
         git_revwalk_free(revwalk);
@@ -1049,20 +1058,14 @@ f_internal void gatherData
     }
 
     #ifdef DEBUG
-        printf("\ntotal read commit count: %lu\n\n", commitCount);
+        printf("\ntotal scanned commits: %lu\n\n", commitCount);
     #endif
 }
 
 f_internal void displayData
 (
-    gfConf     *config,
-    int64_t    now,
-    int64_t    currDayEnd,
-    int64_t    oldestCommitTime,
-    StringView biggestRepo,
-    uint32_t   repoMax,
-    uint32_t   *heatmap,
-    uint32_t   *sorted
+    gfConf            *config,
+    gfDisplaySettings *set
 ){
     uint32_t max       = 0;
     uint32_t maxday    = 0;
@@ -1072,22 +1075,22 @@ f_internal void displayData
     {
         for(uint32_t j = 0; j < 365 - i; ++j)
         {
-            if(sorted[j] > max)
+            if(set->sorted[j] > max)
             {
-                max    = sorted[j];
+                max    = set->sorted[j];
                 maxday = j;
             }
 
-            if(sorted[j] > sorted[j + 1])
+            if(set->sorted[j] > set->sorted[j + 1])
             {
-                uint32_t tmp  = sorted[j];
-                sorted[j]     = sorted[j + 1];
-                sorted[j + 1] = tmp;
+                uint32_t tmp = set->sorted[j];
+                set->sorted[j]     = set->sorted[j + 1];
+                set->sorted[j + 1] = tmp;
             }
         }
     }
 
-    for(uint16_t i = 0; i < 365 && !sorted[i]; ++i)
+    for(uint16_t i = 0; i < 365 && !set->sorted[i]; ++i)
     {
         ++zerocount;
     }
@@ -1098,10 +1101,10 @@ f_internal void displayData
     uint16_t d90_sep = (uint16_t)((float)(365 - zerocount) * 0.90f);
 
     gfPercentiles percentiles = {0};
-    percentiles.d20 = sorted[zerocount + d20_sep];
-    percentiles.d50 = sorted[zerocount + d50_sep];
-    percentiles.d70 = sorted[zerocount + d70_sep];
-    percentiles.d90 = sorted[zerocount + d90_sep];
+    percentiles.d20 = set->sorted[zerocount + d20_sep];
+    percentiles.d50 = set->sorted[zerocount + d50_sep];
+    percentiles.d70 = set->sorted[zerocount + d70_sep];
+    percentiles.d90 = set->sorted[zerocount + d90_sep];
 
     #ifdef DEBUG
         printf("found 0-days: %u\n", zerocount);
@@ -1119,11 +1122,11 @@ f_internal void displayData
     {
         printf("most commits in the last 365 days (%u) made %u days ago.\n",
                max, maxday);
-        printf("most commits in single repository (%u) in '"PRI_SV"'.\n\n", repoMax,
-               ARG_SV(biggestRepo));
+        printf("most commits in single repository (%u) in '"PRI_SV"'.\n\n",
+               set->repoMax, ARG_SV(set->biggestRepo));
     }
 
-    int64_t  days_epoch    = now / (24 * 3600);
+    int64_t  days_epoch    = set->now / (24 * 3600);
     uint32_t years_epoch   = 0;
     int64_t  currYearStart = 0;
     for(uint32_t i = 0; i < days_epoch;)
@@ -1133,7 +1136,7 @@ f_internal void displayData
         if(years_epoch % 4 == 2)
         {
             i += 366;
-            if(currYearStart + 366 * 24 * 3600 < now)
+            if(currYearStart + 366 * 24 * 3600 < set->now)
             {
                 currYearStart += 366 * 24 * 3600;
             }
@@ -1142,7 +1145,7 @@ f_internal void displayData
         }
 
         i += 365;
-        if(currYearStart + 365 * 24 * 3600 < now)
+        if(currYearStart + 365 * 24 * 3600 < set->now)
         {
             currYearStart += 365 * 24 * 3600;
         }
@@ -1152,7 +1155,7 @@ f_internal void displayData
     int64_t currMonthStart = currYearStart;
     for(uint16_t i = 0; i < 365; ++i)
     {
-        if(currYearStart + i * 24 * 3600 > now)
+        if(currYearStart + i * 24 * 3600 > set->now)
         {
             break;
         }
@@ -1160,7 +1163,7 @@ f_internal void displayData
         uint8_t daysThisMonth = daysInMonth(currentMonth, years_epoch % 4 == 2);
 
         i += daysThisMonth;
-        if(currMonthStart + daysThisMonth * 24 * 3600 > now)
+        if(currMonthStart + daysThisMonth * 24 * 3600 > set->now)
         {
             continue;
         }
@@ -1168,19 +1171,19 @@ f_internal void displayData
         currMonthStart += daysThisMonth * 24 * 3600;
     }
 
-    int64_t daysCommit = (now - oldestCommitTime) / (24 * 3600);
+    int64_t daysCommit = (set->now - set->oldestCommitTime) / (24 * 3600);
     uint8_t weekday365 = (3 + (uint8_t)(days_epoch - 364)) % 7;
     if(years_epoch % 4 == 2)
     {
         ++weekday365;
         weekday365 %= 7;
     }
-    uint8_t day_of_month = (uint8_t)((currDayEnd - currMonthStart) / (24 * 3600));
+    uint8_t day_of_month = (uint8_t)((set->currDayEnd - currMonthStart) / (24 * 3600));
 
     #ifdef DEBUG
         printf("\nfull days since epoch: %lu\n", days_epoch);
         printf("full years since epoch: %u\n", years_epoch);
-        printf("now, unix time: %lu\n", now);
+        printf("now, unix time: %lu\n", set->now);
         printf("current year start: %lu\n", currYearStart);
         printf("current month: %u\n", currentMonth);
         printf("current month start: %lu\n", currMonthStart);
@@ -1203,7 +1206,7 @@ f_internal void displayData
 
     for(uint32_t i = 0; i < MAX_DAYS; ++i)
     {
-        if(!brokeCurrentStreak && !heatmap[i] && i > 0)
+        if(!brokeCurrentStreak && !set->heatmap[i] && i > 0)
         {
             brokeCurrentStreak = 1;
         }
@@ -1212,7 +1215,7 @@ f_internal void displayData
             ++currentStreak;
         }
 
-        if(!heatmap[MAX_DAYS - i - 1])
+        if(!set->heatmap[MAX_DAYS - i - 1])
         {
             if(streak > longestStreak)
             {
@@ -1231,23 +1234,23 @@ f_internal void displayData
         printf("time since first commit: %lu days\n\n", daysCommit);
         printf("longest streak: %u days\n", longestStreak);
         printf("current streak: %u days\n", currentStreak);
-        printf("commits today: %u ", heatmap[0]);
-        printCorrespondingHeat(config, &percentiles, heatmap[0]);
+        printf("commits today: %u ", set->heatmap[0]);
+        printCorrespondingHeat(config, &percentiles, set->heatmap[0]);
         printf("\n");
         printf("\nheatmap (last 365 days):\n");
     }
     printf("\n");
 
-    gfHeatmapSettings set = {0};
-    set.config       = config;
-    set.percentiles  = &percentiles;
-    set.heatmap      = heatmap;
-    set.currentMonth = currentMonth;
-    set.weekday365   = weekday365;
-    set.day_of_month = day_of_month;
-    set.leapYear     = years_epoch % 4 == 2;
+    gfHeatmapSettings heatSet = {0};
+    heatSet.config       = config;
+    heatSet.percentiles  = &percentiles;
+    heatSet.heatmap      = set->heatmap;
+    heatSet.currentMonth = currentMonth;
+    heatSet.weekday365   = weekday365;
+    heatSet.day_of_month = day_of_month;
+    heatSet.leapYear     = years_epoch % 4 == 2;
 
-    printHeatMap(&set);
+    printHeatMap(&heatSet);
 }
 
 int main
@@ -1297,18 +1300,17 @@ int main
         addPath(&config, fallback);
     }
 
-    uint32_t repositoryCount = sv_count_by_delim(config.repositories, ';');
+    gfDisplaySettings set = {0};
+    set.heatmap          = heatmap;
+    set.sorted           = sorted;
+    set.biggestRepoBuf   = biggestRepoBuf;
+    set.oldestCommitTime = INT64_MAX;
+    set.repositoryCount  = sv_count_by_delim(config.repositories, ';');
+    set.now              = gfQueryTime();
+    set.currDayEnd       = set.now - set.now % (24 * 3600) + 24 * 3600;
 
-    StringView biggestRepo      = {0};
-    uint32_t   repoMax          = 0;
-    int64_t    oldestCommitTime = INT64_MAX;
-    int64_t    now              = gfQueryTime();
-    int64_t    currDayEnd       = now - now % (24 * 3600) + 24 * 3600;
-
-    gatherData(&config, repositoryCount, currDayEnd, &oldestCommitTime, &repoMax,
-               &biggestRepo, biggestRepoBuf, heatmap, sorted);
-    displayData(&config, now, currDayEnd, oldestCommitTime, biggestRepo, repoMax,
-                heatmap, sorted);
+    gatherData(&config,  &set);
+    displayData(&config, &set);
 
     if(config.character)
     {
