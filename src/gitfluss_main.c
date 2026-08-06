@@ -25,8 +25,9 @@
     #define CONF_FALLBACK "~\\.config\\gitfluss\\gitfluss.ini"
 #endif
 
-#define bufsize     8192
-#define PATH_MAX    4096
+#define bufsize  8192
+#define MAX_DAYS 16384
+#define PATH_MAX 4096
 
 #define RED    0
 #define GREEN  1
@@ -1118,12 +1119,8 @@ f_internal void displayData
     {
         printf("most commits in the last 365 days (%u) made %u days ago.\n",
                max, maxday);
-        printf("most commits in single repository (%u) in '"PRI_SV"'.\n", repoMax,
+        printf("most commits in single repository (%u) in '"PRI_SV"'.\n\n", repoMax,
                ARG_SV(biggestRepo));
-        printf("longest streak: TODO\n");
-        printf("\ncommits today: %u ", heatmap[0]);
-        printCorrespondingHeat(config, &percentiles, heatmap[0]);
-        printf("\n");
     }
 
     int64_t  days_epoch    = now / (24 * 3600);
@@ -1171,12 +1168,12 @@ f_internal void displayData
         currMonthStart += daysThisMonth * 24 * 3600;
     }
 
-    int64_t days_commit = (now - oldestCommitTime) / (24 * 3600);
-    uint8_t weekday_365 = (3 + (uint8_t)(days_epoch - 364)) % 7;
+    int64_t daysCommit = (now - oldestCommitTime) / (24 * 3600);
+    uint8_t weekday365 = (3 + (uint8_t)(days_epoch - 364)) % 7;
     if(years_epoch % 4 == 2)
     {
-        ++weekday_365;
-        weekday_365 %= 7;
+        ++weekday365;
+        weekday365 %= 7;
     }
     uint8_t day_of_month = (uint8_t)((currDayEnd - currMonthStart) / (24 * 3600));
 
@@ -1198,9 +1195,45 @@ f_internal void displayData
         printf("\n");
     #endif
 
+    uint32_t currentStreak      = 0;
+    uint8_t  brokeCurrentStreak = 0;
+
+    uint32_t streak = 0;
+    uint32_t longestStreak = 0;
+
+    for(uint32_t i = 0; i < MAX_DAYS; ++i)
+    {
+        if(!brokeCurrentStreak && !heatmap[i] && i > 0)
+        {
+            brokeCurrentStreak = 1;
+        }
+        else if(!brokeCurrentStreak)
+        {
+            ++currentStreak;
+        }
+
+        if(!heatmap[MAX_DAYS - i - 1])
+        {
+            if(streak > longestStreak)
+            {
+                longestStreak = streak;
+            }
+            streak = 0;
+        }
+        else
+        {
+            ++streak;
+        }
+    }
+
     if(config->flags & FLAG_INFO)
     {
-        printf("days since first commit: %lu\n", days_commit);
+        printf("time since first commit: %lu days\n\n", daysCommit);
+        printf("longest streak: %u days\n", longestStreak);
+        printf("current streak: %u days\n", currentStreak);
+        printf("commits today: %u ", heatmap[0]);
+        printCorrespondingHeat(config, &percentiles, heatmap[0]);
+        printf("\n");
         printf("\nheatmap (last 365 days):\n");
     }
     printf("\n");
@@ -1210,7 +1243,7 @@ f_internal void displayData
     set.percentiles  = &percentiles;
     set.heatmap      = heatmap;
     set.currentMonth = currentMonth;
-    set.weekday_365  = weekday_365;
+    set.weekday_365  = weekday365;
     set.day_of_month = day_of_month;
     set.leapYear     = years_epoch % 4 == 2;
 
@@ -1236,8 +1269,8 @@ int main
     char sortedAuthors[PATH_MAX * 2];
     char biggestRepoBuf[PATH_MAX + 1];
 
-    uint32_t heatmap[16384] = {0};
-    uint32_t sorted[366]    = {0};
+    uint32_t heatmap[MAX_DAYS] = {0};
+    uint32_t sorted[366]       = {0};
 
     gfConf config = {0};
     config.sortedRepos   = sortedRepos;
