@@ -44,18 +44,18 @@ typedef struct gfConf
 {
     StringView repositories;
     StringView authors;
-    char       *sorted_repos;
-    char       *sorted_authors;
+    char       *sortedRepos;
+    char       *sortedAuthors;
     const char *character;
-    const char *mono_0;
-    const char *mono_1;
-    const char *mono_2;
-    const char *mono_3;
-    const char *mono_4;
-    uint8_t    percentile_0;
-    uint8_t    percentile_1;
-    uint8_t    percentile_2;
-    uint8_t    percentile_3;
+    const char *mono0;
+    const char *mono1;
+    const char *mono2;
+    const char *mono3;
+    const char *mono4;
+    uint8_t    percentile0;
+    uint8_t    percentile1;
+    uint8_t    percentile2;
+    uint8_t    percentile3;
     uint8_t    colour;
     uint8_t    flags;
 }
@@ -583,7 +583,7 @@ f_internal void readConfig
 
             char *small_buf = malloc(8);
             sv_cstr(set_sv, small_buf);
-            config->mono_0 = small_buf;
+            config->mono0 = small_buf;
             continue;
         }
 
@@ -598,7 +598,7 @@ f_internal void readConfig
 
             char *small_buf = malloc(8);
             sv_cstr(set_sv, small_buf);
-            config->mono_1 = small_buf;
+            config->mono1 = small_buf;
             continue;
         }
 
@@ -613,7 +613,7 @@ f_internal void readConfig
 
             char *small_buf = malloc(8);
             sv_cstr(set_sv, small_buf);
-            config->mono_2 = small_buf;
+            config->mono2 = small_buf;
             continue;
         }
 
@@ -628,7 +628,7 @@ f_internal void readConfig
 
             char *small_buf = malloc(8);
             sv_cstr(set_sv, small_buf);
-            config->mono_3 = small_buf;
+            config->mono3 = small_buf;
             continue;
         }
 
@@ -643,7 +643,7 @@ f_internal void readConfig
 
             char *small_buf = malloc(8);
             sv_cstr(set_sv, small_buf);
-            config->mono_4 = small_buf;
+            config->mono4 = small_buf;
             continue;
         }
 
@@ -670,19 +670,19 @@ f_internal void readConfig
         addPath(config, path);
     }
 
-    sv_sort_by_delim(config->authors, ';', config->sorted_authors);
+    sv_sort_by_delim(config->authors, ';', config->sortedAuthors);
     if(config->authors.data)
     {
         free((void*)config->authors.data);
     }
-    config->authors = cstr_sv(config->sorted_authors);
+    config->authors = cstr_sv(config->sortedAuthors);
 
-    sv_sort_by_delim(config->repositories, ';', config->sorted_repos);
+    sv_sort_by_delim(config->repositories, ';', config->sortedRepos);
     if(config->repositories.data)
     {
         free((void*)config->repositories.data);
     }
-    config->repositories = cstr_sv(config->sorted_repos);
+    config->repositories = cstr_sv(config->sortedRepos);
 
     #ifdef DEBUG
         fprintf(stderr, "\nfinal, sorted author list:\n"PRI_SV"\n",
@@ -742,7 +742,7 @@ f_internal void readArgs
             StringView chosen_sv  = cstr_sv(argv[i + 1]);
             char       *small_buf = malloc(8);
             sv_cstr(chosen_sv, small_buf);
-            config->mono_0 = small_buf;
+            config->mono0 = small_buf;
             ++i;
         }
         else if(sv_same(arg, heat1_ident) && i + 1 < argc)
@@ -750,7 +750,7 @@ f_internal void readArgs
             StringView chosen_sv  = cstr_sv(argv[i + 1]);
             char       *small_buf = malloc(8);
             sv_cstr(chosen_sv, small_buf);
-            config->mono_1 = small_buf;
+            config->mono1 = small_buf;
             ++i;
         }
         else if(sv_same(arg, heat2_ident) && i + 1 < argc)
@@ -758,7 +758,7 @@ f_internal void readArgs
             StringView chosen_sv  = cstr_sv(argv[i + 1]);
             char       *small_buf = malloc(8);
             sv_cstr(chosen_sv, small_buf);
-            config->mono_2 = small_buf;
+            config->mono2 = small_buf;
             ++i;
         }
         else if(sv_same(arg, heat3_ident) && i + 1 < argc)
@@ -766,7 +766,7 @@ f_internal void readArgs
             StringView chosen_sv  = cstr_sv(argv[i + 1]);
             char       *small_buf = malloc(8);
             sv_cstr(chosen_sv, small_buf);
-            config->mono_3 = small_buf;
+            config->mono3 = small_buf;
             ++i;
         }
         else if(sv_same(arg, heat4_ident) && i + 1 < argc)
@@ -774,7 +774,7 @@ f_internal void readArgs
             StringView chosen_sv  = cstr_sv(argv[i + 1]);
             char       *small_buf = malloc(8);
             sv_cstr(chosen_sv, small_buf);
-            config->mono_4 = small_buf;
+            config->mono4 = small_buf;
             ++i;
         }
         else if(sv_same(arg, char_ident) && i + 1 < argc)
@@ -808,46 +808,46 @@ f_internal void printCorrespondingHeat
 
     if(config->flags & FLAG_MONO)
     {
-        if(!config->mono_0)
+        if(!config->mono0)
         {
-            config->mono_0 = "░";
+            config->mono0 = "░";
         }
-        if(!config->mono_1)
+        if(!config->mono1)
         {
-            config->mono_1 = "▒";
+            config->mono1 = "▒";
         }
-        if(!config->mono_2)
+        if(!config->mono2)
         {
-            config->mono_2 = "▒";
+            config->mono2 = "▒";
         }
-        if(!config->mono_3)
+        if(!config->mono3)
         {
-            config->mono_3 = "▓";
+            config->mono3 = "▓";
         }
-        if(!config->mono_4)
+        if(!config->mono4)
         {
-            config->mono_4 = "█";
+            config->mono4 = "█";
         }
 
         if(commit_count < percentiles->d20)
         {
-            printf("%s", config->mono_0);
+            printf("%s", config->mono0);
         }
         else if(commit_count < percentiles->d50)
         {
-            printf("%s", config->mono_1);
+            printf("%s", config->mono1);
         }
         else if(commit_count < percentiles->d70)
         {
-            printf("%s", config->mono_2);
+            printf("%s", config->mono2);
         }
         else if(commit_count < percentiles->d90)
         {
-            printf("%s", config->mono_3);
+            printf("%s", config->mono3);
         }
         else
         {
-            printf("%s", config->mono_4);
+            printf("%s", config->mono4);
         }
 
         return;
@@ -944,79 +944,37 @@ f_internal void printHeatMap
     printf("\n");
 }
 
-int main
+f_internal void gatherData
 (
-    int  argc,
-    char **argv
+    gfConf     *config,
+    uint32_t   repositoryCount,
+    int64_t    currDayEnd,
+    int64_t    *oldestCommitTime,
+    uint32_t   *repoMax,
+    StringView *biggestRepo,
+    char       *biggestRepoBuf,
+    uint32_t   *heatmap,
+    uint32_t   *sorted
 ){
-    #ifdef BUILD_WINDOWS
-    _setmode(_fileno(stdout), _O_BINARY);
-    SetConsoleOutputCP(CP_UTF8);
-    SetConsoleCP(CP_UTF8);
-
-    HANDLE hOutput = GetStdHandle(STD_OUTPUT_HANDLE);
-    SetConsoleMode(hOutput, ENABLE_PROCESSED_OUTPUT |
-                            ENABLE_VIRTUAL_TERMINAL_PROCESSING);
-    #endif
-
-    char sorted_repos[PATH_MAX * 100];
-    char sorted_authors[PATH_MAX * 2];
-    char biggestRepo_buf[PATH_MAX + 1];
-
-    gfConf config = {0};
-    config.sorted_repos   = sorted_repos;
-    config.sorted_authors = sorted_authors;
-
-    if(argc < 2)
-    {
-        readConfig(&config);
-    }
-    else
-    {
-        readArgs(argc, argv, &config);
-    }
-
-    if(!config.authors.data)
-    {
-        StringView any_author = cstr_sv("any");
-        addAuthor(&config, any_author);
-    }
-
-    if(!config.repositories.data)
-    {
-        StringView fallback = cstr_sv(".");
-        addPath(&config, fallback);
-    }
-
-    uint32_t repository_count = sv_count_by_delim(config.repositories, ';');
-
     git_libgit2_init();
 
-    uint32_t   heatmap[16384]   = {0};
-    uint32_t   sorted[366]      = {0};
-    StringView biggestRepo      = {0};
-    uint32_t   repo_max         = 0;
-    int64_t    oldestCommitTime = INT64_MAX;
-    int64_t    now              = gfQueryTime();
-    int64_t    currDayEnd       = now - now % (24 * 3600) + 24 * 3600;
-
     StringView any_sv      = cstr_sv("any");
-    uint32_t   authorcount = sv_count_by_delim(config.authors, ';');
+    uint32_t   authorcount = sv_count_by_delim(config->authors, ';');
     StringView authorlist[authorcount];
 
-    sv_separate_by_delim(config.authors, authorlist, ';');
+    sv_separate_by_delim(config->authors, authorlist, ';');
 
     #ifdef DEBUG
     uint64_t commitCount = 0;
     #endif
 
-    for(uint32_t i = 0; i < repository_count; ++i)
+    for(uint32_t i = 0; i < repositoryCount; ++i)
     {
         git_repository *repo    = 0;
         git_revwalk    *revwalk = 0;
         git_oid        oid      = {0};
 
-        StringView repository      = sv_find_by_delim(config.repositories, ';', i);
+        StringView repository      = sv_find_by_delim(config->repositories, ';', i);
         uint32_t   repoCommitCount = 0;
 
         #ifdef DEBUG
@@ -1032,13 +990,13 @@ int main
         git_revwalk_push_head(revwalk);
 
         uint8_t    any_author = 0;
+        git_commit *commit    = 0;
 
         while(!git_revwalk_next(&oid, revwalk))
         {
             #ifdef DEBUG
             ++commitCount;
             #endif
-            git_commit *commit = 0;
             git_commit_lookup(&commit, repo, &oid);
 
             const git_signature *sign = git_commit_author(commit);
@@ -1063,9 +1021,9 @@ int main
             if(counts)
             {
                 int64_t daysSince = (currDayEnd - commit_time.time) / (24 * 3600);
-                if(commit_time.time < oldestCommitTime)
+                if(commit_time.time < *oldestCommitTime)
                 {
-                    oldestCommitTime = commit_time.time;
+                    *oldestCommitTime = commit_time.time;
                 }
 
                 ++heatmap[daysSince];
@@ -1079,16 +1037,28 @@ int main
             git_commit_free(commit);
         }
 
-        if(repoCommitCount > repo_max)
+        if(repoCommitCount > *repoMax)
         {
-            biggestRepo = cstr_sv_cpy(current_repo_cstr, biggestRepo_buf);
-            repo_max    = repoCommitCount;
+            *biggestRepo = cstr_sv_cpy(current_repo_cstr, biggestRepoBuf);
+            *repoMax     = repoCommitCount;
         }
 
         git_revwalk_free(revwalk);
         git_repository_free(repo);
     }
+}
 
+f_internal void displayData
+(
+    gfConf     *config,
+    int64_t    now,
+    int64_t    currDayEnd,
+    int64_t    oldestCommitTime,
+    StringView biggestRepo,
+    uint32_t   repoMax,
+    uint32_t   *heatmap,
+    uint32_t   *sorted
+){
     uint32_t max       = 0;
     uint32_t maxday    = 0;
     uint32_t zerocount = 0;
@@ -1140,14 +1110,15 @@ int main
         printf("found d90: %u\n", percentiles.d90);
     #endif
 
-    if(config.flags & FLAG_INFO)
+    if(config->flags & FLAG_INFO)
     {
         printf("most commits in the last 365 days (%u) made %u days ago.\n",
                max, maxday);
-        printf("most commits in single repository (%u) in '"PRI_SV"'.\n", repo_max,
+        printf("most commits in single repository (%u) in '"PRI_SV"'.\n", repoMax,
                ARG_SV(biggestRepo));
+        printf("longest streak: TODO\n");
         printf("\ncommits today: %u ", heatmap[0]);
-        printCorrespondingHeat(&config, &percentiles, heatmap[0]);
+        printCorrespondingHeat(config, &percentiles, heatmap[0]);
         printf("\n");
     }
 
@@ -1225,7 +1196,7 @@ int main
         printf("total read commit count: %lu\n", commitCount);
     #endif
 
-    if(config.flags & FLAG_INFO)
+    if(config->flags & FLAG_INFO)
     {
         printf("days since first commit: %lu\n", days_commit);
         printf("\nheatmap (last 365 days):\n");
@@ -1233,7 +1204,7 @@ int main
     printf("\n");
 
     gfHeatmapSettings set = {0};
-    set.config       = &config;
+    set.config       = config;
     set.percentiles  = &percentiles;
     set.heatmap      = heatmap;
     set.currentMonth = currentMonth;
@@ -1242,11 +1213,71 @@ int main
     set.leapYear     = years_epoch % 4 == 2;
 
     printHeatMap(&set);
+}
+
+int main
+(
+    int  argc,
+    char **argv
+){
+    #ifdef BUILD_WINDOWS
+    _setmode(_fileno(stdout), _O_BINARY);
+    SetConsoleOutputCP(CP_UTF8);
+    SetConsoleCP(CP_UTF8);
+
+    HANDLE hOutput = GetStdHandle(STD_OUTPUT_HANDLE);
+    SetConsoleMode(hOutput, ENABLE_PROCESSED_OUTPUT |
+                            ENABLE_VIRTUAL_TERMINAL_PROCESSING);
+    #endif
+
+    char sortedRepos[PATH_MAX * 100];
+    char sortedAuthors[PATH_MAX * 2];
+    char biggestRepoBuf[PATH_MAX + 1];
+
+    uint32_t heatmap[16384] = {0};
+    uint32_t sorted[366]    = {0};
+
+    gfConf config = {0};
+    config.sortedRepos   = sortedRepos;
+    config.sortedAuthors = sortedAuthors;
+
+    if(argc < 2)
+    {
+        readConfig(&config);
+    }
+    else
+    {
+        readArgs(argc, argv, &config);
+    }
+
+    if(!config.authors.data)
+    {
+        StringView any_author = cstr_sv("any");
+        addAuthor(&config, any_author);
+    }
+
+    if(!config.repositories.data)
+    {
+        StringView fallback = cstr_sv(".");
+        addPath(&config, fallback);
+    }
+
+    uint32_t repositoryCount = sv_count_by_delim(config.repositories, ';');
+
+    StringView biggestRepo      = {0};
+    uint32_t   repoMax          = 0;
+    int64_t    oldestCommitTime = INT64_MAX;
+    int64_t    now              = gfQueryTime();
+    int64_t    currDayEnd       = now - now % (24 * 3600) + 24 * 3600;
+
+    gatherData(&config, repositoryCount, currDayEnd, &oldestCommitTime, &repoMax,
+               &biggestRepo, biggestRepoBuf, heatmap, sorted);
+    displayData(&config, now, currDayEnd, oldestCommitTime, biggestRepo, repoMax,
+                heatmap, sorted);
 
     if(config.character)
     {
         free((void*)config.character);
     }
-
     return git_libgit2_shutdown();
 }
