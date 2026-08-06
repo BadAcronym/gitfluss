@@ -77,7 +77,7 @@ typedef struct gfHeatmapSettings
     gfPercentiles *percentiles;
     uint32_t      *heatmap;
     uint8_t       currentMonth;
-    uint8_t       weekday_365;
+    uint8_t       weekday365;
     uint8_t       day_of_month;
     uint8_t       leapYear;
 }
@@ -889,14 +889,14 @@ f_internal void printHeatMap
 (
     gfHeatmapSettings *set
 ){
-    uint8_t current_weekday = 0;
+    uint8_t currentWeekday = 0;
     printf("     ");
 
     for(uint8_t i = 0; i < 13; ++i)
     {
         uint8_t indexedMonth   = (set->currentMonth + i) % 12;
         uint8_t remainingDays  = daysInMonth(indexedMonth, set->leapYear);
-        uint8_t remainingWeeks = (remainingDays + current_weekday) / 7;
+        uint8_t remainingWeeks = (remainingDays + currentWeekday) / 7;
 
         if(i == 0)
         {
@@ -923,9 +923,9 @@ f_internal void printHeatMap
 
         for(uint8_t j = 0; j < remainingDays; ++j)
         {
-            if(++current_weekday > 6)
+            if(++currentWeekday > 6)
             {
-                current_weekday = 0;
+                currentWeekday = 0;
             }
         }
     }
@@ -934,7 +934,7 @@ f_internal void printHeatMap
     for(uint8_t i = 0; i < 7; ++i)
     {
         printf(" %s ", days[i]);
-        for(int16_t j = i - set->weekday_365; j < 366; j += 7)
+        for(int16_t j = i - set->weekday365; j < 366; j += 7)
         {
             printCorrespondingHeat(set->config, set->percentiles,
                                    set->heatmap[365 - j]);
@@ -1184,7 +1184,7 @@ f_internal void displayData
         printf("current year start: %lu\n", currYearStart);
         printf("current month: %u\n", currentMonth);
         printf("current month start: %lu\n", currMonthStart);
-        printf("weekday 365 days ago: %s\n", days[weekday_365]);
+        printf("weekday 365 days ago: %s\n", days[weekday365]);
         printf("day of the month, today: %u\n", day_of_month);
         printf("palette: ");
         printCorrespondingHeat(config, &percentiles, 1);
@@ -1243,7 +1243,7 @@ f_internal void displayData
     set.percentiles  = &percentiles;
     set.heatmap      = heatmap;
     set.currentMonth = currentMonth;
-    set.weekday_365  = weekday365;
+    set.weekday365   = weekday365;
     set.day_of_month = day_of_month;
     set.leapYear     = years_epoch % 4 == 2;
 
