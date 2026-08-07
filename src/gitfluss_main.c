@@ -1206,9 +1206,14 @@ f_internal void displayData
 
     for(uint32_t i = 0; i < MAX_DAYS; ++i)
     {
-        if(!brokeCurrentStreak && !set->heatmap[i] && i > 0)
+        if(!brokeCurrentStreak && !set->heatmap[i])
         {
             brokeCurrentStreak = 1;
+            if(!i)
+            {
+                brokeCurrentStreak = 0;
+                streak = 0;
+            }
         }
         else if(!brokeCurrentStreak)
         {
