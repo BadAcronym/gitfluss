@@ -485,7 +485,7 @@ f_internal void readConfig
         file = fopen(fallback_expanded, "r");
         if(!file)
         {
-            fprintf(stderr, "\033[33;3mWARNING: could not open configuration file."
+            fprintf(stderr, "\033[33;3mWARNING: could not open configuration file.\n"
                     "Please pass your arguments via the cmdline.\033[0m\n");
             return;
         }
