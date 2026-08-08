@@ -87,7 +87,8 @@ typedef struct gfDisplaySettings
 {
     StringView biggestRepo;
     uint32_t   repositoryCount;
-    uint32_t   personalCommitCount;
+    uint64_t   totalCommitCount;
+    uint64_t   personalCommitCount;
     uint32_t   repoMax;
     uint32_t   *heatmap;
     uint32_t   *sorted;
@@ -973,10 +974,6 @@ f_internal void gatherData
 
     sv_separate_by_delim(config->authors, authorlist, ';');
 
-    #ifdef DEBUG
-    uint64_t commitCount = 0;
-    #endif
-
     for(uint32_t i = 0; i < set->repositoryCount; ++i)
     {
         git_repository *repo    = 0;
@@ -1003,9 +1000,7 @@ f_internal void gatherData
 
         while(!git_revwalk_next(&oid, revwalk))
         {
-            #ifdef DEBUG
-            ++commitCount;
-            #endif
+            ++set->totalCommitCount;
             git_commit_lookup(&commit, repo, &oid);
 
             const git_signature *sign = git_commit_author(commit);
@@ -1056,10 +1051,6 @@ f_internal void gatherData
         git_revwalk_free(revwalk);
         git_repository_free(repo);
     }
-
-    #ifdef DEBUG
-        printf("\ntotal scanned commits: %lu\n\n", commitCount);
-    #endif
 }
 
 f_internal void displayData
@@ -1117,14 +1108,6 @@ f_internal void displayData
         printf("found d70: %u\n", percentiles.d70);
         printf("found d90: %u\n", percentiles.d90);
     #endif
-
-    if(config->flags & FLAG_INFO)
-    {
-        printf("most commits in the last 365 days (%u) made %u days ago.\n",
-               max, maxday);
-        printf("most commits in single repository (%u) in '"PRI_SV"'.\n\n",
-               set->repoMax, ARG_SV(set->biggestRepo));
-    }
 
     int64_t  days_epoch    = set->now / (24 * 3600);
     uint32_t years_epoch   = 0;
@@ -1236,12 +1219,27 @@ f_internal void displayData
 
     if(config->flags & FLAG_INFO)
     {
+        float percentage = 100.0f * (float)set->personalCommitCount /
+                           (float)set->totalCommitCount;
+
+        printf("\n%lu commits analyzed across %u repositories.\n",
+               set->totalCommitCount, set->repositoryCount);
+        printf("%lu were matched with a provided author (%.2f%%).\n",
+               set->personalCommitCount, percentage);
+
+        printf("most commits in the last 365 days (%u) made %u days ago.\n",
+               max, maxday);
+        printf("most commits in single repository (%u) in '"PRI_SV"'.\n\n",
+               set->repoMax, ARG_SV(set->biggestRepo));
+
         printf("time since first commit: %lu days\n\n", daysCommit);
+
         printf("longest streak: %u days\n", longestStreak);
         printf("current streak: %u days\n", currentStreak);
-        printf("commits today: %u ", set->heatmap[0]);
+        printf("commits today:  %u ", set->heatmap[0]);
         printCorrespondingHeat(config, &percentiles, set->heatmap[0]);
         printf("\n");
+
         printf("\nheatmap (last 365 days):\n");
     }
     printf("\n");
