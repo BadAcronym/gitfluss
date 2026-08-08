@@ -24,6 +24,47 @@ fi
 
 if [[ $build = "asan" ]] || [[ $build = "debug" ]] || [[ $build = "release" ]]
 then
+
+    ldconfig -p | grep "libgit2.so" > /dev/null
+    if [[ $? != 0 ]]
+    then
+        echo -e "\033[33m\nWARNING: libgit2.so could not be located on the system."
+        echo -e "Compiling from source...\n\033[0m"
+
+        if [[ ! -d "./vendor/libgit2/src/" ]]
+        then
+            echo -ne "\033[31m\nERROR: git2 submodule cannot be found. Repository was "
+            echo -e "cloned incorrectly, please use '--recurse' when cloning.\033[0m"
+            exit -6;
+        fi
+
+        cmake --version
+        if [[ $? != 0 ]]
+        then
+            echo -ne "\033[31m\nERROR: CMake not found. Please provide a cmake binary "
+            echo -e "in your path in order to build libgit2 from source.\033[0m"
+        fi
+
+        pushd ./vendor/libgit2/ > /dev/null
+        if [[ ! -d "./build/" ]]
+        then
+            mkdir ./build/
+        fi
+        cd build
+
+        cmake .. -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTS=OFF
+        cmake --build .
+
+        if [[ $? != 0 ]]
+        then
+            echo -e "\033[31m\nERROR: failed to compile libgit2 from source.\n\033[0m"
+            popd > /dev/null
+            exit -7;
+        fi
+
+        popd > /dev/null
+    fi
+
     echo ""
     echo -e "\033[36mcompiling gitfluss...\033[0m"
     echo ""
@@ -33,12 +74,14 @@ then
     make config=$build\_linux
 else
     echo -e "\033[31m\nERROR: invalid make config: '$build'.\033[0m"
+    popd > /dev/null
     exit -2;
 fi
 
 if [[ $? != 0 ]]
 then
     echo -e "\033[31m\nERROR: failed to compile gitfluss.\n\033[0m"
+    popd > /dev/null
     exit -1;
 fi
 
