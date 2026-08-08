@@ -11,10 +11,15 @@ Status:
   colours & characters.
 
 Plans:
++ multi-thread per-repository for even more speedup
 + Allow overwriting percentiles
 + Add more (optional) repository-specific data displays
 + Add more (optional) years to the heatmap display
 + Allow custom RGB colour values
+
+Known issues:
++ Passing non-ascii chars on windows via the cmdline is broken, please use the
+  configuration file for that.
 
 The configuration file location is `~/.config/gitfluss/.conf`. Gitfluss will look first
 in the current working directory for a `.gitflussconf` file and then in the config
@@ -26,7 +31,7 @@ If, instead, command-line arguments are provided, the configuration file will no
 read, for example:
 
 ```
-gitfluss . --author name@company.com  --colour purple --char ◼ --info
+gitfluss . --author name@company.com --colour purple --char ◼ --info
 ```
 
 Every command-line argument that's not a `colour`, `info` or `author` identifier will be
