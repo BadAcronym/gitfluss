@@ -1350,10 +1350,10 @@ int main
         float gatherMS  = (float)gathering / 1e6f;
         float perCommit = gatherMS / (float)set.totalCommitCount;
 
-        printf("libgit2 init: %8.5f ms\n", initMS);
-        printf("gather time:  %8.5f ms\n", gatherMS);
-        printf("per commit:   %8.5f ms\n", perCommit);
-        printf("effective:    %8.0f commits/s\n\n",
+        printf("libgit2 init: %10.5f ms\n", initMS);
+        printf("gather time:  %10.5f ms\n", gatherMS);
+        printf("per commit:   %10.5f ms\n", perCommit);
+        printf("effective:    %10.0f commits/s\n\n",
                (float)set.totalCommitCount / gatherMS * 1e3);
     }
 
