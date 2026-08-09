@@ -38,8 +38,9 @@
 #define YELLOW 6
 #define WHITE  7
 
-#define FLAG_INFO 0x01
-#define FLAG_MONO 0x02
+#define FLAG_INFO    0x01
+#define FLAG_MONO    0x02
+#define FLAG_PROFILE 0x04
 
 typedef struct gfConf
 {
@@ -468,17 +469,18 @@ f_internal void readConfig
     StringView authorlist_sv = cstr_sv("authorlist:");
     StringView repolist_sv   = cstr_sv("repolist:");
 
-    StringView author_sv = cstr_sv("author:");
-    StringView colour_sv = cstr_sv("colour:");
-    StringView info_sv   = cstr_sv("info:");
-    StringView mono_sv   = cstr_sv("mono:");
-    StringView heat0_sv  = cstr_sv("heat0:");
-    StringView heat1_sv  = cstr_sv("heat1:");
-    StringView heat2_sv  = cstr_sv("heat2:");
-    StringView heat3_sv  = cstr_sv("heat3:");
-    StringView heat4_sv  = cstr_sv("heat4:");
-    StringView char_sv   = cstr_sv("character:");
-    StringView true_sv   = cstr_sv("true");
+    StringView author_sv  = cstr_sv("author:");
+    StringView colour_sv  = cstr_sv("colour:");
+    StringView info_sv    = cstr_sv("info:");
+    StringView mono_sv    = cstr_sv("mono:");
+    StringView profile_sv = cstr_sv("profile:");
+    StringView heat0_sv   = cstr_sv("heat0:");
+    StringView heat1_sv   = cstr_sv("heat1:");
+    StringView heat2_sv   = cstr_sv("heat2:");
+    StringView heat3_sv   = cstr_sv("heat3:");
+    StringView heat4_sv   = cstr_sv("heat4:");
+    StringView char_sv    = cstr_sv("character:");
+    StringView true_sv    = cstr_sv("true");
 
     FILE *file = fopen(path_expanded, "r");
     if(!file)
@@ -585,6 +587,22 @@ f_internal void readConfig
             if(sv_same(set_sv, true_sv))
             {
                 config->flags |= FLAG_MONO;
+            }
+            continue;
+        }
+
+        const char* profileloc = sv_find(profile_sv, buffer);
+        if(profileloc)
+        {
+            StringView set_sv = cstr_sv(buffer.data + profile_sv.size + 1);
+            if(set_sv.size)
+            {
+                set_sv.size -= 1;
+            }
+
+            if(sv_same(set_sv, true_sv))
+            {
+                config->flags |= FLAG_PROFILE;
             }
             continue;
         }
@@ -719,17 +737,18 @@ f_internal void readArgs
 ){
     for(uint16_t i = 1; i < argc; ++i)
     {
-        StringView arg          = cstr_sv(argv[i]);
-        StringView author_ident = cstr_sv("--author");
-        StringView colour_ident = cstr_sv("--colour");
-        StringView info_ident   = cstr_sv("--info");
-        StringView mono_ident   = cstr_sv("--mono");
-        StringView heat0_ident  = cstr_sv("--heat0");
-        StringView heat1_ident  = cstr_sv("--heat1");
-        StringView heat2_ident  = cstr_sv("--heat2");
-        StringView heat3_ident  = cstr_sv("--heat3");
-        StringView heat4_ident  = cstr_sv("--heat4");
-        StringView char_ident   = cstr_sv("--char");
+        StringView arg           = cstr_sv(argv[i]);
+        StringView author_ident  = cstr_sv("--author");
+        StringView colour_ident  = cstr_sv("--colour");
+        StringView info_ident    = cstr_sv("--info");
+        StringView mono_ident    = cstr_sv("--mono");
+        StringView profile_ident = cstr_sv("--profile");
+        StringView heat0_ident   = cstr_sv("--heat0");
+        StringView heat1_ident   = cstr_sv("--heat1");
+        StringView heat2_ident   = cstr_sv("--heat2");
+        StringView heat3_ident   = cstr_sv("--heat3");
+        StringView heat4_ident   = cstr_sv("--heat4");
+        StringView char_ident    = cstr_sv("--char");
 
         if(sv_same(arg, author_ident) && i + 1 < argc)
         {
@@ -753,6 +772,10 @@ f_internal void readArgs
         else if(sv_same(arg, mono_ident))
         {
             config->flags |= FLAG_MONO;
+        }
+        else if(sv_same(arg, profile_ident))
+        {
+            config->flags |= FLAG_PROFILE;
         }
         else if(sv_same(arg, heat0_ident) && i + 1 < argc)
         {
@@ -1312,8 +1335,23 @@ int main
     set.now              = gfQueryTime();
     set.currDayEnd       = set.now - set.now % (24 * 3600) + 24 * 3600;
 
+    uint64_t now = gfQueryMonotonic();
+
     gatherData(&config,  &set);
+    uint64_t gathering = gfQueryMonotonic() - now;
+    now = gfQueryMonotonic();
+
     displayData(&config, &set);
+    uint64_t displaying = gfQueryMonotonic() - now;
+
+    if(config.flags & FLAG_PROFILE)
+    {
+        printf("\ngather time: %6.3fms\n", (float)gathering / 1e6f);
+        printf("print time:  %6.3fms\n", (float)displaying / 1e6f);
+        printf("per commit:  %8.5fms\n",
+               ((float)gathering + (float)displaying) /
+               (float)set.totalCommitCount / 1e6f);
+    }
 
     if(config.character)
     {

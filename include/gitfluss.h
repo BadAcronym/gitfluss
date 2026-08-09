@@ -1,13 +1,15 @@
 #pragma once
 
-#include "string_view.h"
+#define BILLION 1000000000L
 
-#ifdef BUILD_LINUX
-    #define __USE_POSIX199309
-    #include <time.h>
-#endif
+#include "stdint.h"
 
 int64_t gfQueryTime
+(
+    void
+);
+
+uint64_t gfQueryMonotonic
 (
     void
 );
