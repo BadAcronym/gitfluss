@@ -1350,7 +1350,7 @@ int main
         printf("\ngather time: %8.5f ms\n", gatherMS);
         printf("per commit:  %8.5f ms\n", perCommit);
         printf("effective:   %8.0f commits/s\n",
-               (float)set.totalCommitCount / perCommit);
+               (float)set.totalCommitCount / gatherMS * 1e3);
     }
 
     if(config.character)
