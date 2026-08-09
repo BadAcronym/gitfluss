@@ -989,8 +989,6 @@ f_internal void gatherData
     gfConf            *config,
     gfDisplaySettings *set
 ){
-    git_libgit2_init();
-
     StringView any_sv      = cstr_sv("any");
     uint32_t   authorcount = sv_count_by_delim(config->authors, ';');
     StringView authorlist[authorcount];
@@ -1284,6 +1282,7 @@ int main
     int  argc,
     char **argv
 ){
+    uint64_t now = gfQueryMonotonic();
     #ifdef BUILD_WINDOWS
     _setmode(_fileno(stdout), _O_BINARY);
     SetConsoleOutputCP(CP_UTF8);
@@ -1335,21 +1334,26 @@ int main
     set.now              = gfQueryTime();
     set.currDayEnd       = set.now - set.now % (24 * 3600) + 24 * 3600;
 
-    uint64_t now = gfQueryMonotonic();
+    git_libgit2_init();
+    uint64_t initialization = gfQueryMonotonic() - now;
+    now = gfQueryMonotonic();
 
+    now = gfQueryMonotonic();
     gatherData(&config,  &set);
-    uint64_t gathering = gfQueryMonotonic() - now;
 
+    uint64_t gathering = gfQueryMonotonic() - now;
     displayData(&config, &set);
 
     if(config.flags & FLAG_PROFILE)
     {
+        float initMS    = (float)initialization / 1e6f;
         float gatherMS  = (float)gathering / 1e6f;
         float perCommit = gatherMS / (float)set.totalCommitCount;
 
-        printf("\ngather time: %8.5f ms\n", gatherMS);
-        printf("per commit:  %8.5f ms\n", perCommit);
-        printf("effective:   %8.0f commits/s\n",
+        printf("libgit2 init: %8.5f ms\n", initMS);
+        printf("gather time:  %8.5f ms\n", gatherMS);
+        printf("per commit:   %8.5f ms\n", perCommit);
+        printf("effective:    %8.0f commits/s\n\n",
                (float)set.totalCommitCount / gatherMS * 1e3);
     }
 
