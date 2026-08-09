@@ -1344,9 +1344,13 @@ int main
 
     if(config.flags & FLAG_PROFILE)
     {
-        printf("\ngather time: %8.5fms\n", (float)gathering / 1e6f);
-        printf("per commit:  %8.5fms\n",
-               ((float)gathering) / (float)set.totalCommitCount / 1e6f);
+        float gatherMS  = (float)gathering / 1e6f;
+        float perCommit = gatherMS / (float)set.totalCommitCount;
+
+        printf("\ngather time: %8.5f ms\n", gatherMS);
+        printf("per commit:  %8.5f ms\n", perCommit);
+        printf("effective:   %8.0f commits/s\n",
+               (float)set.totalCommitCount / perCommit);
     }
 
     if(config.character)
