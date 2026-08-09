@@ -954,7 +954,7 @@ f_internal void *gatherRepoData
 
     while(!git_revwalk_next(&oid, revwalk))
     {
-        // TODO: lock set
+        // FIXME: lock set
         ++set->totalCommitCount;
         git_commit_lookup(&commit, repo, &oid);
 
@@ -993,17 +993,17 @@ f_internal void *gatherRepoData
                 ++set->sorted[daysSince];
             }
         }
-        // TODO: unlock set
+        // FIXME: unlock set
 
         git_commit_free(commit);
     }
 
     if(repoCommitCount > set->repoMax)
     {
-        // TODO: lock set
+        // FIXME: lock set
         set->biggestRepo = cstr_sv_cpy(current_repo_cstr, set->biggestRepoBuf);
         set->repoMax     = repoCommitCount;
-        // TODO: unlock set
+        // FIXME: unlock set
     }
 
     git_revwalk_free(revwalk);
@@ -1022,6 +1022,7 @@ f_internal void gatherData
 
     sv_separate_by_delim(config->authors, authorlist, ';');
 
+    gfThread     threads[set->repositoryCount];
     gfThreadData threadData[set->repositoryCount];
 
     for(uint32_t i = 0; i < set->repositoryCount; ++i)
@@ -1037,7 +1038,12 @@ f_internal void gatherData
                     ARG_SV(repository));
         #endif
 
-        // TODO: dispatch threads
+        gfDispatchThread(&threads[i], gatherRepoData, &threadData[i]);
+    }
+
+    for(uint32_t i = 0; i < set->repositoryCount; ++i)
+    {
+        gfWaitThread(threads[i]);
     }
 }
 

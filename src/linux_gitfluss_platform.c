@@ -1,9 +1,6 @@
 #include "gitfluss.h"
 
-#define __USE_POSIX199309
-#include <time.h>
-#include <pthread.h>
-
+    #include <time.h>
 int64_t gfQueryTime
 (
     void
@@ -26,6 +23,16 @@ uint64_t gfQueryMonotonic
 
 void gfDispatchThread
 (
+    gfThread     *thread,
+    void         *func,
+    gfThreadData *data
 ){
+    pthread_create(thread, 0, func, data);
+}
 
+void gfWaitThread
+(
+    gfThread thread
+){
+    pthread_join(thread, 0);
 }

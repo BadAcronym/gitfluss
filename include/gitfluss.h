@@ -4,6 +4,13 @@
 
 #include "string_view.h"
 
+#ifdef BUILD_LINUX
+    #define __USE_POSIX199309
+    #include <time.h>
+    #include <pthread.h>
+    typedef pthread_t gfThread;
+#endif
+
 typedef struct gfConf
 {
     StringView repositories;
@@ -82,4 +89,16 @@ int64_t gfQueryTime
 uint64_t gfQueryMonotonic
 (
     void
+);
+
+extern void gfDispatchThread
+(
+    gfThread     *thread,
+    void         *func,
+    gfThreadData *data
+);
+
+extern void gfWaitThread
+(
+    gfThread thread
 );
