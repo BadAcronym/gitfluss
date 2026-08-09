@@ -1339,18 +1339,14 @@ int main
 
     gatherData(&config,  &set);
     uint64_t gathering = gfQueryMonotonic() - now;
-    now = gfQueryMonotonic();
 
     displayData(&config, &set);
-    uint64_t displaying = gfQueryMonotonic() - now;
 
     if(config.flags & FLAG_PROFILE)
     {
-        printf("\ngather time: %6.3fms\n", (float)gathering / 1e6f);
-        printf("print time:  %6.3fms\n", (float)displaying / 1e6f);
+        printf("\ngather time: %8.5fms\n", (float)gathering / 1e6f);
         printf("per commit:  %8.5fms\n",
-               ((float)gathering + (float)displaying) /
-               (float)set.totalCommitCount / 1e6f);
+               ((float)gathering) / (float)set.totalCommitCount / 1e6f);
     }
 
     if(config.character)
