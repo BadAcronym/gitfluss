@@ -984,11 +984,20 @@ f_internal void printHeatMap
     printf("\n");
 }
 
+f_internal void *gatherRepoData
+(
+    void *argument
+){
+    return 0;
+}
+
 f_internal void gatherData
 (
     gfConf            *config,
     gfDisplaySettings *set
 ){
+    // create threads
+
     StringView any_sv      = cstr_sv("any");
     uint32_t   authorcount = sv_count_by_delim(config->authors, ';');
     StringView authorlist[authorcount];
@@ -1005,7 +1014,7 @@ f_internal void gatherData
         uint32_t   repoCommitCount = 0;
 
         #ifdef DEBUG
-            fprintf(stderr, "\nAnalyzing repository %u: '"PRI_SV"'\n", i,
+            fprintf(stderr, "Analyzing repository %u: '"PRI_SV"'\n", i,
                     ARG_SV(repository));
         #endif
 
@@ -1283,6 +1292,7 @@ int main
     char **argv
 ){
     uint64_t now = gfQueryMonotonic();
+
     #ifdef BUILD_WINDOWS
     _setmode(_fileno(stdout), _O_BINARY);
     SetConsoleOutputCP(CP_UTF8);
@@ -1362,5 +1372,5 @@ int main
     {
         free((void*)config.character);
     }
-    return git_libgit2_shutdown();
+    git_libgit2_shutdown();
 }
