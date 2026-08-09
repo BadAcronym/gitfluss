@@ -1335,13 +1335,14 @@ int main
     set.currDayEnd       = set.now - set.now % (24 * 3600) + 24 * 3600;
 
     git_libgit2_init();
+
     uint64_t initialization = gfQueryMonotonic() - now;
     now = gfQueryMonotonic();
 
-    now = gfQueryMonotonic();
     gatherData(&config,  &set);
 
     uint64_t gathering = gfQueryMonotonic() - now;
+
     displayData(&config, &set);
 
     if(config.flags & FLAG_PROFILE)
