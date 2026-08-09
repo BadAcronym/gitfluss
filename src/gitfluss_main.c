@@ -42,64 +42,6 @@
 #define FLAG_MONO    0x02
 #define FLAG_PROFILE 0x04
 
-typedef struct gfConf
-{
-    StringView repositories;
-    StringView authors;
-    char       *sortedRepos;
-    char       *sortedAuthors;
-    const char *character;
-    const char *mono0;
-    const char *mono1;
-    const char *mono2;
-    const char *mono3;
-    const char *mono4;
-    uint8_t    percentile0;
-    uint8_t    percentile1;
-    uint8_t    percentile2;
-    uint8_t    percentile3;
-    uint8_t    colour;
-    uint8_t    flags;
-}
-gfConf;
-
-typedef struct gfPercentiles
-{
-    uint32_t d20;
-    uint32_t d50;
-    uint32_t d70;
-    uint32_t d90;
-}
-gfPercentiles;
-
-typedef struct gfHeatmapSettings
-{
-    gfConf        *config;
-    gfPercentiles *percentiles;
-    uint32_t      *heatmap;
-    uint8_t       currentMonth;
-    uint8_t       weekday365;
-    uint8_t       day_of_month;
-    uint8_t       leapYear;
-}
-gfHeatmapSettings;
-
-typedef struct gfDisplaySettings
-{
-    StringView biggestRepo;
-    uint32_t   repositoryCount;
-    uint64_t   totalCommitCount;
-    uint64_t   personalCommitCount;
-    uint32_t   repoMax;
-    uint32_t   *heatmap;
-    uint32_t   *sorted;
-    int64_t    now;
-    int64_t    currDayEnd;
-    int64_t    oldestCommitTime;
-    char       *biggestRepoBuf;
-}
-gfDisplaySettings;
-
 const char *months[12] =
 {
     "Jan",
@@ -986,8 +928,87 @@ f_internal void printHeatMap
 
 f_internal void *gatherRepoData
 (
-    void *argument
+    void *arguments
 ){
+    gfThreadData *data = (gfThreadData*)arguments;
+    gfDisplaySettings *set        = &data->set;
+    StringView        repository  = data->repository;
+    StringView        *authorlist = &data->authorlist;
+    uint32_t          authorcount = data->authorcount;
+
+    git_repository *repo    = 0;
+    git_revwalk    *revwalk = 0;
+    git_oid        oid      = {0};
+
+    uint32_t repoCommitCount = 0;
+
+    char current_repo_cstr[repository.size + 1];
+    sv_cstr(repository, current_repo_cstr);
+
+    git_repository_open(&repo, current_repo_cstr);
+    git_revwalk_new(&revwalk, repo);
+    git_revwalk_push_head(revwalk);
+
+    uint8_t    any_author = 0;
+    git_commit *commit    = 0;
+
+    while(!git_revwalk_next(&oid, revwalk))
+    {
+        // TODO: lock set
+        ++set->totalCommitCount;
+        git_commit_lookup(&commit, repo, &oid);
+
+        const git_signature *sign = git_commit_author(commit);
+
+        StringView author_mail = cstr_sv(sign->email);
+        git_time   commit_time = sign->when;
+        uint8_t    counts      = any_author;
+
+        for(uint16_t j = 0; !counts && j < authorcount; ++j)
+        {
+            if(sv_same(authorlist[j], author_mail))
+            {
+                counts = 1;
+            }
+            else if(sv_same(authorlist[j], cstr_sv("any")))
+            {
+                counts     = 1;
+                any_author = 1;
+            }
+        }
+
+        if(counts)
+        {
+            int64_t daysSince = (set->currDayEnd - commit_time.time) / (24 * 3600);
+            if(commit_time.time < set->oldestCommitTime)
+            {
+                set->oldestCommitTime = commit_time.time;
+            }
+
+            ++set->heatmap[daysSince];
+            ++repoCommitCount;
+            ++set->personalCommitCount;
+            if(daysSince < 366)
+            {
+                ++set->sorted[daysSince];
+            }
+        }
+        // TODO: unlock set
+
+        git_commit_free(commit);
+    }
+
+    if(repoCommitCount > set->repoMax)
+    {
+        // TODO: lock set
+        set->biggestRepo = cstr_sv_cpy(current_repo_cstr, set->biggestRepoBuf);
+        set->repoMax     = repoCommitCount;
+        // TODO: unlock set
+    }
+
+    git_revwalk_free(revwalk);
+    git_repository_free(repo);
+
     return 0;
 }
 
@@ -996,90 +1017,27 @@ f_internal void gatherData
     gfConf            *config,
     gfDisplaySettings *set
 ){
-    // create threads
-
-    StringView any_sv      = cstr_sv("any");
     uint32_t   authorcount = sv_count_by_delim(config->authors, ';');
     StringView authorlist[authorcount];
 
     sv_separate_by_delim(config->authors, authorlist, ';');
 
+    gfThreadData threadData[set->repositoryCount];
+
     for(uint32_t i = 0; i < set->repositoryCount; ++i)
     {
-        git_repository *repo    = 0;
-        git_revwalk    *revwalk = 0;
-        git_oid        oid      = {0};
-
-        StringView repository      = sv_find_by_delim(config->repositories, ';', i);
-        uint32_t   repoCommitCount = 0;
+        threadData[i].id          = i;
+        threadData[i].repository  = sv_find_by_delim(config->repositories, ';', i);
+        threadData[i].authorcount = authorcount;
+        threadData[i].authorlist  = *authorlist;
+        threadData[i].set         = *set;
 
         #ifdef DEBUG
-            fprintf(stderr, "Analyzing repository %u: '"PRI_SV"'\n", i,
+            fprintf(stderr, "Thread %u: analyzing repository: '"PRI_SV"'\n", i,
                     ARG_SV(repository));
         #endif
 
-        char current_repo_cstr[repository.size + 1];
-        sv_cstr(repository, current_repo_cstr);
-
-        git_repository_open(&repo, current_repo_cstr);
-        git_revwalk_new(&revwalk, repo);
-        git_revwalk_push_head(revwalk);
-
-        uint8_t    any_author = 0;
-        git_commit *commit    = 0;
-
-        while(!git_revwalk_next(&oid, revwalk))
-        {
-            ++set->totalCommitCount;
-            git_commit_lookup(&commit, repo, &oid);
-
-            const git_signature *sign = git_commit_author(commit);
-
-            StringView author_mail = cstr_sv(sign->email);
-            git_time   commit_time = sign->when;
-            uint8_t    counts      = any_author;
-
-            for(uint16_t j = 0; !counts && j < authorcount; ++j)
-            {
-                if(sv_same(authorlist[j], author_mail))
-                {
-                    counts = 1;
-                }
-                else if(sv_same(authorlist[j], any_sv))
-                {
-                    counts     = 1;
-                    any_author = 1;
-                }
-            }
-
-            if(counts)
-            {
-                int64_t daysSince = (set->currDayEnd - commit_time.time) / (24 * 3600);
-                if(commit_time.time < set->oldestCommitTime)
-                {
-                    set->oldestCommitTime = commit_time.time;
-                }
-
-                ++set->heatmap[daysSince];
-                ++repoCommitCount;
-                ++set->personalCommitCount;
-                if(daysSince < 366)
-                {
-                    ++set->sorted[daysSince];
-                }
-            }
-
-            git_commit_free(commit);
-        }
-
-        if(repoCommitCount > set->repoMax)
-        {
-            set->biggestRepo = cstr_sv_cpy(current_repo_cstr, set->biggestRepoBuf);
-            set->repoMax     = repoCommitCount;
-        }
-
-        git_revwalk_free(revwalk);
-        git_repository_free(repo);
+        // TODO: dispatch threads
     }
 }
 
@@ -1349,7 +1307,7 @@ int main
     uint64_t initialization = gfQueryMonotonic() - now;
     now = gfQueryMonotonic();
 
-    gatherData(&config,  &set);
+    gatherData(&config, &set);
 
     uint64_t gathering = gfQueryMonotonic() - now;
 

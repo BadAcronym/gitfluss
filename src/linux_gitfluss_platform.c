@@ -2,6 +2,7 @@
 
 #define __USE_POSIX199309
 #include <time.h>
+#include <pthread.h>
 
 int64_t gfQueryTime
 (
@@ -21,4 +22,10 @@ uint64_t gfQueryMonotonic
     clock_gettime(CLOCK_MONOTONIC, &spec);
 
     return (uint64_t)spec.tv_sec * BILLION + (uint64_t)spec.tv_nsec;
+}
+
+void gfDispatchThread
+(
+){
+
 }
