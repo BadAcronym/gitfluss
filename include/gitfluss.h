@@ -11,6 +11,12 @@
     typedef pthread_t gfThread;
 #endif
 
+#ifdef BUILD_WINDOWS
+    #include <windows.h>
+
+    typedef HANDLE gfThread;
+#endif
+
 typedef struct gfConf
 {
     StringView repositories;
@@ -69,6 +75,10 @@ typedef struct gfDisplaySettings
 
     #ifdef BUILD_LINUX
     pthread_mutex_t mutexSet;
+    #endif
+
+    #ifdef BUILD_WINDOWS
+    HANDLE mutexSet;
     #endif
 }
 gfDisplaySettings;
