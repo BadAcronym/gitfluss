@@ -66,6 +66,10 @@ typedef struct gfDisplaySettings
     int64_t    currDayEnd;
     int64_t    oldestCommitTime;
     char       *biggestRepoBuf;
+
+    #ifdef BUILD_LINUX
+    pthread_mutex_t mutexSet;
+    #endif
 }
 gfDisplaySettings;
 
@@ -74,8 +78,8 @@ typedef struct gfThreadData
     uint32_t          id;
     uint32_t          authorcount;
     StringView        repository;
-    StringView        authorlist;
-    gfDisplaySettings set;
+    StringView        *authorlist;
+    gfDisplaySettings *set;
 }
 gfThreadData;
 
@@ -101,4 +105,14 @@ extern void gfDispatchThread
 extern void gfWaitThread
 (
     gfThread thread
+);
+
+extern void gfLock
+(
+    gfDisplaySettings *set
+);
+
+extern void gfUnlock
+(
+    gfDisplaySettings *set
 );

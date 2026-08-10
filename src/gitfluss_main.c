@@ -931,9 +931,9 @@ f_internal void *gatherRepoData
     void *arguments
 ){
     gfThreadData *data = (gfThreadData*)arguments;
-    gfDisplaySettings *set        = &data->set;
+    gfDisplaySettings *set        = data->set;
     StringView        repository  = data->repository;
-    StringView        *authorlist = &data->authorlist;
+    StringView        *authorlist = data->authorlist;
     uint32_t          authorcount = data->authorcount;
 
     git_repository *repo    = 0;
@@ -945,6 +945,8 @@ f_internal void *gatherRepoData
     char current_repo_cstr[repository.size + 1];
     sv_cstr(repository, current_repo_cstr);
 
+    // FIXME: is libgit2 even thread safe? or do I need to init for every thread, maybe?
+
     git_repository_open(&repo, current_repo_cstr);
     git_revwalk_new(&revwalk, repo);
     git_revwalk_push_head(revwalk);
@@ -954,7 +956,7 @@ f_internal void *gatherRepoData
 
     while(!git_revwalk_next(&oid, revwalk))
     {
-        // FIXME: lock set
+        gfLock(set);
         ++set->totalCommitCount;
         git_commit_lookup(&commit, repo, &oid);
 
@@ -993,17 +995,17 @@ f_internal void *gatherRepoData
                 ++set->sorted[daysSince];
             }
         }
-        // FIXME: unlock set
+        gfUnlock(set);
 
         git_commit_free(commit);
     }
 
     if(repoCommitCount > set->repoMax)
     {
-        // FIXME: lock set
+        gfLock(set);
         set->biggestRepo = cstr_sv_cpy(current_repo_cstr, set->biggestRepoBuf);
         set->repoMax     = repoCommitCount;
-        // FIXME: unlock set
+        gfUnlock(set);
     }
 
     git_revwalk_free(revwalk);
@@ -1030,15 +1032,15 @@ f_internal void gatherData
         threadData[i].id          = i;
         threadData[i].repository  = sv_find_by_delim(config->repositories, ';', i);
         threadData[i].authorcount = authorcount;
-        threadData[i].authorlist  = *authorlist;
-        threadData[i].set         = *set;
+        threadData[i].authorlist  = authorlist;
+        threadData[i].set         = set;
 
         #ifdef DEBUG
             fprintf(stderr, "Thread %u: analyzing repository: '"PRI_SV"'\n", i,
-                    ARG_SV(repository));
+                    ARG_SV(threadData[i].repository));
         #endif
 
-        gfDispatchThread(&threads[i], gatherRepoData, &threadData[i]);
+        gfDispatchThread(&threads[i], (void*)gatherRepoData, &threadData[i]);
     }
 
     for(uint32_t i = 0; i < set->repositoryCount; ++i)

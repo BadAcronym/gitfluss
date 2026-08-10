@@ -1,6 +1,5 @@
 #include "gitfluss.h"
 
-    #include <time.h>
 int64_t gfQueryTime
 (
     void
@@ -35,4 +34,18 @@ void gfWaitThread
     gfThread thread
 ){
     pthread_join(thread, 0);
+}
+
+void gfLock
+(
+    gfDisplaySettings *set
+){
+    pthread_mutex_lock(&set->mutexSet);
+}
+
+void gfUnlock
+(
+    gfDisplaySettings *set
+){
+    pthread_mutex_unlock(&set->mutexSet);
 }
