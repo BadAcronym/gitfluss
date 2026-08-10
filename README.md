@@ -42,6 +42,8 @@ read as a path. This is the same way the configuration file works. The identifie
 (besides `--info`) need to be followed by the chosen colour or author, else they have no
 effect.
 
+`--profile` will show miscellaneous timings and stats.
+
 Example configuration:
 ```
 author: author@provider.com
