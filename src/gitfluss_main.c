@@ -231,20 +231,26 @@ f_internal void addPath
         free((void*)config->repositories.data);
         config->repositories = cstr_sv(repositories_cstr);
 
-        char resolved[PATH_MAX];
-        pdExpandPath(path, resolved);
-        StringView resolved_sv = cstr_sv(resolved);
+        char resolved_cstr[PATH_MAX];
+        pdExpandPath(path, resolved_cstr);
+        StringView resolved = cstr_sv(resolved_cstr);
 
-        if(pdVerifyPath(resolved_sv) != PD_TYPE_DIRECTORY)
+        uint8_t result = pdVerifyPath(resolved);
+
+        if(result == PD_TYPE_ERROR || result == PD_TYPE_OTHER)
         {
-            #ifdef DEBUG
-            fprintf(stderr, "\033[33;3mWARNING: path '"PRI_SV"' is not a directory."
-                            "\033[0m\n", ARG_SV(resolved_sv));
-            #endif
+            fprintf(stderr, "\033[31;3mERROR: unknown option '"PRI_SV"'.\033[0m\n",
+                    ARG_SV(resolved));
+            exit(3);
+        }
+        else if(result == PD_TYPE_FILE)
+        {
+            fprintf(stderr, "\033[33;3mWARNING: path '"PRI_SV"' is a file, not a "
+                            "directory.\033[0m\n", ARG_SV(resolved));
             return;
         }
 
-        sv_concat(config->repositories, resolved_sv, repositories_cstr);
+        sv_concat(config->repositories, resolved, repositories_cstr);
         config->repositories = cstr_sv(repositories_cstr);
     }
     else
@@ -611,25 +617,39 @@ f_internal void readArgs
     char   **argv,
     gfConf *config
 ){
-    for(uint16_t i = 1; i < argc; ++i)
+    for(uint16_t i = 0; i < argc; ++i)
     {
-        StringView arg           = cstr_sv(argv[i]);
-        StringView author_ident  = cstr_sv("--author");
-        StringView colour_ident  = cstr_sv("--colour");
-        StringView info_ident    = cstr_sv("--info");
-        StringView mono_ident    = cstr_sv("--mono");
-        StringView profile_ident = cstr_sv("--profile");
-        StringView heat0_ident   = cstr_sv("--heat0");
-        StringView heat1_ident   = cstr_sv("--heat1");
-        StringView heat2_ident   = cstr_sv("--heat2");
-        StringView heat3_ident   = cstr_sv("--heat3");
-        StringView heat4_ident   = cstr_sv("--heat4");
-        StringView char_ident    = cstr_sv("--char");
+        StringView arg              = cstr_sv(argv[i]);
+        StringView authorlist_ident = cstr_sv("--authorlist");
+        StringView repolist_ident   = cstr_sv("--repolist");
+        StringView author_ident     = cstr_sv("--author");
+        StringView colour_ident     = cstr_sv("--colour");
+        StringView info_ident       = cstr_sv("--info");
+        StringView mono_ident       = cstr_sv("--mono");
+        StringView profile_ident    = cstr_sv("--profile");
+        StringView heat0_ident      = cstr_sv("--heat0");
+        StringView heat1_ident      = cstr_sv("--heat1");
+        StringView heat2_ident      = cstr_sv("--heat2");
+        StringView heat3_ident      = cstr_sv("--heat3");
+        StringView heat4_ident      = cstr_sv("--heat4");
+        StringView char_ident       = cstr_sv("--char");
 
-        if(sv_same(arg, author_ident) && i + 1 < argc)
+        if(sv_same(arg, authorlist_ident) && i + 1 < argc)
+        {
+            addAuthorlist(config, cstr_sv(argv[i + 1]));
+            ++i;
+        }
+        else if(sv_same(arg, repolist_ident) && i + 1 < argc)
+        {
+            addPathlist(config, cstr_sv(argv[i + 1]));
+            ++i;
+        }
+        else if(sv_same(arg, author_ident) && i + 1 < argc)
         {
             StringView author = cstr_sv(argv[i + 1]);
+            #ifdef DEBUG
             printf("author: "PRI_SV"\n", ARG_SV(author));
+            #endif
             addAuthor(config, author);
 
             ++i;
