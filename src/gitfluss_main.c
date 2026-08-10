@@ -235,8 +235,6 @@ f_internal void addPath
         pdExpandPath(path, resolved_cstr);
         StringView resolved = cstr_sv(resolved_cstr);
 
-        uint8_t result = pdVerifyPath(resolved);
-
         char pathSep[resolved.size + 2];
         StringView pathComp = cstr_sv(resolved_cstr);
         pathSep[resolved.size] = ';';
@@ -250,17 +248,18 @@ f_internal void addPath
             return;
         }
 
-        if(result == PD_TYPE_ERROR || result == PD_TYPE_OTHER)
-        {
-            fprintf(stderr, "\033[31;3mERROR: unknown option '"PRI_SV"'.\033[0m\n",
-                    ARG_SV(resolved));
-            exit(3);
-        }
-        else if(result == PD_TYPE_FILE)
+        uint8_t result = pdVerifyPath(resolved);
+        if(result == PD_TYPE_FILE)
         {
             fprintf(stderr, "\033[33;3mWARNING: path '"PRI_SV"' is a file, not a "
                             "directory.\033[0m\n", ARG_SV(resolved));
             return;
+        }
+        else if(result == PD_TYPE_ERROR || result == PD_TYPE_OTHER)
+        {
+            fprintf(stderr, "\033[31;3mERROR: unknown option '"PRI_SV"'.\033[0m\n",
+                    ARG_SV(resolved));
+            exit(3);
         }
 
         sv_concat(config->repositories, resolved, repositories_cstr);
@@ -1222,8 +1221,6 @@ int main
     int  argc,
     char **argv
 ){
-    uint64_t now = gfQueryMonotonic();
-
     #ifdef BUILD_WINDOWS
     _setmode(_fileno(stdout), _O_BINARY);
     SetConsoleOutputCP(CP_UTF8);
@@ -1233,6 +1230,8 @@ int main
     SetConsoleMode(hOutput, ENABLE_PROCESSED_OUTPUT |
                             ENABLE_VIRTUAL_TERMINAL_PROCESSING);
     #endif
+
+    uint64_t now = gfQueryMonotonic();
 
     char sortedRepos[PATH_MAX * 100];
     char sortedAuthors[PATH_MAX * 2];
@@ -1274,6 +1273,10 @@ int main
     set.repositoryCount  = sv_count_by_delim(config.repositories, ';');
     set.now              = gfQueryTime();
     set.currDayEnd       = set.now - set.now % (24 * 3600) + 24 * 3600;
+
+    #ifdef BUILD_WINDOWS
+        set.mutexSet = CreateMutexA(0, 0, 0);
+    #endif
 
     git_libgit2_init();
 

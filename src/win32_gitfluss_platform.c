@@ -28,7 +28,7 @@ void gfDispatchThread
     gfThreadData *data
 ){
     uint32_t threadID;
-    _beginthreadex(0, 0, func, data, 0, &threadID);
+    *thread = CreateThread(0, 0, func, data, 0, 0);
 }
 
 void gfWaitThread
