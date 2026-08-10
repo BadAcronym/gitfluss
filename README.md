@@ -76,7 +76,9 @@ $HOME/repository/imgsurf
 
 comments are supported in all files, preceded with `//` (C-style).
 
-![example](screenshots/purple.jpg)
+Example run with all options enabled:
+
+![example](screenshots/all.jpg)
 
 The correspoding heat intensities are calculated based on the `20th`, `50th`, `70th` and
 `90th` percentile of your commit count per day, not including days with 0 commits.
