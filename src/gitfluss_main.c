@@ -168,7 +168,7 @@ f_internal void addAuthorlist
     sv_cstr(path, path_cstr);
 
     char path_expanded_cstr[4096];
-    pdExpandPath(path_cstr, path_expanded_cstr);
+    pdExpandPath(path, path_expanded_cstr);
 
     StringView path_expanded = cstr_sv(path_expanded_cstr);
 
@@ -185,8 +185,8 @@ f_internal void addAuthorlist
     if(!file)
     {
         #ifdef DEBUG
-        fprintf(stderr, "\033[33;1mWARNING: tasked with opening author list file: '"
-                        PRI_SV"', failed to open.\033[0m\n", ARG_SV(path_expanded));
+        fprintf(stderr, "\033[33;1mWARNING: tasked with opening author list file: '%s' "
+                        ", failed to open.\033[0m\n", path_expanded_cstr);
         #endif
         return;
     }
@@ -237,7 +237,7 @@ f_internal void addPath
         config->repositories = cstr_sv(repositories_cstr);
 
         char resolved[PATH_MAX];
-        pdExpandPath(path_cstr, resolved);
+        pdExpandPath(path, resolved);
         StringView resolved_sv = cstr_sv(resolved);
 
         if(pdVerifyPath(resolved_sv) != PD_TYPE_DIRECTORY)
@@ -255,7 +255,7 @@ f_internal void addPath
     else
     {
         char *resolved = calloc(PATH_MAX, 1);
-        pdExpandPath(path_cstr, resolved);
+        pdExpandPath(path, resolved);
         StringView resolved_sv = cstr_sv(resolved);
         config->repositories = resolved_sv;
 
@@ -279,11 +279,8 @@ f_internal void addPathlist
     gfConf     *config,
     StringView path
 ){
-    char path_cstr[4096];
-    sv_cstr(path, path_cstr);
-
     char path_expanded_cstr[4096];
-    pdExpandPath(path_cstr, path_expanded_cstr);
+    pdExpandPath(path, path_expanded_cstr);
 
     StringView path_expanded = cstr_sv(path_expanded_cstr);
 
@@ -403,10 +400,13 @@ f_internal void readConfig
 (
     gfConf *config
 ){
+    StringView conf     = cstr_sv(CONF_PATH);
+    StringView fallback = cstr_sv(CONF_FALLBACK);
+
     char path_expanded[PATH_MAX];
     char fallback_expanded[PATH_MAX];
-    pdExpandPath(CONF_PATH, path_expanded);
-    pdExpandPath(CONF_FALLBACK, fallback_expanded);
+    pdExpandPath(conf, path_expanded);
+    pdExpandPath(fallback, fallback_expanded);
 
     StringView authorlist_sv = cstr_sv("authorlist:");
     StringView repolist_sv   = cstr_sv("repolist:");
@@ -454,10 +454,6 @@ f_internal void readConfig
         if(authorlistloc)
         {
             StringView authorlist = cstr_sv(buffer.data + authorlist_sv.size + 1);
-            if(authorlist.size)
-            {
-                authorlist.size -= 1;
-            }
 
             addAuthorlist(config, authorlist);
             continue;
@@ -467,10 +463,6 @@ f_internal void readConfig
         if(repolistloc)
         {
             StringView repolist = cstr_sv(buffer.data + repolist_sv.size + 1);
-            if(repolist.size)
-            {
-                repolist.size -= 1;
-            }
 
             addPathlist(config, repolist);
             continue;
@@ -480,10 +472,6 @@ f_internal void readConfig
         if(authorloc)
         {
             StringView author = cstr_sv(buffer.data + author_sv.size + 1);
-            if(author.size)
-            {
-                author.size -= 1;
-            }
 
             addAuthor(config, author);
             continue;
@@ -493,10 +481,6 @@ f_internal void readConfig
         if(colourloc)
         {
             StringView chosen_sv = cstr_sv(buffer.data + colour_sv.size + 1);
-            if(chosen_sv.size)
-            {
-                chosen_sv.size -= 1;
-            }
             setColour(config, chosen_sv);
             continue;
         }
@@ -505,10 +489,6 @@ f_internal void readConfig
         if(infoloc)
         {
             StringView set_sv = cstr_sv(buffer.data + info_sv.size + 1);
-            if(set_sv.size)
-            {
-                set_sv.size -= 1;
-            }
 
             if(sv_same(set_sv, true_sv))
             {
@@ -521,10 +501,6 @@ f_internal void readConfig
         if(monoloc)
         {
             StringView set_sv = cstr_sv(buffer.data + mono_sv.size + 1);
-            if(set_sv.size)
-            {
-                set_sv.size -= 1;
-            }
 
             if(sv_same(set_sv, true_sv))
             {
@@ -537,10 +513,6 @@ f_internal void readConfig
         if(profileloc)
         {
             StringView set_sv = cstr_sv(buffer.data + profile_sv.size + 1);
-            if(set_sv.size)
-            {
-                set_sv.size -= 1;
-            }
 
             if(sv_same(set_sv, true_sv))
             {
@@ -553,10 +525,6 @@ f_internal void readConfig
         if(heat0loc)
         {
             StringView set_sv = cstr_sv(buffer.data + heat0_sv.size + 1);
-            if(set_sv.size)
-            {
-                set_sv.size -= 1;
-            }
 
             char *small_buf = malloc(8);
             sv_cstr(set_sv, small_buf);
@@ -568,10 +536,6 @@ f_internal void readConfig
         if(heat1loc)
         {
             StringView set_sv = cstr_sv(buffer.data + heat1_sv.size + 1);
-            if(set_sv.size)
-            {
-                set_sv.size -= 1;
-            }
 
             char *small_buf = malloc(8);
             sv_cstr(set_sv, small_buf);
@@ -583,10 +547,6 @@ f_internal void readConfig
         if(heat2loc)
         {
             StringView set_sv = cstr_sv(buffer.data + heat2_sv.size + 1);
-            if(set_sv.size)
-            {
-                set_sv.size -= 1;
-            }
 
             char *small_buf = malloc(8);
             sv_cstr(set_sv, small_buf);
@@ -598,10 +558,6 @@ f_internal void readConfig
         if(heat3loc)
         {
             StringView set_sv = cstr_sv(buffer.data + heat3_sv.size + 1);
-            if(set_sv.size)
-            {
-                set_sv.size -= 1;
-            }
 
             char *small_buf = malloc(8);
             sv_cstr(set_sv, small_buf);
@@ -613,10 +569,6 @@ f_internal void readConfig
         if(heat4loc)
         {
             StringView set_sv = cstr_sv(buffer.data + heat4_sv.size + 1);
-            if(set_sv.size)
-            {
-                set_sv.size -= 1;
-            }
 
             char *small_buf = malloc(8);
             sv_cstr(set_sv, small_buf);
@@ -628,10 +580,6 @@ f_internal void readConfig
         if(charloc)
         {
             StringView set_sv = cstr_sv(buffer.data + char_sv.size + 1);
-            if(set_sv.size)
-            {
-                set_sv.size -= 1;
-            }
 
             char *small_buf = malloc(8);
             sv_cstr(set_sv, small_buf);
@@ -944,8 +892,6 @@ f_internal void *gatherRepoData
 
     char current_repo_cstr[repository.size + 1];
     sv_cstr(repository, current_repo_cstr);
-
-    // FIXME: is libgit2 even thread safe? or do I need to init for every thread, maybe?
 
     git_repository_open(&repo, current_repo_cstr);
     git_revwalk_new(&revwalk, repo);

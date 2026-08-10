@@ -26,7 +26,7 @@ void gfDispatchThread
     void         *func,
     gfThreadData *data
 ){
-    pthread_create(thread, 0, func, data);
+    pthread_create(thread, 0, (void *(*)(void *))func, data);
 }
 
 void gfWaitThread
