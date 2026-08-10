@@ -237,6 +237,19 @@ f_internal void addPath
 
         uint8_t result = pdVerifyPath(resolved);
 
+        char pathSep[resolved.size + 2];
+        StringView pathComp = cstr_sv(resolved_cstr);
+        pathSep[resolved.size] = ';';
+        pathSep[resolved.size + 1] = '\0';
+        if(sv_find(pathComp, config->repositories))
+        {
+            #ifdef DEBUG
+            fprintf(stderr, "\033[33;3mWARNING: path '"PRI_SV"' already in repository "
+                            "list.\033[0m\n", ARG_SV(resolved));
+            #endif
+            return;
+        }
+
         if(result == PD_TYPE_ERROR || result == PD_TYPE_OTHER)
         {
             fprintf(stderr, "\033[31;3mERROR: unknown option '"PRI_SV"'.\033[0m\n",
@@ -617,7 +630,7 @@ f_internal void readArgs
     char   **argv,
     gfConf *config
 ){
-    for(uint16_t i = 0; i < argc; ++i)
+    for(uint16_t i = 1; i < argc; ++i)
     {
         StringView arg              = cstr_sv(argv[i]);
         StringView authorlist_ident = cstr_sv("--authorlist");
