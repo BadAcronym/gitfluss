@@ -1,5 +1,4 @@
-Example run with all options enabled:
-![example](screenshots/all.jpg)
+![example](screenshots/purple.jpg)
 
 Gitfluss is a neat little cmd git stats view that will pull data from local
 repositories, so you can view a unified heatmap across all your projects, whether local
@@ -23,6 +22,10 @@ Plans:
 Known issues:
 + Passing non-ascii chars on windows via the cmdline is broken, please use the
   configuration file for that.
+
+Example run with all options enabled:
+
+![example](screenshots/all.jpg)
 
 The configuration file location is `~/.config/gitfluss/.conf`. Gitfluss will look first
 in the current working directory for a `.gitflussconf` file and then in the config
