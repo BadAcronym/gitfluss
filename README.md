@@ -54,6 +54,7 @@ author: another_author@workplace.org
 colour: purple
 character: ◼
 info: false
+profile: false
 $HOME/repository/puddle
 $HOME/repository/imgsurf
 $HOME/repository/river2D
@@ -66,6 +67,8 @@ configuration file:
 ```
 authorlist: ~/mydir/authorlist_file
 repolist: ~/mydir/repolist_file
+colour: purple
+...
 ```
 
 `~/mydir/authorlist_file`:
