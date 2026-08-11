@@ -257,8 +257,10 @@ f_internal void addPath
         }
         else if(result == PD_TYPE_ERROR || result == PD_TYPE_OTHER)
         {
+            // FIXME: we shouldn't be here if we have, say, a trailing '--char'.
             fprintf(stderr, "\033[31;3mERROR: unknown option '"PRI_SV"'.\033[0m\n",
                     ARG_SV(resolved));
+            // TODO: print help msg or something.
             exit(3);
         }
 
