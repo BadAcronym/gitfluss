@@ -599,6 +599,13 @@ void sortStrings
         free((void*)config->repositories.data);
     }
     config->repositories = cstr_sv(config->sortedRepos);
+
+    #ifdef DEBUG
+        fprintf(stderr, "\nfinal, sorted author list:\n"PRI_SV"\n",
+                ARG_SV(config->authors));
+        fprintf(stderr, "\nfinal, sorted paths:\n"PRI_SV"\n",
+                ARG_SV(config->repositories));
+    #endif
 }
 
 int main
@@ -636,13 +643,6 @@ int main
     }
 
     sortStrings(&config);
-
-    #ifdef DEBUG
-        fprintf(stderr, "\nfinal, sorted author list:\n"PRI_SV"\n",
-                ARG_SV(config->authors));
-        fprintf(stderr, "\nfinal, sorted paths:\n"PRI_SV"\n",
-                ARG_SV(config->repositories));
-    #endif
 
     if(!config.authors.data)
     {
