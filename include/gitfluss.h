@@ -1,21 +1,54 @@
 #pragma once
 
-#include <stdint.h>
-
 #include "string_view.h"
 
+#include <stdint.h>
+
 #ifdef BUILD_LINUX
+    #define CONF_PATH     ".gitflussconf"
+    #define CONF_FALLBACK "~/.config/gitfluss/.conf"
+
     #define __USE_POSIX199309
     #include <time.h>
     #include <pthread.h>
     typedef pthread_t gfThread;
 #endif
-
 #ifdef BUILD_WINDOWS
+    #include <fcntl.h>
+    #include <io.h>
     #include <windows.h>
+
+    #ifndef ENABLE_VIRTUAL_TERMINAL_PROCESSING
+    #define ENABLE_VIRTUAL_TERMINAL_PROCESSING  0x0004
+    #endif
+
+    #define CONF_PATH     "gitfluss.ini"
+    #define CONF_FALLBACK "~\\.config\\gitfluss\\gitfluss.ini"
 
     typedef HANDLE gfThread;
 #endif
+
+#define f_internal static
+#define BILLION    1000000000L
+
+#define ANSI_END "\033[0m"
+
+#define bufsize  8192
+#define MAX_DAYS 16384
+#define MAX_PATH 4096
+
+#define RED    0
+#define GREEN  1
+#define BLUE   2
+#define CYAN   3
+#define PURPLE 4
+#define PINK   5
+#define YELLOW 6
+#define WHITE  7
+
+#define FLAG_INFO    0x01
+#define FLAG_MONO    0x02
+#define FLAG_PROFILE 0x04
 
 typedef struct gfConf
 {
@@ -93,14 +126,12 @@ typedef struct gfThreadData
 }
 gfThreadData;
 
-#define BILLION 1000000000L
-
-int64_t gfQueryTime
+extern int64_t gfQueryTime
 (
     void
 );
 
-uint64_t gfQueryMonotonic
+extern uint64_t gfQueryMonotonic
 (
     void
 );
@@ -125,4 +156,40 @@ extern void gfLock
 extern void gfUnlock
 (
     gfDisplaySettings *set
+);
+
+extern void gfAddAuthor
+(
+    gfConf     *config,
+    StringView author
+);
+
+extern void gfAddAuthorlist
+(
+    gfConf     *config,
+    StringView path
+);
+
+extern void gfAddPath
+(
+    gfConf     *config,
+    StringView path
+);
+
+extern void gfAddPathlist
+(
+    gfConf     *config,
+    StringView path
+);
+
+extern void gfReadConfig
+(
+    gfConf *config
+);
+
+extern void gfReadArgs
+(
+    int    argc,
+    char   **argv,
+    gfConf *config
 );
