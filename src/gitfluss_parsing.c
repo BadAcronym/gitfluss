@@ -182,7 +182,6 @@ void gfAddPath
         }
         else if(result == PD_TYPE_ERROR || result == PD_TYPE_OTHER)
         {
-            // FIXME: we shouldn't be here if we have, say, a trailing '--char'.
             fprintf(stderr, "\033[31;3mERROR: unknown option '"PRI_SV"'.\033[0m\n",
                     ARG_SV(resolved));
             // TODO: print help msg or something.
@@ -459,6 +458,14 @@ void gfReadConfig
     fclose(file);
 }
 
+f_internal void printSpecMissing
+(
+    const char *arg
+){
+    fprintf(stderr, "\033[33;3mWARNING: option '%s' requires a "
+            "specified argument. Ignoring...\033[0m\n", arg);
+}
+
 void gfReadArgs
 (
     int    argc,
@@ -482,18 +489,38 @@ void gfReadArgs
         StringView heat4_ident      = cstr_sv("--heat4");
         StringView char_ident       = cstr_sv("--char");
 
-        if(sv_same(arg, authorlist_ident) && i + 1 < argc)
+        if(sv_same(arg, authorlist_ident))
         {
+            if(argc < i + 2)
+            {
+                printSpecMissing(argv[i]);
+                continue;
+            }
+
+            // TODO: remove old authors, start anew
             gfAddAuthorlist(config, cstr_sv(argv[i + 1]));
             ++i;
         }
-        else if(sv_same(arg, repolist_ident) && i + 1 < argc)
+        else if(sv_same(arg, repolist_ident))
         {
+            if(argc < i + 2)
+            {
+                printSpecMissing(argv[i]);
+                continue;
+            }
+
+            // TODO: remove old repos, start anew
             gfAddPathlist(config, cstr_sv(argv[i + 1]));
             ++i;
         }
-        else if(sv_same(arg, author_ident) && i + 1 < argc)
+        else if(sv_same(arg, author_ident))
         {
+            if(argc < i + 2)
+            {
+                printSpecMissing(argv[i]);
+                continue;
+            }
+
             StringView author = cstr_sv(argv[i + 1]);
             #ifdef DEBUG
             printf("author: "PRI_SV"\n", ARG_SV(author));
@@ -502,8 +529,14 @@ void gfReadArgs
 
             ++i;
         }
-        else if(sv_same(arg, colour_ident) && i + 1 < argc)
+        else if(sv_same(arg, colour_ident))
         {
+            if(argc < i + 2)
+            {
+                printSpecMissing(argv[i]);
+                continue;
+            }
+
             StringView colour = cstr_sv(argv[i + 1]);
             setColour(config, colour);
 
@@ -521,48 +554,84 @@ void gfReadArgs
         {
             config->flags |= FLAG_PROFILE;
         }
-        else if(sv_same(arg, heat0_ident) && i + 1 < argc)
+        else if(sv_same(arg, heat0_ident))
         {
+            if(argc < i + 2)
+            {
+                printSpecMissing(argv[i]);
+                continue;
+            }
+
             StringView chosen_sv  = cstr_sv(argv[i + 1]);
             char       *small_buf = malloc(8);
             sv_cstr(chosen_sv, small_buf);
             config->mono0 = small_buf;
             ++i;
         }
-        else if(sv_same(arg, heat1_ident) && i + 1 < argc)
+        else if(sv_same(arg, heat1_ident))
         {
+            if(argc < i + 2)
+            {
+                printSpecMissing(argv[i]);
+                continue;
+            }
+
             StringView chosen_sv  = cstr_sv(argv[i + 1]);
             char       *small_buf = malloc(8);
             sv_cstr(chosen_sv, small_buf);
             config->mono1 = small_buf;
             ++i;
         }
-        else if(sv_same(arg, heat2_ident) && i + 1 < argc)
+        else if(sv_same(arg, heat2_ident))
         {
+            if(argc < i + 2)
+            {
+                printSpecMissing(argv[i]);
+                continue;
+            }
+
             StringView chosen_sv  = cstr_sv(argv[i + 1]);
             char       *small_buf = malloc(8);
             sv_cstr(chosen_sv, small_buf);
             config->mono2 = small_buf;
             ++i;
         }
-        else if(sv_same(arg, heat3_ident) && i + 1 < argc)
+        else if(sv_same(arg, heat3_ident))
         {
+            if(argc < i + 2)
+            {
+                printSpecMissing(argv[i]);
+                continue;
+            }
+
             StringView chosen_sv  = cstr_sv(argv[i + 1]);
             char       *small_buf = malloc(8);
             sv_cstr(chosen_sv, small_buf);
             config->mono3 = small_buf;
             ++i;
         }
-        else if(sv_same(arg, heat4_ident) && i + 1 < argc)
+        else if(sv_same(arg, heat4_ident))
         {
+            if(argc < i + 2)
+            {
+                printSpecMissing(argv[i]);
+                continue;
+            }
+
             StringView chosen_sv  = cstr_sv(argv[i + 1]);
             char       *small_buf = malloc(8);
             sv_cstr(chosen_sv, small_buf);
             config->mono4 = small_buf;
             ++i;
         }
-        else if(sv_same(arg, char_ident) && i + 1 < argc)
+        else if(sv_same(arg, char_ident))
         {
+            if(argc < i + 2)
+            {
+                printSpecMissing(argv[i]);
+                continue;
+            }
+
             StringView chosen_sv  = cstr_sv(argv[i + 1]);
             char       *small_buf = malloc(8);
             sv_cstr(chosen_sv, small_buf);
