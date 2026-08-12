@@ -581,6 +581,26 @@ f_internal void displayData
     printHeatMap(&heatSet);
 }
 
+void sortStrings
+(
+    gfConf *config
+){
+
+    sv_sort_by_delim(config->authors, ';', config->sortedAuthors);
+    if(config->authors.data)
+    {
+        free((void*)config->authors.data);
+    }
+    config->authors = cstr_sv(config->sortedAuthors);
+
+    sv_sort_by_delim(config->repositories, ';', config->sortedRepos);
+    if(config->repositories.data)
+    {
+        free((void*)config->repositories.data);
+    }
+    config->repositories = cstr_sv(config->sortedRepos);
+}
+
 int main
 (
     int  argc,
@@ -614,6 +634,15 @@ int main
     {
         gfReadArgs(argc, argv, &config);
     }
+
+    sortStrings(&config);
+
+    #ifdef DEBUG
+        fprintf(stderr, "\nfinal, sorted author list:\n"PRI_SV"\n",
+                ARG_SV(config->authors));
+        fprintf(stderr, "\nfinal, sorted paths:\n"PRI_SV"\n",
+                ARG_SV(config->repositories));
+    #endif
 
     if(!config.authors.data)
     {
