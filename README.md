@@ -1,4 +1,4 @@
-![example](screenshots/purple.jpg)
+![example](screenshots/cyan.jpg)
 
 Gitfluss is a neat little cmd git stats view that will pull data from local
 repositories, so you can view a unified heatmap across all your projects, whether local
