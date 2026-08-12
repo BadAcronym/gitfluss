@@ -228,6 +228,7 @@ f_internal void addPath
     {
         char *repositories_cstr = malloc(config->repositories.size + PATH_MAX + 2);
         sv_concat(config->repositories, sep, repositories_cstr);
+        // ASAN: free on non-freeable data w/ `gitfluss .`
         free((void*)config->repositories.data);
         config->repositories = cstr_sv(repositories_cstr);
 
@@ -1246,11 +1247,8 @@ int main
     config.sortedRepos   = sortedRepos;
     config.sortedAuthors = sortedAuthors;
 
-    if(argc < 2)
-    {
-        readConfig(&config);
-    }
-    else
+    readConfig(&config);
+    if(argc > 1)
     {
         readArgs(argc, argv, &config);
     }
