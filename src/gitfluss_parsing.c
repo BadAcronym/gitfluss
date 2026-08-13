@@ -182,8 +182,10 @@ void gfAddPath
         }
         else if(result == PD_TYPE_ERROR || result == PD_TYPE_OTHER)
         {
-            fprintf(stderr, "\033[31;3mERROR: unknown option '"PRI_SV"'.\033[0m\n",
-                    ARG_SV(resolved));
+            // FIXME: we land here with a normal windows path. pdVerifyPath might be
+            // broken on win32?
+            fprintf(stderr, "\033[31;3mERROR: unknown option or path '"PRI_SV
+                    "'.\033[0m\n", ARG_SV(resolved));
             // TODO: print help msg or something.
             exit(3);
         }
