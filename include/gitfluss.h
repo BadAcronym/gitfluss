@@ -86,10 +86,12 @@ typedef struct gfHeatmapSettings
     gfConf        *config;
     gfPercentiles *percentiles;
     uint32_t      *heatmap;
+    int64_t       now;
     uint8_t       currentMonth;
     uint8_t       weekday365;
     uint8_t       day_of_month;
     uint8_t       leapYear;
+    uint8_t       yearsEpoch;
 }
 gfHeatmapSettings;
 

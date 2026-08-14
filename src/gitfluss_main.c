@@ -381,11 +381,100 @@ f_internal void gatherData
     }
 }
 
+f_internal void calculateHeatmap
+(
+    gfHeatmapSettings *set,
+    uint8_t           silent
+){
+    set->yearsEpoch = 0;
+    int64_t  days_epoch    = set->now / (24 * 3600);
+    int64_t  currYearStart = 0;
+    for(uint32_t i = 0; i < days_epoch;)
+    {
+        ++set->yearsEpoch;
+
+        if(set->yearsEpoch % 4 == 2)
+        {
+            i += 366;
+            if(currYearStart + 366 * 24 * 3600 < set->now)
+            {
+                currYearStart += 366 * 24 * 3600;
+            }
+
+            continue;
+        }
+
+        i += 365;
+        if(currYearStart + 365 * 24 * 3600 < set->now)
+        {
+            currYearStart += 365 * 24 * 3600;
+        }
+    }
+
+    uint8_t currentMonth   = 0;
+    int64_t currMonthStart = currYearStart;
+    for(uint16_t i = 0; i < 365; ++i)
+    {
+        if(currYearStart + i * 24 * 3600 > set->now)
+        {
+            break;
+        }
+
+        uint8_t daysThisMonth = daysInMonth(currentMonth, set->yearsEpoch % 4 == 2);
+
+        i += daysThisMonth;
+        if(currMonthStart + daysThisMonth * 24 * 3600 > set->now)
+        {
+            continue;
+        }
+        ++currentMonth;
+        currMonthStart += daysThisMonth * 24 * 3600;
+    }
+
+    uint8_t weekday365 = (3 + (uint8_t)(days_epoch - 364)) % 7;
+    if(set->yearsEpoch % 4 == 2)
+    {
+        ++weekday365;
+        weekday365 %= 7;
+    }
+    int64_t dayEnd       = set->now - set->now % (24 * 3600) + 24 * 3600;
+    uint8_t day_of_month = (uint8_t)((dayEnd - currMonthStart) / (24 * 3600));
+
+    set->currentMonth = currentMonth;
+    set->weekday365   = weekday365;
+    set->day_of_month = day_of_month;
+    set->leapYear     = set->yearsEpoch % 4 == 2;
+    set->now          = set->now + 365 * 24 * 3600;
+    if(set->leapYear)
+    {
+        set->now += 24 * 3600;
+    }
+
+    if(silent)
+    {
+        return;
+    }
+
+    #ifdef DEBUG
+        printf("\n");
+        printf("full days since epoch: %lu\n", days_epoch);
+        printf("full years since epoch: %u\n", set->yearsEpoch);
+        printf("now, unix time: %lu\n", set->now);
+        printf("current year start: %lu\n", currYearStart);
+        printf("current month: %u\n", currentMonth);
+        printf("current month start: %lu\n", currMonthStart);
+        printf("weekday 365 days ago: %s\n", days[weekday365]);
+        printf("day of the month, today: %u\n", day_of_month);
+        printf("\n");
+    #endif
+}
+
 f_internal void displayData
 (
     gfConf            *config,
     gfDisplaySettings *set
 ){
+    int64_t daysCommit = (set->now - set->oldestCommitTime) / (24 * 3600);
 
     uint32_t max       = 0;
     uint32_t maxday    = 0;
@@ -440,70 +529,31 @@ f_internal void displayData
         printf("\n");
     #endif
 
-    int64_t  days_epoch    = set->now / (24 * 3600);
-    uint32_t years_epoch   = 0;
-    int64_t  currYearStart = 0;
-    for(uint32_t i = 0; i < days_epoch;)
+    int64_t yearStart = set->now;
+    for(uint8_t i = 0; i < config->years; ++i)
     {
-        ++years_epoch;
-
-        if(years_epoch % 4 == 2)
+        int64_t currentYear = 1970 + (yearStart / (365 * 24 * 3600));
+        yearStart -= 365 * 24 * 3600;
+        #ifdef DEBUG
+            fprintf(stderr, "calculating year frame [%li-%li] @ start %li\n",
+                             currentYear - 1, currentYear, yearStart);
+        #endif
+        if((currentYear + 1) % 4 == 2)
         {
-            i += 366;
-            if(currYearStart + 366 * 24 * 3600 < set->now)
-            {
-                currYearStart += 366 * 24 * 3600;
-            }
-
-            continue;
+            yearStart -= 24 * 3600;
         }
-
-        i += 365;
-        if(currYearStart + 365 * 24 * 3600 < set->now)
-        {
-            currYearStart += 365 * 24 * 3600;
-        }
+        --currentYear;
     }
 
-    uint8_t currentMonth   = 0;
-    int64_t currMonthStart = currYearStart;
-    for(uint16_t i = 0; i < 365; ++i)
-    {
-        if(currYearStart + i * 24 * 3600 > set->now)
-        {
-            break;
-        }
-
-        uint8_t daysThisMonth = daysInMonth(currentMonth, years_epoch % 4 == 2);
-
-        i += daysThisMonth;
-        if(currMonthStart + daysThisMonth * 24 * 3600 > set->now)
-        {
-            continue;
-        }
-        ++currentMonth;
-        currMonthStart += daysThisMonth * 24 * 3600;
-    }
-
-    int64_t daysCommit = (set->now - set->oldestCommitTime) / (24 * 3600);
-    uint8_t weekday365 = (3 + (uint8_t)(days_epoch - 364)) % 7;
-    if(years_epoch % 4 == 2)
-    {
-        ++weekday365;
-        weekday365 %= 7;
-    }
-    uint8_t day_of_month = (uint8_t)((set->currDayEnd - currMonthStart) / (24 * 3600));
+    gfHeatmapSettings heatSet = {0};
+    heatSet.config      = config;
+    heatSet.percentiles = &percentiles;
+    heatSet.heatmap     = set->heatmap;
+    heatSet.now         = yearStart;
+    calculateHeatmap(&heatSet, 1);
 
     #ifdef DEBUG
-        printf("\nfull days since epoch: %lu\n", days_epoch);
-        printf("full years since epoch: %u\n", years_epoch);
-        printf("now, unix time: %lu\n", set->now);
-        printf("current year start: %lu\n", currYearStart);
-        printf("current month: %u\n", currentMonth);
-        printf("current month start: %lu\n", currMonthStart);
-        printf("weekday 365 days ago: %s\n", days[weekday365]);
-        printf("day of the month, today: %u\n", day_of_month);
-        printf("palette: ");
+        printf("\npalette: ");
         printCorrespondingHeat(config, &percentiles, 1);
         printCorrespondingHeat(config, &percentiles, percentiles.d20);
         printCorrespondingHeat(config, &percentiles, percentiles.d50);
@@ -572,22 +622,13 @@ f_internal void displayData
         printf("\n\n");
     }
 
-    gfHeatmapSettings heatSet = {0};
-    heatSet.config       = config;
-    heatSet.percentiles  = &percentiles;
-    heatSet.heatmap      = set->heatmap;
-    heatSet.currentMonth = currentMonth;
-    heatSet.weekday365   = weekday365;
-    heatSet.day_of_month = day_of_month;
-    heatSet.leapYear     = years_epoch % 4 == 2;
-
     if(!config->years)
     {
         printHeatMap(&heatSet, 0);
         return;
     }
 
-    uint32_t currentYear = 1970 + years_epoch;
+    uint32_t currentYear = 1970 + heatSet.yearsEpoch;
     if(config->years > (currentYear - 2005))
     {
         fprintf(stderr, "\033[33;3mWARNING: clamping years from %u to %u, because you "
@@ -600,16 +641,12 @@ f_internal void displayData
     {
         if(config->flags & GF_FLAG_INFO)
         {
-            uint32_t currPrintYear = 1970 + years_epoch - config->years + i;
+            uint32_t currPrintYear = 1970 + heatSet.yearsEpoch - config->years + i;
             fprintf(stderr, "[%u - %u]\n", currPrintYear - 1, currPrintYear);
         }
-        printHeatMap(&heatSet, config->years - i - 1);
 
-        // FIXME: update these with some proper functions
-        heatSet.currentMonth = currentMonth;
-        heatSet.weekday365   = weekday365;
-        heatSet.day_of_month = day_of_month;
-        heatSet.leapYear     = (years_epoch - i) % 4 == 2;
+        calculateHeatmap(&heatSet, 0);
+        printHeatMap(&heatSet, config->years - i - 1);
     }
 }
 
