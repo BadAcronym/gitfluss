@@ -134,6 +134,28 @@ void gfAddAuthorlist
     fclose(file);
 }
 
+f_internal void verifyDirectory
+(
+    StringView resolved
+){
+    uint8_t result = pdVerifyPath(resolved);
+    if(result == PD_TYPE_FILE)
+    {
+        fprintf(stderr, "\033[33;3mWARNING: path '"PRI_SV"' is a file, not a "
+                        "directory.\033[0m\n", ARG_SV(resolved));
+        return;
+    }
+    else if(result == PD_TYPE_ERROR || result == PD_TYPE_OTHER)
+    {
+        // FIXME: we land here with a normal windows path. pdVerifyPath might be
+        // broken on win32?
+        fprintf(stderr, "\033[31;3mERROR: unknown option or path '"PRI_SV
+                "'.\033[0m\n", ARG_SV(resolved));
+        // TODO: print help msg with list of options or something.
+        exit(1);
+    }
+}
+
 void gfAddPath
 (
     gfConf     *config,
@@ -166,48 +188,24 @@ void gfAddPath
         pathSep[resolved.size + 1] = '\0';
         if(sv_find(pathComp, config->repositories))
         {
-            #ifdef DEBUG
-            fprintf(stderr, "\033[33;3mWARNING: path '"PRI_SV"' already in repository "
-                            "list.\033[0m\n", ARG_SV(resolved));
-            #endif
+            fprintf(stderr, "\033[33;3mPath '"PRI_SV"' already in repository "
+                            "list. Ignoring duplicate...\033[0m\n", ARG_SV(resolved));
             return;
         }
 
-        uint8_t result = pdVerifyPath(resolved);
-        if(result == PD_TYPE_FILE)
-        {
-            fprintf(stderr, "\033[33;3mWARNING: path '"PRI_SV"' is a file, not a "
-                            "directory.\033[0m\n", ARG_SV(resolved));
-            return;
-        }
-        else if(result == PD_TYPE_ERROR || result == PD_TYPE_OTHER)
-        {
-            // FIXME: we land here with a normal windows path. pdVerifyPath might be
-            // broken on win32?
-            fprintf(stderr, "\033[31;3mERROR: unknown option or path '"PRI_SV
-                    "'.\033[0m\n", ARG_SV(resolved));
-            // TODO: print help msg or something.
-            exit(3);
-        }
+        verifyDirectory(resolved);
 
         sv_concat(config->repositories, resolved, repositories_cstr);
         config->repositories = cstr_sv(repositories_cstr);
     }
     else
     {
-        char *resolved = calloc(MAX_PATH, 1);
-        pdExpandPath(path, resolved);
-        StringView resolved_sv = cstr_sv(resolved);
-        config->repositories = resolved_sv;
+        char *resolved_cstr = calloc(MAX_PATH, 1);
+        pdExpandPath(path, resolved_cstr);
+        StringView resolved = cstr_sv(resolved_cstr);
+        config->repositories = resolved;
 
-        if(pdVerifyPath(resolved_sv) != PD_TYPE_DIRECTORY)
-        {
-            #ifdef DEBUG
-            fprintf(stderr, "\033[33;3mWARNING: path '"PRI_SV"' is not a directory."
-                            "\033[0m\n", ARG_SV(resolved_sv));
-            #endif
-            return;
-        }
+        verifyDirectory(resolved);
     }
 
     #ifdef DEBUG
@@ -468,6 +466,21 @@ f_internal void printSpecMissing
             "specified argument. Ignoring...\033[0m\n", arg);
 }
 
+f_internal uint8_t checkIdentMissing
+(
+    uint16_t i,
+    int      argc,
+    char     **argv
+){
+    if(argc < i + 2 || (argv[i + 1][0] == '-' && argv[i + 1][1] == '-'))
+    {
+        printSpecMissing(argv[i]);
+        return 1;
+    }
+
+    return 0;
+}
+
 void gfReadArgs
 (
     int    argc,
@@ -495,8 +508,10 @@ void gfReadArgs
         StringView author_ident     = cstr_sv("--author");
         StringView colour_ident     = cstr_sv("--colour");
         StringView info_ident       = cstr_sv("--info");
+        StringView noinfo_ident     = cstr_sv("--noinfo");
         StringView mono_ident       = cstr_sv("--mono");
         StringView profile_ident    = cstr_sv("--profile");
+        StringView noprofile_ident  = cstr_sv("--noprofile");
         StringView heat0_ident      = cstr_sv("--heat0");
         StringView heat1_ident      = cstr_sv("--heat1");
         StringView heat2_ident      = cstr_sv("--heat2");
@@ -506,9 +521,8 @@ void gfReadArgs
 
         if(sv_same(arg, authorlist_ident))
         {
-            if(argc < i + 2)
+            if(checkIdentMissing(i, argc, argv))
             {
-                printSpecMissing(argv[i]);
                 continue;
             }
 
@@ -524,9 +538,8 @@ void gfReadArgs
         }
         else if(sv_same(arg, repolist_ident))
         {
-            if(argc < i + 2)
+            if(checkIdentMissing(i, argc, argv))
             {
-                printSpecMissing(argv[i]);
                 continue;
             }
 
@@ -542,9 +555,8 @@ void gfReadArgs
         }
         else if(sv_same(arg, author_ident))
         {
-            if(argc < i + 2)
+            if(checkIdentMissing(i, argc, argv))
             {
-                printSpecMissing(argv[i]);
                 continue;
             }
 
@@ -562,9 +574,8 @@ void gfReadArgs
         }
         else if(sv_same(arg, colour_ident))
         {
-            if(argc < i + 2)
+            if(checkIdentMissing(i, argc, argv))
             {
-                printSpecMissing(argv[i]);
                 continue;
             }
 
@@ -577,6 +588,10 @@ void gfReadArgs
         {
             config->flags |= FLAG_INFO;
         }
+        else if(sv_same(arg, noinfo_ident))
+        {
+            config->flags &= ~FLAG_INFO;
+        }
         else if(sv_same(arg, mono_ident))
         {
             config->flags |= FLAG_MONO;
@@ -585,11 +600,14 @@ void gfReadArgs
         {
             config->flags |= FLAG_PROFILE;
         }
+        else if(sv_same(arg, noprofile_ident))
+        {
+            config->flags &= ~FLAG_PROFILE;
+        }
         else if(sv_same(arg, heat0_ident))
         {
-            if(argc < i + 2)
+            if(checkIdentMissing(i, argc, argv))
             {
-                printSpecMissing(argv[i]);
                 continue;
             }
 
@@ -601,9 +619,8 @@ void gfReadArgs
         }
         else if(sv_same(arg, heat1_ident))
         {
-            if(argc < i + 2)
+            if(checkIdentMissing(i, argc, argv))
             {
-                printSpecMissing(argv[i]);
                 continue;
             }
 
@@ -615,9 +632,8 @@ void gfReadArgs
         }
         else if(sv_same(arg, heat2_ident))
         {
-            if(argc < i + 2)
+            if(checkIdentMissing(i, argc, argv))
             {
-                printSpecMissing(argv[i]);
                 continue;
             }
 
@@ -629,9 +645,8 @@ void gfReadArgs
         }
         else if(sv_same(arg, heat3_ident))
         {
-            if(argc < i + 2)
+            if(checkIdentMissing(i, argc, argv))
             {
-                printSpecMissing(argv[i]);
                 continue;
             }
 
@@ -643,9 +658,8 @@ void gfReadArgs
         }
         else if(sv_same(arg, heat4_ident))
         {
-            if(argc < i + 2)
+            if(checkIdentMissing(i, argc, argv))
             {
-                printSpecMissing(argv[i]);
                 continue;
             }
 
@@ -657,9 +671,8 @@ void gfReadArgs
         }
         else if(sv_same(arg, char_ident))
         {
-            if(argc < i + 2)
+            if(checkIdentMissing(i, argc, argv))
             {
-                printSpecMissing(argv[i]);
                 continue;
             }
 
