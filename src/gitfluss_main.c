@@ -119,7 +119,7 @@ f_internal void printCorrespondingHeat
         return;
     }
 
-    if(config->flags & FLAG_MONO)
+    if(config->flags & GF_FLAG_MONO)
     {
         if(!config->mono0)
         {
@@ -197,6 +197,7 @@ f_internal void printCorrespondingHeat
     printf("%s%s", character, ANSI_END);
 }
 
+// TODO: print not based on this year, but t-yearsBack
 f_internal void printHeatMap
 (
     gfHeatmapSettings *set,
@@ -246,11 +247,12 @@ f_internal void printHeatMap
 
     for(uint8_t i = 0; i < 7; ++i)
     {
+        int64_t offset = (yearsBack + 1) * 365;
         printf(" %s ", days[i]);
         for(int16_t j = i - set->weekday365; j < 366; j += 7)
         {
             printCorrespondingHeat(set->config, set->percentiles,
-                                   set->heatmap[365 - j]);
+                                   set->heatmap[offset - j]);
         }
         printf("\n");
     }
@@ -543,7 +545,7 @@ f_internal void displayData
         }
     }
 
-    if(config->flags & FLAG_INFO)
+    if(config->flags & GF_FLAG_INFO)
     {
         float percentage = 100.0f * (float)set->personalCommitCount /
                            (float)set->totalCommitCount;
@@ -564,9 +566,7 @@ f_internal void displayData
         printf("current streak: %u days\n", currentStreak);
         printf("commits today:  %u ", set->heatmap[0]);
         printCorrespondingHeat(config, &percentiles, set->heatmap[0]);
-        printf("\n");
-
-        printf("\nheatmap (last 365 days):\n\n");
+        printf("\n\n");
     }
 
     gfHeatmapSettings heatSet = {0};
@@ -578,17 +578,23 @@ f_internal void displayData
     heatSet.day_of_month = day_of_month;
     heatSet.leapYear     = years_epoch % 4 == 2;
 
-    // TODO: allow configuring whether to print past years, too
-    int64_t daysPrint = 365;
-    // int64_t daysPrint = daysCommit;
+    uint8_t yearsPrint = (uint8_t)(daysCommit / 365);
+    int64_t daysPrint  = daysCommit;
     for(uint8_t i = 0; i < 255; ++i)
     {
-        printHeatMap(&heatSet, i);
+        if(config->flags & GF_FLAG_INFO)
+        {
+            uint32_t currentYear = 1970 + years_epoch - yearsPrint + i;
+            fprintf(stderr, "[%u - %u]\n", currentYear - 1, currentYear);
+        }
+        printHeatMap(&heatSet, yearsPrint - i);
         daysPrint -= 365;
         if(daysPrint < 1)
         {
             break;
         }
+
+        heatSet.leapYear = (years_epoch - i) % 4 == 2;
     }
 }
 
@@ -690,7 +696,7 @@ int main
 
     displayData(&config, &set);
 
-    if(config.flags & FLAG_PROFILE)
+    if(config.flags & GF_FLAG_PROFILE)
     {
         float initMS    = (float)initialization / 1e6f;
         float gatherMS  = (float)gathering / 1e6f;

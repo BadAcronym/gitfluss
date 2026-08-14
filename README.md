@@ -54,6 +54,7 @@ colour: purple
 character: ◼
 info: false
 profile: false
+years: 1
 mono: false
 $HOME/repository/puddle
 $HOME/repository/imgsurf

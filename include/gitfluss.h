@@ -46,9 +46,9 @@
 #define YELLOW 6
 #define WHITE  7
 
-#define FLAG_INFO    0x01
-#define FLAG_MONO    0x02
-#define FLAG_PROFILE 0x04
+#define GF_FLAG_INFO    0x01
+#define GF_FLAG_MONO    0x02
+#define GF_FLAG_PROFILE 0x04
 
 typedef struct gfConf
 {

@@ -356,7 +356,7 @@ void gfReadConfig
 
             if(sv_same(set_sv, true_sv))
             {
-                config->flags |= FLAG_INFO;
+                config->flags |= GF_FLAG_INFO;
             }
             continue;
         }
@@ -368,7 +368,7 @@ void gfReadConfig
 
             if(sv_same(set_sv, true_sv))
             {
-                config->flags |= FLAG_MONO;
+                config->flags |= GF_FLAG_MONO;
             }
             continue;
         }
@@ -380,7 +380,7 @@ void gfReadConfig
 
             if(sv_same(set_sv, true_sv))
             {
-                config->flags |= FLAG_PROFILE;
+                config->flags |= GF_FLAG_PROFILE;
             }
             continue;
         }
@@ -586,23 +586,23 @@ void gfReadArgs
         }
         else if(sv_same(arg, info_ident))
         {
-            config->flags |= FLAG_INFO;
+            config->flags |= GF_FLAG_INFO;
         }
         else if(sv_same(arg, noinfo_ident))
         {
-            config->flags &= ~FLAG_INFO;
+            config->flags &= ~GF_FLAG_INFO;
         }
         else if(sv_same(arg, mono_ident))
         {
-            config->flags |= FLAG_MONO;
+            config->flags |= GF_FLAG_MONO;
         }
         else if(sv_same(arg, profile_ident))
         {
-            config->flags |= FLAG_PROFILE;
+            config->flags |= GF_FLAG_PROFILE;
         }
         else if(sv_same(arg, noprofile_ident))
         {
-            config->flags &= ~FLAG_PROFILE;
+            config->flags &= ~GF_FLAG_PROFILE;
         }
         else if(sv_same(arg, heat0_ident))
         {
