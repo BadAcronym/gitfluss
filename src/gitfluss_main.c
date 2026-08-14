@@ -628,7 +628,7 @@ f_internal void displayData
         return;
     }
 
-    uint32_t currentYear = 1970 + heatSet.yearsEpoch;
+    uint16_t currentYear = (uint16_t)(1970 + set->now / (365 * 24 * 3600));
     if(config->years > (currentYear - 2005))
     {
         fprintf(stderr, "\033[33;3mWARNING: clamping years from %u to %u, because you "
@@ -641,7 +641,7 @@ f_internal void displayData
     {
         if(config->flags & GF_FLAG_INFO)
         {
-            uint32_t currPrintYear = 1970 + heatSet.yearsEpoch - config->years + i;
+            uint32_t currPrintYear = 1970 + heatSet.yearsEpoch;
             fprintf(stderr, "[%u - %u]\n", currPrintYear - 1, currPrintYear);
         }
 
