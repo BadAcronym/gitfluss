@@ -98,7 +98,7 @@ With `info: false`, you can hide the additional commit history information.
 With `author: any`, (or not specifying an author at all) you can omit the author check
 and count all commits by all authors in the listed repositories.
 
-With `years: 3` (any integer), you can set the amount of years to go back:
+With `years: 2` (any integer), you can set the amount of years to go back:
 
 ![yr](screenshots/years.jpg)
 
