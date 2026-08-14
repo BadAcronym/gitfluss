@@ -102,6 +102,8 @@ With `years: 3` (any integer), you can set the amount of years to go back:
 
 ![yr](screenshots/years.jpg)
 
+And a value of `years: 0` will only display a single year with no interval label.
+
 With `character: ?`, you can actually change the character that's being used to print:
 
 `character: o`
