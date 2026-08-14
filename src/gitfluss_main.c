@@ -639,11 +639,8 @@ f_internal void displayData
 
     for(uint8_t i = 0; i < config->years; ++i)
     {
-        if(config->flags & GF_FLAG_INFO)
-        {
-            uint32_t currPrintYear = 1970 + heatSet.yearsEpoch;
-            fprintf(stderr, "[%u - %u]\n", currPrintYear - 1, currPrintYear);
-        }
+        uint32_t currPrintYear = 1970 + heatSet.yearsEpoch;
+        fprintf(stderr, "[%u - %u]\n", currPrintYear - 1, currPrintYear);
 
         calculateHeatmap(&heatSet, 0);
         printHeatMap(&heatSet, config->years - i - 1);
