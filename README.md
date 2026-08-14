@@ -19,8 +19,8 @@ Plans:
 + Allow custom RGB colour values
 
 Known issues:
-+ Passing non-ascii chars on windows via the cmdline is broken, please use the
-  configuration file for that.
++ On Windows, passing non-ascii chars via the cmdline is currently broken, please use
+  the configuration file for that.
 
 Example run with all options enabled:
 
