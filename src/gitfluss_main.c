@@ -427,6 +427,7 @@ f_internal void displayData
     percentiles.d90 = set->sorted[zerocount + d90_sep];
 
     #ifdef DEBUG
+        printf("\n");
         printf("found 0-days: %u\n", zerocount);
         printf("found d20_sep: %u\n", d20_sep);
         printf("found d50_sep: %u\n", d50_sep);
@@ -436,6 +437,7 @@ f_internal void displayData
         printf("found d50: %u\n", percentiles.d50);
         printf("found d70: %u\n", percentiles.d70);
         printf("found d90: %u\n", percentiles.d90);
+        printf("\n");
     #endif
 
     int64_t  days_epoch    = set->now / (24 * 3600);
@@ -632,7 +634,7 @@ void sortStrings
     #ifdef DEBUG
         fprintf(stderr, "\nfinal, sorted author list:\n"PRI_SV"\n",
                 ARG_SV(config->authors));
-        fprintf(stderr, "\nfinal, sorted paths:\n"PRI_SV"\n",
+        fprintf(stderr, "\nfinal, sorted paths:\n"PRI_SV"\n\n",
                 ARG_SV(config->repositories));
     #endif
 }
