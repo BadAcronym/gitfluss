@@ -26,19 +26,58 @@ if($build -eq $null -or $build -eq "")
 
 if($build -eq "asan" -or $build -eq "debug" -or $build -eq "release")
 {
+    if(Test-Path "./vendor/libgit2/build/Debug/git2.dll")
+    {
+        cp "./vendor/libgit2/build/Debug/git2.dll" "./bin/$build/"
+    }
+
+    if(-Not(Test-Path "./bin/$build/git2.dll"))
+    {
+
+        Write-Host "WARNING: git2.dll could not be located." -Fore Yellow
+        Write-Host "Compiling from source..." -Fore Yellow
+
+        &cmake --version
+        if($LASTEXITCODE -ne 0)
+        {
+            Write-Host "ERROR: CMake not found. Please provide a binary " -NoNewline
+            Write-Host " in your path in order to build git2.dll from source." -Fore Red
+            exit 1;
+        }
+
+        pushd "./vendor/libgit2/"
+        if(-Not (Test-Path "build"))
+        {
+            mkdir "build"
+        }
+        cd build
+
+        cmake .. -DBUILD_TESTS=OFF
+        if($LASTEXITCODE -ne 0)
+        {
+            Write-Host "ERROR: CMake build failed."
+            popd
+            exit 3;
+        }
+        cmake --build .
+        if($LASTEXITCODE -ne 0 -or -Not(Test-Path "./vendor/libgit2/build/git2.dll"))
+        {
+            Write-Host "ERROR: failed to compile libgit2."
+            popd
+            exit 4;
+        }
+
+        popd
+
+        cp "./vendor/libgit2/build/Debug/git2.dll" "./bin/$build"
+    }
+
     Write-Host "`ncompiling gitfluss...`n" -Fore Cyan
 
     premake5 gmake
     pushd "./build/"
     make config=$build`_windows
     popd
-
-    $dllPath = "./vendor/libgit2/build/Debug/git2.dll"
-
-    if(Test-Path $dllPath)
-    {
-        cp $dllPath "./bin/$build/"
-    }
 }
 else
 {
