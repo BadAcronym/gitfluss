@@ -5,7 +5,6 @@ repositories, so you can view a unified heatmap across all your projects, whethe
 only or cloned from any remote server.
 
 Status:
-+ linux + windows versions, windows version has a quirk or two
 + You can configure a list of paths in the configuration file or by passing command-line
   arguments. `~`, `.` and `$HOME` will be resolved, all other paths must be absolute for
   now.
@@ -33,21 +32,21 @@ directory for a `.conf` file.
 On windows, `~` or `$HOME` equates to `$env:USERPROFILE` and the paths are
 `~/.config/gitfluss/gitfluss.ini` or locally, `gitfluss.ini`.
 
-If, instead, command-line arguments are provided, the configuration file will not be
-read, for example:
+If, instead, command-line arguments are provided, preferences from the configuration
+file will be overwritten.
 
 ```
 gitfluss . --author name@company.com --colour purple --char ◼ --info
 ```
 
-Every command-line argument that's not a `colour`, `info` or `author` identifier will be
-read as a path. This is the same way the configuration file works. The identifiers
-(besides `--info`) need to be followed by the chosen colour or author, else they have no
-effect.
+Every command-line argument that's not an identifier (such as `--colour`, `--info` or
+`--author`) will be read as a path. This is the same way the configuration file works.
+Identifiers that need an argument are ignored when none is provided (such as
+`--author`).
 
 `--profile` will show miscellaneous timings and stats.
 
-Example configuration:
+Example configuration file:
 ```
 author: author@provider.com
 author: another_author@workplace.org
@@ -55,6 +54,7 @@ colour: purple
 character: ◼
 info: false
 profile: false
+mono: false
 $HOME/repository/puddle
 $HOME/repository/imgsurf
 $HOME/repository/river2D
