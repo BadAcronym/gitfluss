@@ -6,6 +6,7 @@ f_internal void setColour
     gfConf     *config,
     StringView colour
 ){
+    StringView red_sv    = cstr_sv("red");
     StringView green_sv  = cstr_sv("green");
     StringView blue_sv   = cstr_sv("blue");
     StringView cyan_sv   = cstr_sv("cyan");
@@ -14,7 +15,11 @@ f_internal void setColour
     StringView yellow_sv = cstr_sv("yellow");
     StringView white_sv  = cstr_sv("white");
 
-    if(sv_same(colour, green_sv))
+    if(sv_same(colour, red_sv))
+    {
+        config->colour = RED;
+    }
+    else if(sv_same(colour, green_sv))
     {
         config->colour = GREEN;
     }
