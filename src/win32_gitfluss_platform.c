@@ -15,10 +15,24 @@ uint64_t gfQueryMonotonic
 (
     void
 ){
-    // clock_gettime(CLOCK_MONOTONIC, &spec);
+    static LARGE_INTEGER freq;
+    static int initialized = 0;
 
-    // return (uint64_t)spec.tv_sec * BILLION + (uint64_t)spec.tv_nsec;
-    return 0;
+    if (!initialized)
+    {
+        QueryPerformanceFrequency(&freq);
+        initialized = 1;
+    }
+
+    LARGE_INTEGER counter;
+    QueryPerformanceCounter(&counter);
+
+    uint64_t seconds   = counter.QuadPart / freq.QuadPart;
+    uint64_t remainder = counter.QuadPart % freq.QuadPart;
+
+    uint64_t nanoseconds = (remainder * 1000000000ULL) / freq.QuadPart;
+
+    return seconds * BILLION + nanoseconds;
 }
 
 void gfDispatchThread
