@@ -41,7 +41,6 @@ void gfDispatchThread
     void         *func,
     gfThreadData *data
 ){
-    uint32_t threadID;
     *thread = CreateThread(0, 0, func, data, 0, 0);
 }
 
