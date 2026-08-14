@@ -565,9 +565,8 @@ f_internal void displayData
         printCorrespondingHeat(config, &percentiles, set->heatmap[0]);
         printf("\n");
 
-        printf("\nheatmap (last 365 days):\n");
+        printf("\nheatmap (last 365 days):\n\n");
     }
-    printf("\n");
 
     gfHeatmapSettings heatSet = {0};
     heatSet.config       = config;
