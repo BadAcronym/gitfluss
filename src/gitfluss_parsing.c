@@ -151,12 +151,16 @@ f_internal void verifyDirectory
     }
     else if(result == PD_TYPE_ERROR || result == PD_TYPE_OTHER)
     {
-        // FIXME: we land here with a normal windows path. pdVerifyPath might be
-        // broken on win32?
-        fprintf(stderr, "\033[31;3mERROR: unknown option or path '"PRI_SV
-                "'.\033[0m\n", ARG_SV(resolved));
-        // TODO: print help msg with list of options or something.
-        exit(1);
+        StringView dashes = cstr_sv("--");
+        if(sv_find(dashes, resolved) == resolved.data)
+        {
+            fprintf(stderr, "\033[31;3mERROR: unknown option '"PRI_SV
+                    "'.\033[0m\n", ARG_SV(resolved));
+            // TODO: print help msg with list of options or something.
+            exit(1);
+        }
+        fprintf(stderr, "\033[33;3mWARNING: path '"PRI_SV"' does not exist. Ignoring..."
+                "\033[0m\n", ARG_SV(resolved));
     }
 }
 
