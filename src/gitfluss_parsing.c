@@ -79,7 +79,6 @@ void gfAddAuthor
     }
 
     #ifdef DEBUG
-        fprintf(stderr, "detected author: "PRI_SV"\n", ARG_SV(author));
         fprintf(stderr, "author list: "PRI_SV"\n", ARG_SV(config->authors));
     #endif
 }
@@ -260,6 +259,28 @@ void gfAddPathlist
     fclose(file);
 }
 
+f_internal uint8_t parseDigits
+(
+    const char *string
+){
+    uint8_t number = 0;
+    for(uint16_t i = 0; string[i] != '\0' && string[i] != '\n'; ++i)
+    {
+        if(string[i] > 0x2F && string[i] < 0x3A)
+        {
+            number *= 10;
+            number += ((uint8_t)string[i] - 0x30);
+        }
+        else
+        {
+            fprintf(stderr, "\033[33;3mWARNING: character '%c' is not a digit. "
+                    "Ignoring...\033[0m\n", string[i]);
+        }
+    }
+
+    return number;
+}
+
 void gfReadConfig
 (
     gfConf *config
@@ -286,6 +307,7 @@ void gfReadConfig
     StringView heat3_sv   = cstr_sv("heat3:");
     StringView heat4_sv   = cstr_sv("heat4:");
     StringView char_sv    = cstr_sv("character:");
+    StringView years_sv   = cstr_sv("years:");
     StringView true_sv    = cstr_sv("true");
 
     FILE *file = fopen(path_expanded, "r");
@@ -451,6 +473,13 @@ void gfReadConfig
             continue;
         }
 
+        const char* yearloc = sv_find(years_sv, buffer);
+        if(yearloc)
+        {
+            config->years = parseDigits(buffer.data + years_sv.size + 1);
+            continue;
+        }
+
         StringView path = cstr_sv(buffer.data);
         gfAddPath(config, path);
     }
@@ -479,28 +508,6 @@ f_internal uint8_t checkIdentMissing
     }
 
     return 0;
-}
-
-f_internal uint8_t parseDigits
-(
-    const char *string
-){
-    uint8_t number = 0;
-    for(uint16_t i = 0; string[i] != '\0'; ++i)
-    {
-        if(string[i] > 0x2F && string[i] < 0x3A)
-        {
-            number *= 10;
-            number += ((uint8_t)string[i] - 0x30);
-        }
-        else
-        {
-            fprintf(stderr, "\033[33;3mWARNING: character '%c' is not a digit. "
-                    "Ignoring...\033[0m\n", string[i]);
-        }
-    }
-
-    return number;
 }
 
 void gfReadArgs
