@@ -60,7 +60,7 @@ void gfAddAuthor
 
     StringView sep = cstr_sv(";");
 
-    if(config->authors.data)
+    if(config->authors.data && config->authors.size)
     {
         char *authors_cstr = malloc(config->authors.size + author.size + 2);
         sv_concat(config->authors, sep, authors_cstr);
@@ -149,7 +149,7 @@ void gfAddPath
 
     StringView sep = cstr_sv(";");
 
-    if(config->repositories.data)
+    if(config->repositories.data && config->repositories.size)
     {
         char *repositories_cstr = malloc(config->repositories.size + MAX_PATH + 2);
         sv_concat(config->repositories, sep, repositories_cstr);
@@ -474,6 +474,19 @@ void gfReadArgs
     char   **argv,
     gfConf *config
 ){
+    uint8_t reposRead   = 0;
+    uint8_t authorsRead = 0;
+
+    if(config->repositories.data)
+    {
+        reposRead = 1;
+    }
+
+    if(config->authors.data)
+    {
+        authorsRead = 1;
+    }
+
     for(uint16_t i = 1; i < argc; ++i)
     {
         StringView arg              = cstr_sv(argv[i]);
@@ -499,7 +512,13 @@ void gfReadArgs
                 continue;
             }
 
-            // TODO: remove old authors, start anew
+            if(authorsRead)
+            {
+                authorsRead = 0;
+                free((void*)config->authors.data);
+                config->authors.size = 0;
+            }
+
             gfAddAuthorlist(config, cstr_sv(argv[i + 1]));
             ++i;
         }
@@ -511,7 +530,13 @@ void gfReadArgs
                 continue;
             }
 
-            // TODO: remove old repos, start anew
+            if(reposRead)
+            {
+                reposRead = 0;
+                free((void*)config->repositories.data);
+                config->repositories.size = 0;
+            }
+
             gfAddPathlist(config, cstr_sv(argv[i + 1]));
             ++i;
         }
@@ -523,10 +548,14 @@ void gfReadArgs
                 continue;
             }
 
+            if(authorsRead)
+            {
+                authorsRead = 0;
+                free((void*)config->authors.data);
+                config->authors.size = 0;
+            }
+
             StringView author = cstr_sv(argv[i + 1]);
-            #ifdef DEBUG
-            printf("author: "PRI_SV"\n", ARG_SV(author));
-            #endif
             gfAddAuthor(config, author);
 
             ++i;
@@ -643,6 +672,13 @@ void gfReadArgs
         }
         else
         {
+            if(reposRead)
+            {
+                reposRead = 0;
+                free((void*)config->repositories.data);
+                config->repositories.size = 0;
+            }
+
             StringView path = cstr_sv(argv[i]);
             gfAddPath(config, path);
         }
