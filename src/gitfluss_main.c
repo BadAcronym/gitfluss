@@ -199,7 +199,8 @@ f_internal void printCorrespondingHeat
 
 f_internal void printHeatMap
 (
-    gfHeatmapSettings *set
+    gfHeatmapSettings *set,
+    uint8_t           yearsBack
 ){
     uint8_t currentWeekday = 0;
     printf("     ");
@@ -577,14 +578,24 @@ f_internal void displayData
     heatSet.day_of_month = day_of_month;
     heatSet.leapYear     = years_epoch % 4 == 2;
 
-    printHeatMap(&heatSet);
+    // TODO: allow configuring whether to print past years, too
+    int64_t daysPrint = 365;
+    // int64_t daysPrint = daysCommit;
+    for(uint8_t i = 0; i < 255; ++i)
+    {
+        printHeatMap(&heatSet, i);
+        daysPrint -= 365;
+        if(daysPrint < 1)
+        {
+            break;
+        }
+    }
 }
 
 void sortStrings
 (
     gfConf *config
 ){
-
     sv_sort_by_delim(config->authors, ';', config->sortedAuthors);
     if(config->authors.data)
     {
