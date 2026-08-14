@@ -481,6 +481,28 @@ f_internal uint8_t checkIdentMissing
     return 0;
 }
 
+f_internal uint8_t parseDigits
+(
+    const char *string
+){
+    uint8_t number = 0;
+    for(uint16_t i = 0; string[i] != '\0'; ++i)
+    {
+        if(string[i] > 0x2F && string[i] < 0x3A)
+        {
+            number *= 10;
+            number += ((uint8_t)string[i] - 0x30);
+        }
+        else
+        {
+            fprintf(stderr, "\033[33;3mWARNING: character '%c' is not a digit. "
+                    "Ignoring...\033[0m\n", string[i]);
+        }
+    }
+
+    return number;
+}
+
 void gfReadArgs
 (
     int    argc,
@@ -518,6 +540,7 @@ void gfReadArgs
         StringView heat3_ident      = cstr_sv("--heat3");
         StringView heat4_ident      = cstr_sv("--heat4");
         StringView char_ident       = cstr_sv("--char");
+        StringView years_ident      = cstr_sv("--years");
 
         if(sv_same(arg, authorlist_ident))
         {
@@ -679,8 +702,17 @@ void gfReadArgs
             StringView chosen_sv  = cstr_sv(argv[i + 1]);
             char       *small_buf = malloc(8);
             sv_cstr(chosen_sv, small_buf);
-            sv_cstr(chosen_sv, small_buf);
             config->character = small_buf;
+            ++i;
+        }
+        else if(sv_same(arg, years_ident))
+        {
+            if(checkIdentMissing(i, argc, argv))
+            {
+                continue;
+            }
+
+            config->years = parseDigits(argv[i + 1]);
             ++i;
         }
         else

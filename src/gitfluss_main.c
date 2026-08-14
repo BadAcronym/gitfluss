@@ -386,6 +386,7 @@ f_internal void displayData
     gfConf            *config,
     gfDisplaySettings *set
 ){
+
     uint32_t max       = 0;
     uint32_t maxday    = 0;
     uint32_t zerocount = 0;
@@ -578,23 +579,35 @@ f_internal void displayData
     heatSet.day_of_month = day_of_month;
     heatSet.leapYear     = years_epoch % 4 == 2;
 
-    uint8_t yearsPrint = (uint8_t)(daysCommit / 365);
-    int64_t daysPrint  = daysCommit;
-    for(uint8_t i = 0; i < 255; ++i)
+    if(!config->years)
+    {
+        printHeatMap(&heatSet, 0);
+        return;
+    }
+
+    uint32_t currentYear = 1970 + years_epoch;
+    if(config->years > (currentYear - 2005))
+    {
+        fprintf(stderr, "\033[33;3mWARNING: clamping years from %u to %u, because you "
+                        "could not possibly have git commits older than 2005."
+                        "\033[0m\n", config->years, currentYear - 2005);
+        config->years = (uint8_t)(currentYear - 2005);
+    }
+
+    for(uint8_t i = 0; i < config->years; ++i)
     {
         if(config->flags & GF_FLAG_INFO)
         {
-            uint32_t currentYear = 1970 + years_epoch - yearsPrint + i;
-            fprintf(stderr, "[%u - %u]\n", currentYear - 1, currentYear);
+            uint32_t currPrintYear = 1970 + years_epoch - config->years + i;
+            fprintf(stderr, "[%u - %u]\n", currPrintYear - 1, currPrintYear);
         }
-        printHeatMap(&heatSet, yearsPrint - i);
-        daysPrint -= 365;
-        if(daysPrint < 1)
-        {
-            break;
-        }
+        printHeatMap(&heatSet, config->years - i - 1);
 
-        heatSet.leapYear = (years_epoch - i) % 4 == 2;
+        // FIXME: update these with some proper functions
+        heatSet.currentMonth = currentMonth;
+        heatSet.weekday365   = weekday365;
+        heatSet.day_of_month = day_of_month;
+        heatSet.leapYear     = (years_epoch - i) % 4 == 2;
     }
 }
 

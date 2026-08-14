@@ -67,6 +67,7 @@ typedef struct gfConf
     uint8_t    percentile2;
     uint8_t    percentile3;
     uint8_t    colour;
+    uint8_t    years;
     uint8_t    flags;
 }
 gfConf;
