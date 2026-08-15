@@ -12,17 +12,13 @@ project("gitfluss")
     cdialect("C99")
     warnings("Extra")
     targetname("gitfluss")
-    libdirs({"./vendor/river2D/bin/%{cfg.buildcfg}/",
-             "./vendor/river2D/vendor/imgsurf/bin/%{cfg.buildcfg}/",
-             "./vendor/libgit2/build/",
+    libdirs({"./vendor/libgit2/build/",
              "./vendor/libgit2/build/Release/",
              "./vendor/libgit2/build/Debug/"})
     includedirs({"./include/",
                  "/usr/include/",
                  "./vendor/libgit2/include/",
-                 "./vendor/puddle/include/",
-                 "./vendor/river2D/include/",
-                 "./vendor/river2D/vendor/imgsurf/include"})
+                 "./vendor/puddle/include/"})
     debugdir("./")
     kind("ConsoleApp")
     toolset("clang")
@@ -85,11 +81,12 @@ project("gitfluss")
         linkoptions({"-fsanitize=address,leak,undefined", "-fno-omit-frame-pointer",
                      "-static-libasan"})
 
+    filter({"platforms:windows", "configurations:debug or asan"})
+        buildoptions("-gcodeview");
+        linkoptions("-gcodeview");
+
     filter({"platforms:windows", "configurations:asan"})
         toolset("clang-cl")
         buildoptions({"/fsanitize=address", "/Zi", "/INCREMENTAL:NO"})
-        linkoptions{"/link clang_rt.asan_dynamic-x86_64.lib clang_rt.asan_dynamic_runtime_thunk-x86_64.lib"}
+        linkoptions{"/link ../vendor/libgit2/build/Debug/git2.lib clang_rt.asan_dynamic-x86_64.lib clang_rt.asan_dynamic_runtime_thunk-x86_64.lib"}
         editandcontinue("Off")
-
-    -- filter({"platforms:windows", "configurations:release"})
-    --     linkoptions("/NODEFAULTLIB:MSVCRTD")
