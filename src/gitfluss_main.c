@@ -731,7 +731,9 @@ int main
     set.currDayEnd       = set.now - set.now % (24 * 3600) + 24 * 3600;
 
     #ifdef BUILD_WINDOWS
-        set.mutexSet = CreateMutexA(0, 0, 0);
+        SRWLOCK lock;
+        InitializeSRWLock(&lock);
+        set.lockSet = &lock;
     #endif
 
     git_libgit2_init();

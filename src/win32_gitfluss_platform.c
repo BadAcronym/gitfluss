@@ -30,7 +30,7 @@ uint64_t gfQueryMonotonic
     uint64_t seconds   = counter.QuadPart / freq.QuadPart;
     uint64_t remainder = counter.QuadPart % freq.QuadPart;
 
-    uint64_t nanoseconds = (remainder * 1000000000ULL) / freq.QuadPart;
+    uint64_t nanoseconds = (remainder * BILLION) / freq.QuadPart;
 
     return seconds * BILLION + nanoseconds;
 }
@@ -55,12 +55,12 @@ void gfLock
 (
     gfDisplaySettings *set
 ){
-    WaitForSingleObject(set->mutexSet, INFINITE);
+    AcquireSRWLockExclusive(set->lockSet);
 }
 
 void gfUnlock
 (
     gfDisplaySettings *set
 ){
-    ReleaseMutex(set->mutexSet);
+    ReleaseSRWLockExclusive(set->lockSet);
 }

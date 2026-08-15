@@ -114,7 +114,7 @@ typedef struct gfDisplaySettings
     #endif
 
     #ifdef BUILD_WINDOWS
-    HANDLE mutexSet;
+    PSRWLOCK lockSet;
     #endif
 }
 gfDisplaySettings;
