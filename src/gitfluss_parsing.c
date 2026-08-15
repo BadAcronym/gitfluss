@@ -557,6 +557,7 @@ void gfReadArgs
         StringView heat4_ident      = cstr_sv("--heat4");
         StringView char_ident       = cstr_sv("--char");
         StringView years_ident      = cstr_sv("--years");
+        StringView version_ident    = cstr_sv("--version");
 
         if(sv_same(arg, authorlist_ident))
         {
@@ -730,6 +731,10 @@ void gfReadArgs
 
             config->years = parseDigits(argv[i + 1]);
             ++i;
+        }
+        else if(sv_same(arg, version_ident))
+        {
+            config->flags |= GF_FLAG_VERSION;
         }
         else
         {

@@ -49,6 +49,7 @@
 #define GF_FLAG_INFO    0x01
 #define GF_FLAG_MONO    0x02
 #define GF_FLAG_PROFILE 0x04
+#define GF_FLAG_VERSION 0x08
 
 typedef struct gfConf
 {
