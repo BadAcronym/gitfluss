@@ -26,6 +26,11 @@ if($build -eq $null -or $build -eq "")
 
 if($build -eq "asan" -or $build -eq "debug" -or $build -eq "release")
 {
+    if(-Not(Test-Path "./bin/$build/"))
+    {
+        mkdir "./bin/$build/"
+    }
+
     if(Test-Path "./vendor/libgit2/build/Debug/git2.dll")
     {
         cp "./vendor/libgit2/build/Debug/git2.dll" "./bin/$build/"
