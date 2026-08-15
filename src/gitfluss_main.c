@@ -288,8 +288,6 @@ f_internal void *gatherRepoData
 
     while(!git_revwalk_next(&oid, revwalk))
     {
-        gfLock(set);
-        ++set->totalCommitCount;
         git_commit_lookup(&commit, repo, &oid);
 
         const git_signature *sign = git_commit_author(commit);
@@ -311,23 +309,29 @@ f_internal void *gatherRepoData
             }
         }
 
+        gfLock(set);
+        ++set->totalCommitCount;
+        gfUnlock(set);
+
         if(counts)
         {
+            ++repoCommitCount;
+
             int64_t daysSince = (set->currDayEnd - commit_time.time) / (24 * 3600);
+            gfLock(set);
             if(commit_time.time < set->oldestCommitTime)
             {
                 set->oldestCommitTime = commit_time.time;
             }
 
             ++set->heatmap[daysSince];
-            ++repoCommitCount;
             ++set->personalCommitCount;
             if(daysSince < 366)
             {
                 ++set->sorted[daysSince];
             }
+            gfUnlock(set);
         }
-        gfUnlock(set);
 
         git_commit_free(commit);
     }
