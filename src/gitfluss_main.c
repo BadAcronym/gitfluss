@@ -197,7 +197,6 @@ f_internal void printCorrespondingHeat
     printf("%s%s", character, ANSI_END);
 }
 
-// TODO: print not based on this year, but t-yearsBack
 f_internal void printHeatMap
 (
     gfHeatmapSettings *set,
@@ -395,8 +394,9 @@ f_internal void calculateHeatmap
     uint8_t           silent
 ){
     set->yearsEpoch = 0;
-    int64_t  days_epoch    = set->now / (24 * 3600);
-    int64_t  currYearStart = 0;
+
+    int64_t days_epoch    = set->now / (24 * 3600);
+    int64_t currYearStart = 0;
     for(uint32_t i = 0; i < days_epoch;)
     {
         ++set->yearsEpoch;
