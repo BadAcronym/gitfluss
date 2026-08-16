@@ -111,9 +111,9 @@ f_internal void printCorrespondingHeat
 (
     gfConf        *config,
     gfPercentiles *percentiles,
-    uint32_t      commit_count
+    uint32_t      commitCount
 ){
-    if(!commit_count)
+    if(!commitCount)
     {
         printf(" ");
         return;
@@ -142,19 +142,19 @@ f_internal void printCorrespondingHeat
             config->mono4 = "█";
         }
 
-        if(commit_count < percentiles->d20)
+        if(commitCount < percentiles->d20)
         {
             printf("%s", config->mono0);
         }
-        else if(commit_count < percentiles->d50)
+        else if(commitCount < percentiles->d50)
         {
             printf("%s", config->mono1);
         }
-        else if(commit_count < percentiles->d70)
+        else if(commitCount < percentiles->d70)
         {
             printf("%s", config->mono2);
         }
-        else if(commit_count < percentiles->d90)
+        else if(commitCount < percentiles->d90)
         {
             printf("%s", config->mono3);
         }
@@ -173,19 +173,19 @@ f_internal void printCorrespondingHeat
         character = "\u25FC";
     }
 
-    if(commit_count < percentiles->d20)
+    if(commitCount < percentiles->d20)
     {
         printf("%s", colours[colour * 5]);
     }
-    else if(commit_count < percentiles->d50)
+    else if(commitCount < percentiles->d50)
     {
         printf("%s", colours[1 + colour * 5]);
     }
-    else if(commit_count < percentiles->d70)
+    else if(commitCount < percentiles->d70)
     {
         printf("%s", colours[2 + colour * 5]);
     }
-    else if(commit_count < percentiles->d90)
+    else if(commitCount < percentiles->d90)
     {
         printf("%s", colours[3 + colour * 5]);
     }
@@ -329,6 +329,10 @@ f_internal void *gatherRepoData
             if(daysSince < 366)
             {
                 ++set->sorted[daysSince];
+            }
+            if(commit_time.time >= set->currDayEnd - (24 * 3600))
+            {
+                ++set->commitsToday;
             }
             gfUnlock(set);
         }
@@ -621,8 +625,8 @@ f_internal void displayData
 
         printf("longest streak: %u days\n", longestStreak);
         printf("current streak: %u days\n", currentStreak);
-        printf("commits today:  %u ", set->heatmap[0]);
-        printCorrespondingHeat(config, &percentiles, set->heatmap[0]);
+        printf("commits today:  %u ", set->commitsToday);
+        printCorrespondingHeat(config, &percentiles, set->commitsToday);
         printf("\n\n");
     }
 

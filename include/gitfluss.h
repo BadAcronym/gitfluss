@@ -102,6 +102,7 @@ typedef struct gfDisplaySettings
     uint32_t   repositoryCount;
     uint64_t   totalCommitCount;
     uint64_t   personalCommitCount;
+    uint32_t   commitsToday;
     uint32_t   repoMax;
     uint32_t   *heatmap;
     uint32_t   *sorted;
