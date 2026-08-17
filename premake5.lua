@@ -10,7 +10,6 @@ workspace("gitfluss")
 project("gitfluss")
     language("C")
     cdialect("C99")
-    warnings("Extra")
     targetname("gitfluss")
     libdirs({"./vendor/libgit2/build/",
              "./vendor/libgit2/build/Release/",
@@ -22,7 +21,8 @@ project("gitfluss")
     debugdir("./")
     kind("ConsoleApp")
     toolset("clang")
-    buildoptions({"-Wextra", "-Wall", "-Wpedantic", "-Wconversion", "-Wshadow", "-Wsign-compare"})
+    buildoptions({"-Wextra", "-Wall", "-Wpedantic", "-Wconversion", "-Wshadow",
+                  "-Wsign-compare", "-Wtype-limits", "-Wunused"})
     links{"git2"}
 
     filter("configurations:asan")
