@@ -1,4 +1,5 @@
-#pragma once
+#ifndef GF_HEADER
+#define GF_HEADER
 
 #include "string_view.h"
 
@@ -198,3 +199,5 @@ extern void gfReadArgs
     char   **argv,
     gfConf *config
 );
+
+#endif
