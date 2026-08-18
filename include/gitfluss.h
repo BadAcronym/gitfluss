@@ -51,6 +51,7 @@
 #define GF_FLAG_MONO    0x02
 #define GF_FLAG_PROFILE 0x04
 #define GF_FLAG_VERSION 0x08
+#define GF_FLAG_NOMATCH 0x10
 
 typedef struct gfConf
 {
@@ -124,6 +125,7 @@ gfDisplaySettings;
 
 typedef struct gfThreadData
 {
+    uint8_t           flags;
     uint32_t          id;
     uint32_t          authorcount;
     StringView        repository;

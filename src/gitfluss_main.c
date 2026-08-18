@@ -263,11 +263,12 @@ f_internal void *gatherRepoData
 (
     void *arguments
 ){
-    gfThreadData *data = (gfThreadData*)arguments;
+    gfThreadData      *data       = (gfThreadData*)arguments;
     gfDisplaySettings *set        = data->set;
     StringView        repository  = data->repository;
     StringView        *authorlist = data->authorlist;
     uint32_t          authorcount = data->authorcount;
+    uint8_t           flags       = data->flags;
 
     git_repository *repo    = 0;
     git_revwalk    *revwalk = 0;
@@ -335,6 +336,10 @@ f_internal void *gatherRepoData
             }
             gfUnlock(set);
         }
+        else if(flags & GF_FLAG_NOMATCH)
+        {
+            fprintf(stderr, "unmatched author: "PRI_SV"\n", ARG_SV(author_mail));
+        }
 
         git_commit_free(commit);
     }
@@ -373,6 +378,7 @@ f_internal void gatherData
         threadData[i].authorcount = authorcount;
         threadData[i].authorlist  = authorlist;
         threadData[i].set         = set;
+        threadData[i].flags       = config->flags;
 
         #ifdef DEBUG
             fprintf(stderr, "Thread %u: analyzing repository: '"PRI_SV"'\n", i,

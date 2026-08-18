@@ -558,6 +558,7 @@ void gfReadArgs
         StringView char_ident       = cstr_sv("--char");
         StringView years_ident      = cstr_sv("--years");
         StringView version_ident    = cstr_sv("--version");
+        StringView nomatch_ident    = cstr_sv("--nomatch");
 
         if(sv_same(arg, authorlist_ident))
         {
@@ -736,6 +737,10 @@ void gfReadArgs
         {
             config->flags |= GF_FLAG_VERSION;
             return;
+        }
+        else if(sv_same(arg, nomatch_ident))
+        {
+            config->flags |= GF_FLAG_NOMATCH;
         }
         else
         {
