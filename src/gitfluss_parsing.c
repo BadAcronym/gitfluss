@@ -735,6 +735,7 @@ void gfReadArgs
         else if(sv_same(arg, version_ident))
         {
             config->flags |= GF_FLAG_VERSION;
+            return;
         }
         else
         {
