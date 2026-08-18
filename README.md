@@ -9,13 +9,11 @@ Status:
   arguments. `~`, `.` and `$HOME` will be resolved, all other paths must be absolute for
   now.
 + You can configure the application to your liking, with author filtering, custom
-  colours & characters.
+  colours & characters and more.
 
 Plans:
-+ multi-thread per-repository for even more speedup
 + Allow overwriting percentiles
 + Add more (optional) repository-specific data displays
-+ Add more (optional) years to the heatmap display
 + Allow custom RGB colour values
 
 Known issues:
