@@ -547,24 +547,27 @@ void gfReadArgs
             goto isPath;
         }
 
-        StringView authorlist_ident = cstr_sv("--authorlist");
-        StringView repolist_ident   = cstr_sv("--repolist");
-        StringView author_ident     = cstr_sv("--author");
-        StringView colour_ident     = cstr_sv("--colour");
-        StringView info_ident       = cstr_sv("--info");
-        StringView noinfo_ident     = cstr_sv("--noinfo");
-        StringView mono_ident       = cstr_sv("--mono");
-        StringView profile_ident    = cstr_sv("--profile");
-        StringView noprofile_ident  = cstr_sv("--noprofile");
-        StringView heat0_ident      = cstr_sv("--heat0");
-        StringView heat1_ident      = cstr_sv("--heat1");
-        StringView heat2_ident      = cstr_sv("--heat2");
-        StringView heat3_ident      = cstr_sv("--heat3");
-        StringView heat4_ident      = cstr_sv("--heat4");
-        StringView char_ident       = cstr_sv("--char");
-        StringView years_ident      = cstr_sv("--years");
-        StringView version_ident    = cstr_sv("--version");
-        StringView nomatch_ident    = cstr_sv("--nomatch");
+        StringView authorlist_ident = cstr_sv("authorlist");
+        StringView repolist_ident   = cstr_sv("repolist");
+        StringView author_ident     = cstr_sv("author");
+        StringView colour_ident     = cstr_sv("colour");
+        StringView info_ident       = cstr_sv("info");
+        StringView noinfo_ident     = cstr_sv("noinfo");
+        StringView mono_ident       = cstr_sv("mono");
+        StringView profile_ident    = cstr_sv("profile");
+        StringView noprofile_ident  = cstr_sv("noprofile");
+        StringView heat0_ident      = cstr_sv("heat0");
+        StringView heat1_ident      = cstr_sv("heat1");
+        StringView heat2_ident      = cstr_sv("heat2");
+        StringView heat3_ident      = cstr_sv("heat3");
+        StringView heat4_ident      = cstr_sv("heat4");
+        StringView char_ident       = cstr_sv("char");
+        StringView years_ident      = cstr_sv("years");
+        StringView version_ident    = cstr_sv("version");
+        StringView nomatch_ident    = cstr_sv("nomatch");
+
+        arg.size -= 2;
+        arg.data += 2;
 
         if(sv_same(arg, authorlist_ident))
         {
