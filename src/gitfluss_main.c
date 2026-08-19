@@ -292,13 +292,13 @@ f_internal void *gatherRepoData
 
         const git_signature *sign = git_commit_author(commit);
 
-        StringView author_mail = cstr_sv(sign->email);
+        StringView author = cstr_sv(sign->email);
         git_time   commit_time = sign->when;
         uint8_t    counts      = any_author;
 
         for(uint16_t j = 0; !counts && j < authorcount; ++j)
         {
-            if(sv_same(authorlist[j], author_mail))
+            if(sv_same(authorlist[j], author))
             {
                 counts = 1;
             }
@@ -316,8 +316,9 @@ f_internal void *gatherRepoData
         if(counts)
         {
             ++repoCommitCount;
+            int64_t daysSince    = (set->currDayEnd - commit_time.time) / (24 * 3600);
+            int64_t currDayStart = set->currDayEnd - (24 * 3600);
 
-            int64_t daysSince = (set->currDayEnd - commit_time.time) / (24 * 3600);
             gfLock(set);
             if(commit_time.time < set->oldestCommitTime)
             {
@@ -330,15 +331,28 @@ f_internal void *gatherRepoData
             {
                 ++set->sorted[daysSince];
             }
-            if(commit_time.time >= set->currDayEnd - (24 * 3600))
+            if(commit_time.time >= currDayStart)
             {
                 ++set->commitsToday;
             }
             gfUnlock(set);
+
+            if(flags & GF_FLAG_SUMMARY && commit_time.time >= currDayStart)
+            {
+                StringView summary = cstr_sv(git_commit_summary(commit));
+                // TODO: instead of printing (because it's in reverse), add the
+                // summary, timestamp & everything to a list and print at the
+                // end.
+                printf("("PRI_SV")\n[%02u:%02u]: "PRI_SV"\n\n",
+                       ARG_SV(repository),
+                       (uint32_t)(commit_time.time - currDayStart) / 3600,
+                       (uint32_t)(commit_time.time % 3600) / 60,
+                       ARG_SV(summary));
+            }
         }
         else if(flags & GF_FLAG_NOMATCH)
         {
-            fprintf(stderr, "unmatched author: "PRI_SV"\n", ARG_SV(author_mail));
+            fprintf(stderr, "unmatched author: "PRI_SV"\n", ARG_SV(author));
         }
 
         git_commit_free(commit);
