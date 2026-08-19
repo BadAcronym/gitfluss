@@ -540,7 +540,13 @@ void gfReadArgs
 
     for(uint16_t i = 1; i < argc; ++i)
     {
-        StringView arg              = cstr_sv(argv[i]);
+        StringView arg = cstr_sv(argv[i]);
+
+        if(arg.size < 2 || arg.data[0] != '-' || arg.data[1] != '-')
+        {
+            goto isPath;
+        }
+
         StringView authorlist_ident = cstr_sv("--authorlist");
         StringView repolist_ident   = cstr_sv("--repolist");
         StringView author_ident     = cstr_sv("--author");
@@ -576,6 +582,7 @@ void gfReadArgs
 
             gfAddAuthorlist(config, cstr_sv(argv[i + 1]));
             ++i;
+            continue;
         }
         else if(sv_same(arg, repolist_ident))
         {
@@ -593,6 +600,7 @@ void gfReadArgs
 
             gfAddPathlist(config, cstr_sv(argv[i + 1]));
             ++i;
+            continue;
         }
         else if(sv_same(arg, author_ident))
         {
@@ -612,6 +620,7 @@ void gfReadArgs
             gfAddAuthor(config, author);
 
             ++i;
+            continue;
         }
         else if(sv_same(arg, colour_ident))
         {
@@ -624,26 +633,32 @@ void gfReadArgs
             setColour(config, colour);
 
             ++i;
+            continue;
         }
         else if(sv_same(arg, info_ident))
         {
             config->flags |= GF_FLAG_INFO;
+            continue;
         }
         else if(sv_same(arg, noinfo_ident))
         {
             config->flags &= ~GF_FLAG_INFO;
+            continue;
         }
         else if(sv_same(arg, mono_ident))
         {
             config->flags |= GF_FLAG_MONO;
+            continue;
         }
         else if(sv_same(arg, profile_ident))
         {
             config->flags |= GF_FLAG_PROFILE;
+            continue;
         }
         else if(sv_same(arg, noprofile_ident))
         {
             config->flags &= ~GF_FLAG_PROFILE;
+            continue;
         }
         else if(sv_same(arg, heat0_ident))
         {
@@ -657,6 +672,7 @@ void gfReadArgs
             sv_cstr(chosen_sv, small_buf);
             config->mono0 = small_buf;
             ++i;
+            continue;
         }
         else if(sv_same(arg, heat1_ident))
         {
@@ -670,6 +686,7 @@ void gfReadArgs
             sv_cstr(chosen_sv, small_buf);
             config->mono1 = small_buf;
             ++i;
+            continue;
         }
         else if(sv_same(arg, heat2_ident))
         {
@@ -683,6 +700,7 @@ void gfReadArgs
             sv_cstr(chosen_sv, small_buf);
             config->mono2 = small_buf;
             ++i;
+            continue;
         }
         else if(sv_same(arg, heat3_ident))
         {
@@ -696,6 +714,7 @@ void gfReadArgs
             sv_cstr(chosen_sv, small_buf);
             config->mono3 = small_buf;
             ++i;
+            continue;
         }
         else if(sv_same(arg, heat4_ident))
         {
@@ -709,6 +728,7 @@ void gfReadArgs
             sv_cstr(chosen_sv, small_buf);
             config->mono4 = small_buf;
             ++i;
+            continue;
         }
         else if(sv_same(arg, char_ident))
         {
@@ -722,6 +742,7 @@ void gfReadArgs
             sv_cstr(chosen_sv, small_buf);
             config->character = small_buf;
             ++i;
+            continue;
         }
         else if(sv_same(arg, years_ident))
         {
@@ -732,6 +753,7 @@ void gfReadArgs
 
             config->years = parseDigits(argv[i + 1]);
             ++i;
+            continue;
         }
         else if(sv_same(arg, version_ident))
         {
@@ -741,18 +763,18 @@ void gfReadArgs
         else if(sv_same(arg, nomatch_ident))
         {
             config->flags |= GF_FLAG_NOMATCH;
+            continue;
         }
-        else
-        {
-            if(reposRead)
-            {
-                reposRead = 0;
-                free((void*)config->repositories.data);
-                config->repositories.size = 0;
-            }
 
-            StringView path = cstr_sv(argv[i]);
-            gfAddPath(config, path);
+    isPath:
+        if(reposRead)
+        {
+            reposRead = 0;
+            free((void*)config->repositories.data);
+            config->repositories.size = 0;
         }
+
+        StringView path = cstr_sv(argv[i]);
+        gfAddPath(config, path);
     }
 }
