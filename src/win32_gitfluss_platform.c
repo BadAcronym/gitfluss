@@ -35,6 +35,27 @@ uint64_t gfQueryMonotonic
     return seconds * BILLION + nanoseconds;
 }
 
+int64_t gfQueryTimezoneOffset
+(
+    void
+){
+    TIME_ZONE_INFORMATION zoneInfo = {0};
+
+    DWORD   daylight = GetTimeZoneInformation(&zoneInfo);
+    int64_t result   = zoneInfo.Bias * 60;
+
+    if(daylight == TIME_ZONE_ID_STANDARD)
+    {
+        result += zoneInfo.StandardBias * 60;
+    }
+    else if(daylight == TIME_ZONE_ID_DAYLIGHT)
+    {
+        result += zoneInfo.DaylightBias * 60;
+    }
+
+    return result;
+}
+
 void gfDispatchThread
 (
     gfThread     *thread,
