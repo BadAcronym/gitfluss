@@ -10,6 +10,8 @@
     #define CONF_FALLBACK "~/.config/gitfluss/.conf"
 
     #define __USE_POSIX199309
+    #define __USE_POSIX
+    #define __USE_MISC
     #include <time.h>
     #include <pthread.h>
     typedef pthread_t gfThread;
@@ -141,6 +143,11 @@ extern int64_t gfQueryTime
 );
 
 extern uint64_t gfQueryMonotonic
+(
+    void
+);
+
+extern int64_t gfQueryTimezoneOffset
 (
     void
 );

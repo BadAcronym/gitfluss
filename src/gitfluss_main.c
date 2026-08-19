@@ -759,6 +759,8 @@ int main
         gfAddPath(&config, fallback);
     }
 
+    int64_t timezoneOffset = gfQueryTimezoneOffset();
+
     gfDisplaySettings set = {0};
     set.heatmap          = heatmap;
     set.sorted           = sorted;
@@ -766,7 +768,7 @@ int main
     set.oldestCommitTime = INT64_MAX;
     set.repositoryCount  = sv_count_by_delim(config.repositories, ';');
     set.now              = gfQueryTime();
-    set.currDayEnd       = set.now - set.now % (24 * 3600) + 24 * 3600;
+    set.currDayEnd       = set.now - set.now % (24 * 3600) + 24 * 3600 + timezoneOffset;
 
     #ifdef BUILD_WINDOWS
         SRWLOCK lock;

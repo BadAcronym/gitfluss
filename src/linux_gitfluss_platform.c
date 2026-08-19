@@ -20,6 +20,18 @@ uint64_t gfQueryMonotonic
     return (uint64_t)spec.tv_sec * BILLION + (uint64_t)spec.tv_nsec;
 }
 
+int64_t gfQueryTimezoneOffset
+(
+    void
+){
+    time_t    timeStruct = time(0);
+    struct tm timeBroken = {0};
+
+    localtime_r(&timeStruct, &timeBroken);
+
+    return -timeBroken.tm_gmtoff;
+}
+
 void gfDispatchThread
 (
     gfThread     *thread,
