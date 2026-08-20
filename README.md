@@ -13,8 +13,11 @@ Status:
 
 Plans:
 + Allow overwriting percentiles
++ Separate streak info into `--streak` option, instead of bundling it with `--info`
++ Expand `--summary`
 + Add more (optional) repository-specific data displays
 + Allow custom RGB colour values
++ Allow flipping axis of heatmaps
 
 Known issues:
 + On Windows, passing non-ascii chars via the cmdline is currently broken, please use
