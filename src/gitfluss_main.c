@@ -800,22 +800,27 @@ int main
     gatherData(&config, &set);
 
     uint64_t gathering = gfQueryMonotonic() - now;
+    now = gfQueryMonotonic();
 
     displayData(&config, &set);
 
+    uint64_t printing = gfQueryMonotonic() - now;
+
     if(config.flags & GF_FLAG_PROFILE)
     {
+        float printMS   = (float)printing / 1e6f;
         float gfinitMS  = (float)gfInitTime / 1e6f;
         float libgit2MS = (float)ligbgit2InitTime / 1e6f;
         float gatherMS  = (float)gathering / 1e6f;
-        float perCommit = gatherMS / (float)set.totalCommitCount;
+        float perCommit = (gatherMS + printMS) / (float)set.totalCommitCount;
 
         printf("gitfluss init: %10.5f ms\n", gfinitMS);
         printf("libgit2 init:  %10.5f ms\n", libgit2MS);
         printf("gather time:   %10.5f ms\n", gatherMS);
+        printf("print time:    %10.5f ms\n", printMS);
         printf("per commit:    %10.5f ms\n", perCommit);
         printf("effective:     %10.0f commits/s\n\n",
-               (float)set.totalCommitCount / gatherMS * 1e3);
+               (float)set.totalCommitCount / (gatherMS + printMS) * 1e3);
     }
 
     if(config.character)
