@@ -557,15 +557,17 @@ f_internal void displayData
         printf("\n");
     #endif
 
-    int64_t yearStart = set->now;
+    int64_t yearStart   = set->now;
+    int64_t currentYear = 0;
     for(uint8_t i = 0; i < config->years; ++i)
     {
-        int64_t currentYear = 1970 + (yearStart / (365 * 24 * 3600));
+        currentYear = 1970 + (yearStart / (365 * 24 * 3600));
         yearStart -= 365 * 24 * 3600;
         #ifdef DEBUG
             fprintf(stderr, "calculating year frame [%li-%li] @ start %li\n",
                              currentYear - 1, currentYear, yearStart);
         #endif
+
         if((currentYear + 1) % 4 == 2)
         {
             yearStart -= 24 * 3600;
@@ -593,7 +595,7 @@ f_internal void displayData
     uint32_t currentStreak      = 0;
     uint8_t  brokeCurrentStreak = 0;
 
-    uint32_t streak = 0;
+    uint32_t streak        = 0;
     uint32_t longestStreak = 0;
 
     for(uint32_t i = 0; i < MAX_DAYS; ++i)
@@ -656,19 +658,19 @@ f_internal void displayData
         return;
     }
 
-    uint16_t currentYear = (uint16_t)(1970 + set->now / (365 * 24 * 3600));
-    if(config->years > (currentYear - 2005))
-    {
-        fprintf(stderr, "\033[33;3mWARNING: clamping years from %u to %u, because you "
-                        "could not possibly have git commits older than 2005."
-                        "\033[0m\n", config->years, currentYear - 2005);
-        config->years = (uint8_t)(currentYear - 2005);
-    }
-
     for(uint8_t i = 0; i < config->years; ++i)
     {
         uint32_t currPrintYear = 1970 + heatSet.yearsEpoch;
-        fprintf(stderr, "[%u - %u]\n", currPrintYear - 1, currPrintYear);
+        if(currPrintYear < 2005)
+        {
+            fprintf(stderr, "\033[33;3mWARNING: skipping year frame [%u-%u] because you "
+                            "could not possibly have git commits older than 2005."
+                            "\033[0m\n", currPrintYear - 1, currPrintYear);
+            calculateHeatmap(&heatSet, 1);
+            continue;
+        }
+
+        printf("[%u - %u]\n", currPrintYear - 1, currPrintYear);
 
         calculateHeatmap(&heatSet, 0);
         printHeatMap(&heatSet, config->years - i - 1);
