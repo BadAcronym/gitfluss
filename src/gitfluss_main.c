@@ -331,7 +331,7 @@ f_internal void *gatherRepoData
                 set->oldestCommitTime = commit_time.time;
             }
 
-            ++set->heatmap[daysSince];
+            ++set->heatSet->heatmap[daysSince];
             ++set->personalCommitCount;
             if(daysSince < 366)
             {
@@ -508,7 +508,7 @@ f_internal void displayData
     gfConf            *config,
     gfDisplaySettings *set
 ){
-    int64_t daysCommit = (set->now - set->oldestCommitTime) / (24 * 3600);
+    int64_t daysCommit = (set->heatSet->now - set->oldestCommitTime) / (24 * 3600);
 
     uint32_t max       = 0;
     uint32_t maxday    = 0;
@@ -563,7 +563,7 @@ f_internal void displayData
         printf("\n");
     #endif
 
-    int64_t yearStart   = set->now;
+    int64_t yearStart   = set->heatSet->now;
     int64_t currentYear = 0;
     for(uint8_t i = 0; i < config->years; ++i)
     {
@@ -581,10 +581,9 @@ f_internal void displayData
         --currentYear;
     }
 
-    gfHeatmapSettings heatSet = {0};
+    gfHeatmapSettings heatSet = *set->heatSet;
     heatSet.config      = config;
     heatSet.percentiles = &percentiles;
-    heatSet.heatmap     = set->heatmap;
     heatSet.now         = yearStart;
     heatSet.startYear   = config->startYear;
     heatSet.endYear     = config->endYear;
@@ -608,7 +607,7 @@ f_internal void displayData
 
     for(uint32_t i = 0; i < MAX_DAYS; ++i)
     {
-        if(!brokeCurrentStreak && !set->heatmap[i])
+        if(!brokeCurrentStreak && !set->heatSet->heatmap[i])
         {
             brokeCurrentStreak = 1;
             if(!i)
@@ -622,7 +621,7 @@ f_internal void displayData
             ++currentStreak;
         }
 
-        if(!set->heatmap[MAX_DAYS - i - 1])
+        if(!set->heatSet->heatmap[MAX_DAYS - i - 1])
         {
             if(streak > longestStreak)
             {
@@ -770,14 +769,18 @@ int main
 
     int64_t timezoneOffset = gfQueryTimezoneOffset();
 
+    gfHeatmapSettings heatSet = {0};
+    heatSet.heatmap = heatmap;
+    heatSet.now     = gfQueryTime();
+
     gfDisplaySettings set = {0};
-    set.heatmap          = heatmap;
+    set.heatSet          = &heatSet;
     set.sorted           = sorted;
     set.biggestRepoBuf   = biggestRepoBuf;
     set.oldestCommitTime = INT64_MAX;
     set.repositoryCount  = sv_count_by_delim(config.repositories, ';');
-    set.now              = gfQueryTime();
-    set.currDayEnd       = set.now - set.now % (24 * 3600) + 24 * 3600 + timezoneOffset;
+    set.currDayEnd       = heatSet.now - heatSet.now % (24 * 3600)
+                           + 24 * 3600 + timezoneOffset;
 
     #ifdef BUILD_WINDOWS
         SRWLOCK lock;
@@ -795,7 +798,7 @@ int main
 
     // TESTING: set start & end time manually
     // set.endYearTime = 430224334;
-    set.endYearTime = set.now;
+    set.endYearTime = heatSet.now;
 
     gatherData(&config, &set);
 

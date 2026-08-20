@@ -106,20 +106,19 @@ gfHeatmapSettings;
 
 typedef struct gfDisplaySettings
 {
-    StringView biggestRepo;
-    uint32_t   repositoryCount;
-    uint64_t   totalCommitCount;
-    uint64_t   personalCommitCount;
-    uint32_t   commitsToday;
-    uint32_t   repoMax;
-    uint32_t   *heatmap;
-    uint32_t   *sorted;
-    int64_t    now;
-    int64_t    startYearTime;
-    int64_t    endYearTime;
-    int64_t    currDayEnd;
-    int64_t    oldestCommitTime;
-    char       *biggestRepoBuf;
+    gfHeatmapSettings *heatSet;
+    StringView        biggestRepo;
+    uint64_t          totalCommitCount;
+    uint64_t          personalCommitCount;
+    uint32_t          repositoryCount;
+    uint32_t          commitsToday;
+    uint32_t          repoMax;
+    uint32_t          *sorted;
+    int64_t           startYearTime;
+    int64_t           endYearTime;
+    int64_t           currDayEnd;
+    int64_t           oldestCommitTime;
+    char              *biggestRepoBuf;
 
     #ifdef BUILD_LINUX
     pthread_mutex_t mutexSet;
