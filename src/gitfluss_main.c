@@ -296,6 +296,12 @@ f_internal void *gatherRepoData
         git_time   commit_time = sign->when;
         uint8_t    counts      = any_author;
 
+        if(commit_time.time < set->startYearTime || commit_time.time > set->endYearTime)
+        {
+            git_commit_free(commit);
+            continue;
+        }
+
         for(uint16_t j = 0; !counts && j < authorcount; ++j)
         {
             if(sv_same(authorlist[j], author))
@@ -580,6 +586,8 @@ f_internal void displayData
     heatSet.percentiles = &percentiles;
     heatSet.heatmap     = set->heatmap;
     heatSet.now         = yearStart;
+    heatSet.startYear   = config->startYear;
+    heatSet.endYear     = config->endYear;
     calculateHeatmap(&heatSet, 1);
 
     #ifdef DEBUG
@@ -661,11 +669,17 @@ f_internal void displayData
     for(uint8_t i = 0; i < config->years; ++i)
     {
         uint32_t currPrintYear = 1970 + heatSet.yearsEpoch;
-        if(currPrintYear < 2005)
+        if(currPrintYear < 1971)
         {
-            fprintf(stderr, "\033[33;3mWARNING: skipping year frame [%u-%u] because you "
-                            "could not possibly have git commits older than 2005."
-                            "\033[0m\n", currPrintYear - 1, currPrintYear);
+            fprintf(stderr, "\033[33;3mWARNING: skipping year frame [%u] because you "
+                            "could not possibly have git commits older than the epoch."
+                            "\033[0m\n", i);
+            calculateHeatmap(&heatSet, 1);
+            continue;
+        }
+        else if(currPrintYear < heatSet.startYear ||
+                currPrintYear > heatSet.endYear + 1
+        ){
             calculateHeatmap(&heatSet, 1);
             continue;
         }
@@ -736,6 +750,9 @@ int main
     {
         gfReadArgs(argc, argv, &config);
     }
+    // TESTING: manual set
+    config.startYear = 1979;
+    config.endYear   = 1981;
 
     sortStrings(&config);
 
@@ -768,10 +785,16 @@ int main
         set.lockSet = &lock;
     #endif
 
+    uint64_t gfInitTime = gfQueryMonotonic() - now;
+    now = gfQueryMonotonic();
+
     git_libgit2_init();
 
-    uint64_t initialization = gfQueryMonotonic() - now;
+    uint64_t ligbgit2InitTime = gfQueryMonotonic() - now;
     now = gfQueryMonotonic();
+
+    // TESTING: set start & end time manually
+    set.endYearTime = 430224334;
 
     gatherData(&config, &set);
 
@@ -781,14 +804,16 @@ int main
 
     if(config.flags & GF_FLAG_PROFILE)
     {
-        float initMS    = (float)initialization / 1e6f;
+        float gfinitMS  = (float)gfInitTime / 1e6f;
+        float libgit2MS = (float)ligbgit2InitTime / 1e6f;
         float gatherMS  = (float)gathering / 1e6f;
         float perCommit = gatherMS / (float)set.totalCommitCount;
 
-        printf("libgit2 init: %10.5f ms\n", initMS);
-        printf("gather time:  %10.5f ms\n", gatherMS);
-        printf("per commit:   %10.5f ms\n", perCommit);
-        printf("effective:    %10.0f commits/s\n\n",
+        printf("gitfluss init: %10.5f ms\n", gfinitMS);
+        printf("libgit2 init:  %10.5f ms\n", libgit2MS);
+        printf("gather time:   %10.5f ms\n", gatherMS);
+        printf("per commit:    %10.5f ms\n", perCommit);
+        printf("effective:     %10.0f commits/s\n\n",
                (float)set.totalCommitCount / gatherMS * 1e3);
     }
 

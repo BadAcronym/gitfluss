@@ -37,7 +37,7 @@
 #define ANSI_END "\033[0m"
 
 #define bufsize  8192
-#define MAX_DAYS 16384
+#define MAX_DAYS 32768
 #define MAX_PATH 4096
 
 #define RED    0
@@ -67,6 +67,8 @@ typedef struct gfConf
     const char *mono2;
     const char *mono3;
     const char *mono4;
+    uint16_t   startYear;
+    uint16_t   endYear;
     uint8_t    percentile0;
     uint8_t    percentile1;
     uint8_t    percentile2;
@@ -91,6 +93,8 @@ typedef struct gfHeatmapSettings
     gfConf        *config;
     gfPercentiles *percentiles;
     uint32_t      *heatmap;
+    uint16_t      startYear;
+    uint16_t      endYear;
     int64_t       now;
     uint8_t       currentMonth;
     uint8_t       weekday365;
@@ -111,6 +115,8 @@ typedef struct gfDisplaySettings
     uint32_t   *heatmap;
     uint32_t   *sorted;
     int64_t    now;
+    int64_t    startYearTime;
+    int64_t    endYearTime;
     int64_t    currDayEnd;
     int64_t    oldestCommitTime;
     char       *biggestRepoBuf;
