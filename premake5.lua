@@ -3,7 +3,6 @@
 workspace("gitfluss")
     configurations({"debug", "asan", "release"})
     platforms({"windows", "linux"})
-
     location("build")
     architecture("x86_64")
 
