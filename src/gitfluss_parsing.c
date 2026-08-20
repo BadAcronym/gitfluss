@@ -8,6 +8,7 @@ f_internal void printHelp
     printf("gitfluss usage:\n");
     printf("\t--author [author@mailcorp.com]\n");
     printf("\t\tadd author (by email) to whitelist of authors to filter by.\n");
+    printf("\t\t'--author any' will not filter out any authors.\n");
     printf("\t--authorlist [~/authorlist]\n");
     printf("\t\tadd all lines of file as authors to whitelist, like above.\n");
     printf("\t--char [x]\n");
@@ -18,14 +19,14 @@ f_internal void printHelp
     printf("\t\tshow this help menu, then exit.\n");
     printf("\t--info\n");
     printf("\t\tshow general information about collected data.\n");
-    printf("\t\t--noinfo will negate 'info: true' in the config file.\n");
+    printf("\t\t'--noinfo' will negate 'info: true' in the config file.\n");
     printf("\t--mono\n");
     printf("\t\tprint monochrome heatmap.\n");
     printf("\t\twith --heat[0-4] [x], you can change the displays for\n");
     printf("\t\theats 0 through 4 to, analogous to --char.\n");
     printf("\t--profile\n");
     printf("\t\tprint timings and effective speed.\n");
-    printf("\t\t--noprofile will negate 'profile: true' in the config file.\n");
+    printf("\t\t'--noprofile' will negate 'profile: true' in the config file.\n");
     printf("\t--repolist [~/repolist]\n");
     printf("\t\tadd all lines of file as repositories to paths to scan.\n");
     printf("\t--summary\n");
