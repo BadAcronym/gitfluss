@@ -1,6 +1,54 @@
 #include "gitfluss.h"
 #include "pd_path.h"
 
+f_internal void printHelp
+(
+    void
+){
+    printf("gitfluss usage:\n");
+    printf("\t--author [author@mailcorp.com]\n");
+    printf("\t\tadd author (by email) to whitelist of authors to filter by.\n");
+    printf("\t--authorlist [~/authorlist]\n");
+    printf("\t\tadd all lines of file as authors to whitelist, like above.\n");
+    printf("\t--char [x]\n");
+    printf("\t\tchange the character inside the heatmap to x.\n");
+    printf("\t--colour [red/green/blue/cyan/yellow/purple/pink/white]\n");
+    printf("\t\tchange colour of heatmap display.\n");
+    printf("\t--help\n");
+    printf("\t\tshow this help menu, then exit.\n");
+    printf("\t--info\n");
+    printf("\t\tshow general information about collected data.\n");
+    printf("\t\t--noinfo will negate 'info: true' in the config file.\n");
+    printf("\t--mono\n");
+    printf("\t\tprint monochrome heatmap.\n");
+    printf("\t\twith --heat[0-4] [x], you can change the displays for\n");
+    printf("\t\theats 0 through 4 to, analogous to --char.\n");
+    printf("\t--profile\n");
+    printf("\t\tprint timings and effective speed.\n");
+    printf("\t\t--noprofile will negate 'profile: true' in the config file.\n");
+    printf("\t--repolist [~/repolist]\n");
+    printf("\t\tadd all lines of file as repositories to paths to scan.\n");
+    printf("\t--summary\n");
+    printf("\t\tprint commit summaries.\n");
+    printf("\t--version\n");
+    printf("\t\tshow version number & license, then exit.\n");
+    printf("\t--years [n]\n");
+    printf("\t\tprint n heatmaps for t-n years back\n");
+    printf("\t\tn = 0 will still print 1 year, but without the interval header.\n");
+}
+
+f_internal void printVersion
+(
+    void
+){
+    printf("gitfluss v0.9.2\n");
+    printf("Copyright (C) 2026 BadAcronym.\n");
+    printf("Licensed under GPLv3: ");
+    printf("https://www.gnu.org/licenses/gpl-3.0.en.html\n");
+    printf("This is open-source software; ");
+    printf("you are free to change and redistribute it.\n\n");
+}
+
 f_internal void setColour
 (
     gfConf     *config,
@@ -154,10 +202,6 @@ f_internal void verifyDirectory
         StringView dashes = cstr_sv("--");
         if(sv_find(dashes, resolved) == resolved.data)
         {
-            fprintf(stderr, "\033[31;3mERROR: unknown option '"PRI_SV
-                    "'.\033[0m\n", ARG_SV(resolved));
-            // TODO: print help msg with list of options or something.
-            exit(1);
         }
         fprintf(stderr, "\033[33;3mWARNING: path '"PRI_SV"' does not exist. Ignoring..."
                 "\033[0m\n", ARG_SV(resolved));
@@ -566,6 +610,7 @@ void gfReadArgs
         StringView version_ident    = cstr_sv("version");
         StringView nomatch_ident    = cstr_sv("nomatch");
         StringView summary_ident    = cstr_sv("summary");
+        StringView help_ident       = cstr_sv("help");
 
         arg.size -= 2;
         arg.data += 2;
@@ -761,8 +806,8 @@ void gfReadArgs
         }
         else if(sv_same(arg, version_ident))
         {
-            config->flags |= GF_FLAG_VERSION;
-            return;
+            printVersion();
+            exit(0);
         }
         else if(sv_same(arg, nomatch_ident))
         {
@@ -773,6 +818,18 @@ void gfReadArgs
         {
             config->flags |= GF_FLAG_SUMMARY;
             continue;
+        }
+        else if(sv_same(arg, help_ident))
+        {
+            printHelp();
+            exit(0);
+        }
+        else
+        {
+            fprintf(stderr, "\033[31;3mERROR: unknown option '"PRI_SV
+                    "'.\033[0m\n", ARG_SV(arg));
+            printHelp();
+            exit(1);
         }
 
     isPath:

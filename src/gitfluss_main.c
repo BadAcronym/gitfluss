@@ -733,16 +733,6 @@ int main
     if(argc > 1)
     {
         gfReadArgs(argc, argv, &config);
-        if(config.flags & GF_FLAG_VERSION)
-        {
-            printf("gitfluss v0.9.2\n");
-            printf("Copyright (C) 2026 BadAcronym.\n");
-            printf("Licensed under GPLv3: ");
-            printf("https://www.gnu.org/licenses/gpl-3.0.en.html\n");
-            printf("This is open-source software; ");
-            printf("you are free to change and redistribute it.\n\n");
-            exit(0);
-        }
     }
 
     sortStrings(&config);
