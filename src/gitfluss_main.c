@@ -752,7 +752,7 @@ int main
     }
     // TESTING: manual set
     config.startYear = 1979;
-    config.endYear   = 1981;
+    config.endYear   = 2026;
 
     sortStrings(&config);
 
@@ -794,7 +794,8 @@ int main
     now = gfQueryMonotonic();
 
     // TESTING: set start & end time manually
-    set.endYearTime = 430224334;
+    // set.endYearTime = 430224334;
+    set.endYearTime = set.now;
 
     gatherData(&config, &set);
 
