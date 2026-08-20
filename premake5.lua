@@ -70,10 +70,6 @@ project("gitfluss")
                "./vendor/puddle/src/string_view.c"})
         linkoptions({"-lgit2"})
 
-    filter({"platforms:windows", "configurations:debug or asan"})
-        buildoptions({"-gcodeview"})
-        linkoptions({"-gcodeview"})
-
     filter({"platforms:linux", "configurations:asan"})
         buildoptions({"-fsanitize=address,leak,undefined", "-fno-omit-frame-pointer",
                       "-static-libasan"})
