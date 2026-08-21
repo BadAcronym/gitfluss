@@ -362,6 +362,8 @@ void gfReadConfig
     StringView heat4_sv   = cstr_sv("heat4:");
     StringView char_sv    = cstr_sv("character:");
     StringView years_sv   = cstr_sv("years:");
+    StringView summary_sv = cstr_sv("summary:");
+    StringView streak_sv  = cstr_sv("streak:");
     StringView true_sv    = cstr_sv("true");
 
     FILE *file = fopen(path_expanded, "r");
@@ -534,6 +536,30 @@ void gfReadConfig
             continue;
         }
 
+        const char* summaryloc = sv_find(summary_sv, buffer);
+        if(summaryloc)
+        {
+            StringView set_sv = cstr_sv(buffer.data + info_sv.size + 1);
+
+            if(sv_same(set_sv, true_sv))
+            {
+                config->flags |= GF_FLAG_SUMMARY;
+            }
+            continue;
+        }
+
+        const char* streakloc = sv_find(streak_sv, buffer);
+        if(streakloc)
+        {
+            StringView set_sv = cstr_sv(buffer.data + info_sv.size + 1);
+
+            if(sv_same(set_sv, true_sv))
+            {
+                config->flags |= GF_FLAG_STREAK;
+            }
+            continue;
+        }
+
         StringView path = cstr_sv(buffer.data);
         gfAddPath(config, path);
     }
@@ -611,6 +637,7 @@ void gfReadArgs
         StringView version_ident    = cstr_sv("version");
         StringView nomatch_ident    = cstr_sv("nomatch");
         StringView summary_ident    = cstr_sv("summary");
+        StringView streak_ident     = cstr_sv("streak");
         StringView help_ident       = cstr_sv("help");
 
         arg.size -= 2;
@@ -818,6 +845,11 @@ void gfReadArgs
         else if(sv_same(arg, summary_ident))
         {
             config->flags |= GF_FLAG_SUMMARY;
+            continue;
+        }
+        else if(sv_same(arg, streak_ident))
+        {
+            config->flags |= GF_FLAG_STREAK;
             continue;
         }
         else if(sv_same(arg, help_ident))

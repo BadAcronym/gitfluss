@@ -651,7 +651,10 @@ f_internal void displayData
                set->repoMax, ARG_SV(set->biggestRepo));
 
         printf("time since first commit: %lu days\n\n", daysCommit);
+    }
 
+    if(config->flags & GF_FLAG_STREAK)
+    {
         printf("longest streak: %u days\n", longestStreak);
         printf("current streak: %u days\n", currentStreak);
         printf("commits today:  %u ", set->commitsToday);
