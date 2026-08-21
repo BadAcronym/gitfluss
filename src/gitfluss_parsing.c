@@ -539,7 +539,7 @@ void gfReadConfig
         const char* summaryloc = sv_find(summary_sv, buffer);
         if(summaryloc)
         {
-            StringView set_sv = cstr_sv(buffer.data + info_sv.size + 1);
+            StringView set_sv = cstr_sv(buffer.data + summary_sv.size + 1);
 
             if(sv_same(set_sv, true_sv))
             {
@@ -551,7 +551,7 @@ void gfReadConfig
         const char* streakloc = sv_find(streak_sv, buffer);
         if(streakloc)
         {
-            StringView set_sv = cstr_sv(buffer.data + info_sv.size + 1);
+            StringView set_sv = cstr_sv(buffer.data + streak_sv.size + 1);
 
             if(sv_same(set_sv, true_sv))
             {
