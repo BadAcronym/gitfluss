@@ -637,6 +637,7 @@ void gfReadArgs
         StringView version_ident    = cstr_sv("version");
         StringView nomatch_ident    = cstr_sv("nomatch");
         StringView summary_ident    = cstr_sv("summary");
+        StringView nosummary_ident  = cstr_sv("nosummary");
         StringView streak_ident     = cstr_sv("streak");
         StringView nostreak_ident   = cstr_sv("nostreak");
         StringView help_ident       = cstr_sv("help");
@@ -846,6 +847,11 @@ void gfReadArgs
         else if(sv_same(arg, summary_ident))
         {
             config->flags |= GF_FLAG_SUMMARY;
+            continue;
+        }
+        else if(sv_same(arg, nosummary_ident))
+        {
+            config->flags &= ~GF_FLAG_SUMMARY;
             continue;
         }
         else if(sv_same(arg, streak_ident))
