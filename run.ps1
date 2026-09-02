@@ -39,7 +39,7 @@ if($build -eq "asan" -or $build -eq "debug" -or $build -eq "release")
     if(-Not(Test-Path "./bin/$build/git2.dll"))
     {
 
-        Write-Host "WARNING: git2.dll could not be located." -Fore Yellow
+        Write-Host "git2.dll could not be located." -Fore Yellow
         Write-Host "Compiling from source..." -Fore Yellow
 
         &cmake --version
