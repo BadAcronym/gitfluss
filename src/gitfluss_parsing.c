@@ -46,7 +46,7 @@ f_internal void printVersion
 (
     void
 ){
-    printf("gitfluss v0.9.2\n");
+    printf("gitfluss v0.9.3\n");
     printf("Copyright (C) 2026 BadAcronym.\n");
     printf("Licensed under GPLv3: ");
     printf("https://www.gnu.org/licenses/gpl-3.0.en.html\n");
