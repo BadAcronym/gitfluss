@@ -22,6 +22,70 @@ else
     build=$1
 fi
 
+args="-DBUILD_LINUX
+vendor/puddle/src/string_view.c \
+vendor/puddle/src/linux_pd_path.c \
+src/gitfluss_main.c \
+src/gitfluss_parsing.c \
+src/linux_gitfluss_platform.c \
+-Iinclude/ \
+-Ivendor/puddle/include/ \
+-lgit2 \
+-O2"
+
+function compile()
+{
+    echo ""
+    echo -e "\033[36mcompiling gitfluss...\033[0m"
+    echo ""
+
+    premake5 --version > /dev/null
+    if [[ $? != 0 ]]
+    then
+        echo "premake5 binary not found."
+        echo "trying to identify a compiler..."
+
+        clang --version > /dev/null
+        if [[ $? = 0 ]]
+        then
+            echo "found clang."
+            echo "building release build with default flags:"
+            echo "clang $args"
+            clang $args
+
+            if [[ ! -d ./bin/release ]]
+            then
+                mkdir ./bin/release
+            fi
+
+            mv ./a.out ./bin/release/gitfluss
+        fi
+
+        gcc --version > /dev/null
+        if [[ $? = 0 ]]
+        then
+            echo "found gcc."
+            echo "building release build with default flags:"
+            echo "gcc $args"
+            gcc $args
+
+            if [[ ! -d ./bin/release ]]
+            then
+                mkdir ./bin/release
+            fi
+
+            mv ./a.out ./bin/release/gitfluss
+        fi
+
+        return;
+    fi
+
+    premake5 gmake
+
+    pushd ./build/ > /dev/null
+    make config=$build\_linux
+}
+
 if [[ $build = "asan" ]] || [[ $build = "debug" ]] || [[ $build = "release" ]]
 then
 
@@ -38,7 +102,7 @@ then
             exit -6;
         fi
 
-        cmake --version
+        cmake --version > /dev/null
         if [[ $? != 0 ]]
         then
             echo -ne "\033[31m\nERROR: CMake not found. Please provide a cmake binary "
@@ -65,13 +129,7 @@ then
         popd > /dev/null
     fi
 
-    echo ""
-    echo -e "\033[36mcompiling gitfluss...\033[0m"
-    echo ""
-    premake5 gmake
-
-    pushd ./build/ > /dev/null
-    make config=$build\_linux
+    compile
 else
     echo -e "\033[31m\nERROR: invalid make config: '$build'.\033[0m"
     popd > /dev/null
