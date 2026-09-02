@@ -29,9 +29,12 @@ f_internal void printHelp
     printf("\t\t'--noprofile' will negate 'profile: true' from the config file.\n");
     printf("\t--repolist [~/repolist]\n");
     printf("\t\tadd all lines of file as repositories to paths to scan.\n");
+    printf("\t--streak\n");
+    printf("\t\tprint longest & current streak.\n");
+    printf("\t\t'--nostreak' will negate 'streak: true' from the config file.\n");
     printf("\t--summary\n");
     printf("\t\tprint commit summaries.\n");
-    printf("\t\t'--nosummary' will negate 'summary: true' from the config file..\n");
+    printf("\t\t'--nosummary' will negate 'summary: true' from the config file.\n");
     printf("\t--version\n");
     printf("\t\tshow version number & license, then exit.\n");
     printf("\t--years [n]\n");
