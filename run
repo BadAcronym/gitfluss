@@ -30,6 +30,7 @@ src/gitfluss_parsing.c \
 src/linux_gitfluss_platform.c \
 -Iinclude/ \
 -Ivendor/puddle/include/ \
+-Ivendor/libgit2/include/ \
 -lgit2 \
 -O2"
 
