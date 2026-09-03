@@ -748,7 +748,7 @@ int main
     config.sortedAuthors = sortedAuthors;
 
     gfReadConfig(&config);
-    if(argc)
+    if(argc > 1)
     {
         gfReadArgs(argc, argv, &config);
     }
