@@ -758,13 +758,13 @@ int main
 
     sortStrings(&config);
 
-    if(!config.authors.data)
+    if(!config.authors.data || sv_same(config.authors, cstr_sv("")))
     {
         StringView any_author = cstr_sv("any");
         gfAddAuthor(&config, any_author);
     }
 
-    if(!config.repositories.data)
+    if(!config.repositories.data || sv_same(config.repositories, cstr_sv("")))
     {
         StringView fallback = cstr_sv(".");
         gfAddPath(&config, fallback);
