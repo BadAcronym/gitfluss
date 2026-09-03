@@ -34,8 +34,8 @@ project("gitfluss")
         runtime("debug")
         symbols("On")
         optimize("Off")
-        buildoptions({"-gfull", "-O1"})
-        linkoptions({"-gfull", "-O1"})
+        buildoptions({"-g", "-O0"})
+        linkoptions({"-g", "-O0"})
 
     filter("configurations:release")
         defines{"NDEBUG"}
@@ -75,6 +75,10 @@ project("gitfluss")
                       "-static-libasan"})
         linkoptions({"-fsanitize=address,leak,undefined", "-fno-omit-frame-pointer",
                      "-static-libasan"})
+
+    filter({"platforms:linux", "configurations:debug or asan"})
+        buildoptions("-gfull");
+        linkoptions("-gfull");
 
     filter({"platforms:windows", "configurations:debug or asan"})
         buildoptions("-gcodeview");
