@@ -9,9 +9,15 @@
     #define CONF_PATH     ".gitflussconf"
     #define CONF_FALLBACK "~/.config/gitfluss/.conf"
 
-    #define __USE_POSIX199309
-    #define __USE_POSIX
-    #define __USE_MISC
+    #ifndef __USE_POSIX199309
+        #define __USE_POSIX199309
+    #endif
+    #ifndef __USE_POSIX
+        #define __USE_POSIX
+    #endif
+    #ifndef __USE_MISC
+        #define __USE_MISC
+    #endif
     #include <time.h>
     #include <pthread.h>
     typedef pthread_t gfThread;
