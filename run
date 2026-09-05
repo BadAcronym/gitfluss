@@ -22,16 +22,17 @@ else
     build=$1
 fi
 
-args="-DBUILD_LINUX
-vendor/puddle/src/string_view.c \
+args="                            \
+-DBUILD_LINUX                     \
+vendor/puddle/src/string_view.c   \
 vendor/puddle/src/linux_pd_path.c \
-src/gitfluss_main.c \
-src/gitfluss_parsing.c \
-src/linux_gitfluss_platform.c \
--Iinclude/ \
--Ivendor/puddle/include/ \
--Ivendor/libgit2/include/ \
--lgit2 \
+src/gitfluss_main.c               \
+src/gitfluss_parsing.c            \
+src/linux_gitfluss_platform.c     \
+-Iinclude/                        \
+-Ivendor/puddle/include/          \
+-Ivendor/libgit2/include/         \
+-lgit2                            \
 -O2"
 
 function compile()
