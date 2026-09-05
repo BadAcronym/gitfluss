@@ -61,6 +61,7 @@ function compile()
             fi
 
             mv ./a.out ./bin/release/gitfluss
+            return;
         fi
 
         gcc --version > /dev/null
@@ -77,9 +78,8 @@ function compile()
             fi
 
             mv ./a.out ./bin/release/gitfluss
+            return;
         fi
-
-        return;
     fi
 
     premake5 gmake
