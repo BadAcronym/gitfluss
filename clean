@@ -17,6 +17,11 @@ then
     rm ./build/ -rf
 fi
 
+if [[ -f ./a.out ]]
+then
+    rm ./a.out
+fi
+
 for out in callgrind.*
 do
     if [[ ! -f $out ]]

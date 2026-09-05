@@ -22,137 +22,137 @@ else
     build=$1
 fi
 
-args="                            \
--DBUILD_LINUX                     \
-vendor/puddle/src/string_view.c   \
+args_always="-DBUILD_LINUX \
+vendor/puddle/src/string_view.c \
 vendor/puddle/src/linux_pd_path.c \
-src/gitfluss_main.c               \
-src/gitfluss_parsing.c            \
-src/linux_gitfluss_platform.c     \
--Iinclude/                        \
--Ivendor/puddle/include/          \
--Ivendor/libgit2/include/         \
--lgit2                            \
--O2"
+src/gitfluss_main.c \
+src/gitfluss_parsing.c \
+src/linux_gitfluss_platform.c \
+-Iinclude/ \
+-Ivendor/puddle/include/ \
+-Ivendor/libgit2/include/ \
+-lgit2 \
+-fuse-ld=mold"
+
+args_release="-O2"
+
+args_debug="-DDEBUG -g -O0"
+
+args_asan="$args_debug -DASAN \
+-fsanitize=address,leak,undefined \
+-fno-omit-frame-pointer \
+-static-libasan \
+-O0"
+
+function build_libgit2()
+{
+    ldconfig -p | grep "libgit2.so" > /dev/null
+    if [[ $? = 0 ]]
+    then
+        return;
+    fi
+
+    echo -e "\033[33m\nWARNING: libgit2.so could not be located on the system."
+    echo -e "Compiling from source...\n\033[0m"
+
+    if [[ ! -d "./vendor/libgit2/src/" ]]
+    then
+        echo -ne "\033[31m\nERROR: git2 submodule cannot be found. Repository was "
+        echo -e "cloned incorrectly, please use '--recurse' when cloning.\033[0m"
+        exit -6;
+    fi
+
+    cmake --version > /dev/null
+    if [[ $? != 0 ]]
+    then
+        echo -ne "\033[31m\nERROR: CMake not found. Please provide a cmake binary "
+        echo -e "in your path in order to build libgit2 from source.\033[0m"
+    fi
+
+    pushd ./vendor/libgit2/ > /dev/null
+    if [[ ! -d "./build/" ]]
+    then
+        mkdir ./build/
+    fi
+    cd build
+
+    cmake .. -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTS=OFF
+    cmake --build .
+
+    if [[ $? != 0 ]]
+    then
+        echo -e "\033[31m\nERROR: failed to compile libgit2 from source.\n\033[0m"
+        popd > /dev/null
+        exit -7;
+    fi
+
+    popd > /dev/null
+}
 
 function compile()
 {
+    build_libgit2
+    echo "identifying a compiler..."
+
+    clang --version > /dev/null
+    if [[ $? = 0 ]]
+    then
+        echo "found clang."
+        compiler="clang"
+    else
+        gcc --version > /dev/null
+        if [[ $? = 0 ]]
+        then
+            compiler="gcc"
+        else
+            echo -e "\033[31m\nERROR: no suitable compiler found.\n\033[0m"
+        fi
+    fi
+
     echo ""
     echo -e "\033[36mcompiling gitfluss...\033[0m"
     echo ""
 
-    premake5 --version > /dev/null
-    if [[ $? != 0 ]]
+    if [[ ! -d ./bin/$build ]]
     then
-        echo "premake5 binary not found."
-        echo "trying to identify a compiler..."
-
-        clang --version > /dev/null
-        if [[ $? = 0 ]]
-        then
-            echo "found clang."
-            echo "building release build with default flags:"
-            echo "clang $args"
-            clang $args
-
-            if [[ ! -d ./bin/release ]]
-            then
-                mkdir ./bin/release
-            fi
-
-            mv ./a.out ./bin/release/gitfluss
-            return;
-        fi
-
-        gcc --version > /dev/null
-        if [[ $? = 0 ]]
-        then
-            echo "found gcc."
-            echo "building release build with default flags:"
-            echo "gcc $args"
-            gcc $args
-
-            if [[ ! -d ./bin/release ]]
-            then
-                mkdir ./bin/release
-            fi
-
-            mv ./a.out ./bin/release/gitfluss
-            return;
-        fi
+        mkdir ./bin/$build
     fi
 
-    premake5 gmake
-
-    pushd ./build/ > /dev/null
-    make config=$build\_linux
+    echo "compiling $build build with the following command:"
+    echo "$compiler $1"
+    $compiler $1
+    if [[ $? != 0 ]]
+    then
+        echo -e "\033[31m\nERROR: $compiler failed to compile gitfluss.\n\033[0m"
+        exit -1
+    fi
+    mv ./a.out ./bin/$build/gitfluss
 }
 
-if [[ $build = "asan" ]] || [[ $build = "debug" ]] || [[ $build = "release" ]]
+if [[ $build = "release" ]]
 then
-
-    ldconfig -p | grep "libgit2.so" > /dev/null
-    if [[ $? != 0 ]]
-    then
-        echo -e "\033[33m\nWARNING: libgit2.so could not be located on the system."
-        echo -e "Compiling from source...\n\033[0m"
-
-        if [[ ! -d "./vendor/libgit2/src/" ]]
-        then
-            echo -ne "\033[31m\nERROR: git2 submodule cannot be found. Repository was "
-            echo -e "cloned incorrectly, please use '--recurse' when cloning.\033[0m"
-            exit -6;
-        fi
-
-        cmake --version > /dev/null
-        if [[ $? != 0 ]]
-        then
-            echo -ne "\033[31m\nERROR: CMake not found. Please provide a cmake binary "
-            echo -e "in your path in order to build libgit2 from source.\033[0m"
-        fi
-
-        pushd ./vendor/libgit2/ > /dev/null
-        if [[ ! -d "./build/" ]]
-        then
-            mkdir ./build/
-        fi
-        cd build
-
-        cmake .. -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTS=OFF
-        cmake --build .
-
-        if [[ $? != 0 ]]
-        then
-            echo -e "\033[31m\nERROR: failed to compile libgit2 from source.\n\033[0m"
-            popd > /dev/null
-            exit -7;
-        fi
-
-        popd > /dev/null
-    fi
-
-    compile
+    compile "$args_always $args_release"
 else
-    echo -e "\033[31m\nERROR: invalid make config: '$build'.\033[0m"
-    popd > /dev/null
-    exit -2;
-fi
-
-if [[ $? != 0 ]]
+if [[ $build = "debug" ]]
 then
-    echo -e "\033[31m\nERROR: failed to compile gitfluss.\n\033[0m"
-    popd > /dev/null
-    exit -1;
+    compile "$args_always $args_debug"
+else
+if [[ $build = "asan" ]]
+then
+    compile "$args_always $args_asan"
+else
+    echo -e "\033[31m\nERROR: invalid make config: $build.\033[0m"
+    exit 3;
+fi
+fi
 fi
 
 echo -e "\n"
 
 if [[ $2 = "--compile-only" ]]
 then
-    exit 0;
+    exit 0
 fi
-
-popd > /dev/null
 
 chmod +x ./bin/$build/gitfluss
 ./bin/$build/gitfluss
