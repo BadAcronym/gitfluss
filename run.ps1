@@ -4,17 +4,7 @@ param
     [Parameter(Position = 1)][string]$compile_only
 )
 
-if(-Not(Test-Path "./obj/"))
-{
-    mkdir "./obj/"
-}
-
-if(-Not(Test-Path "./build/"))
-{
-    mkdir "./build/"
-}
-
-if(-Not(Test-Path "./bin/"))
+if(-Not(Test-Path "./bin/" -PathType Container))
 {
     mkdir "./bin/"
 }
@@ -24,83 +14,106 @@ if($build -eq $null -or $build -eq "")
     $build = "release"
 }
 
-if($build -eq "asan" -or $build -eq "debug" -or $build -eq "release")
+$args_always=@("-DBUILD_WINDOWS",
+"src/gitfluss_main.c",
+"src/gitfluss_parsing.c",
+"src/win32_gitfluss_platform.c",
+"vendor/puddle/src/string_view.c",
+"vendor/puddle/src/win32_pd_path.c",
+"-Iinclude",
+"-Ivendor/puddle/include",
+"-std=c99",
+"-Wextra", "-Wall", "-Wpedantic", "-Wconversion", "-Wshadow", "-Wsign-compare",
+"-Wtype-limits", "-Wunused",
+"-Wno-unsafe-buffer-usage", "-Wno-declaration-after-statement", "-Wno-vla",
+"-Wno-implicit-void-ptr-cast")
+
+$args_release=@("-O2")
+
+$args_debug=@("-DDEBUG", "-gcodeview", "-O0")
+$args_debug_cl=@("/DDEBUG", "/Zi", "/Od")
+
+$args_asan=$args_debug_cl+@("-oa.exe", "/clang:-std=c99", "/DASAN",
+"/fsanitize=address", "/MD",
+"/link", "/SUBSYSTEM:CONSOLE")
+
+function compile
 {
-    if(-Not(Test-Path "./bin/$build/"))
+    param( [string[]]$1 )
+
+    Write-Host "identifying a compiler..."
+
+    if($build -eq "asan")
+    {
+        if(-Not(Get-Command clang -ErrorAction SilentlyContinue))
+        {
+            Write-Host "ERROR: clang-cl needed for address sanitization." -Fore Red
+        }
+        $script:compiler="clang-cl"
+    }
+    elseif(Get-Command clang -ErrorAction SilentlyContinue)
+    {
+        Write-Host "found clang."
+        $script:compiler="clang"
+    }
+    elseif(Get-Command gcc -ErrorAction SilentlyContinue)
+    {
+        Write-Host "found gcc."
+        $script:compiler="gcc"
+    }
+    else
+    {
+        Write-Host "ERROR: no suitable compiler found." -Fore Red
+    }
+
+    Write-Host ""
+    Write-Host "compiling gitfluss..." -Fore Cyan
+    Write-Host ""
+
+    if(-Not (Test-Path "./bin/$build/" -PathType Container))
     {
         mkdir "./bin/$build/"
     }
 
-    if(Test-Path "./vendor/libgit2/build/Debug/git2.dll")
+    Write-Host "compiling $build build with the following command:"
+    Write-Host "$script:compiler $1"
+    &$script:compiler @1
+    if($LASTEXITCODE -ne 0)
     {
-        cp "./vendor/libgit2/build/Debug/git2.dll" "./bin/$build/"
+        Write-Host "`nERROR: $script:compiler failed to compile datasurf.`n" -Fore Red
+        exit -1
     }
-
-    if(-Not(Test-Path "./bin/$build/git2.dll"))
+    Move-Item ./a.exe ./bin/$build/gitfluss.exe -Force
+    if($build -eq "release")
     {
-
-        Write-Host "git2.dll could not be located." -Fore Yellow
-        Write-Host "Compiling from source..." -Fore Yellow
-
-        &cmake --version
-        if($LASTEXITCODE -ne 0)
-        {
-            Write-Host "ERROR: CMake not found. Please provide a binary " -NoNewline
-            Write-Host " in your path in order to build git2.dll from source." -Fore Red
-            exit 1;
-        }
-
-        pushd "./vendor/libgit2/"
-        if(-Not (Test-Path "build"))
-        {
-            mkdir "build"
-        }
-        cd build
-
-        cmake .. -DBUILD_TESTS=OFF
-        if($LASTEXITCODE -ne 0)
-        {
-            Write-Host "ERROR: CMake build failed."
-            popd
-            exit 3;
-        }
-        cmake --build .
-        if($LASTEXITCODE -ne 0 -or -Not(Test-Path "./vendor/libgit2/build/git2.dll"))
-        {
-            Write-Host "ERROR: failed to compile libgit2."
-            popd
-            exit 4;
-        }
-
-        popd
-
-        cp "./vendor/libgit2/build/Debug/git2.dll" "./bin/$build"
+        return;
     }
+    Move-Item ./a.pdb ./bin/$build/gitfluss.pdb -Force
+}
 
-    Write-Host "`ncompiling gitfluss...`n" -Fore Cyan
-
-    premake5 gmake
-    pushd "./build/"
-    make config=$build`_windows
-    popd
+if($build -eq "release")
+{
+    compile ($args_always + $args_release)
+}
+elseif($build -eq "debug")
+{
+    compile ($args_always + $args_debug)
+}
+elseif($build -eq "asan")
+{
+    compile ($args_always + $args_asan)
 }
 else
 {
-     Write-Host "ERROR: invalid make config: '$build'." -ForegroundColor Red
-     exit -2;
-}
-
-if($LASTEXITCODE -ne 0)
-{
-     Write-Host "`nERROR: failed to compile gitfluss.`n" -ForegroundColor Red
-     exit -1;
+    Write-Host "`nERROR: invalid make config: $build." -Fore Red
+    exit 3;
 }
 
 Write-Host "`n"
 
 if($compile_only -eq "--compile-only")
 {
-    exit 0;
+    exit 0
 }
 
-&./bin/$build/gitfluss
+&./bin/$build/gitfluss.exe
