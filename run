@@ -13,13 +13,14 @@ else
 fi
 
 args_always="-DBUILD_LINUX \
-vendor/puddle/src/string_view.c \
-vendor/puddle/src/linux_pd_path.c \
 src/gitfluss_main.c \
 src/gitfluss_parsing.c \
 src/linux_gitfluss_platform.c \
+vendor/datasurf/vendor/puddle/src/string_view.c \
+vendor/datasurf/vendor/puddle/src/linux_pd_path.c \
 -Iinclude/ \
--Ivendor/puddle/include/ \
+-Ivendor/datasurf/include/ \
+-Ivendor/datasurf/vendor/puddle/include/ \
 -std=c99 \
 -Wextra -Wall -Wpedantic -Wconversion -Wshadow -Wsign-compare -Wtype-limits -Wunused \
 -fuse-ld=mold"
