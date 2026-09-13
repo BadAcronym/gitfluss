@@ -794,11 +794,6 @@ int main
     uint64_t gfInitTime = gfQueryMonotonic() - now;
     now = gfQueryMonotonic();
 
-    git_libgit2_init();
-
-    uint64_t ligbgit2InitTime = gfQueryMonotonic() - now;
-    now = gfQueryMonotonic();
-
     // TESTING: set start & end time manually
     // set.endYearTime = 430224334;
     set.endYearTime = heatSet.now;
@@ -814,14 +809,12 @@ int main
 
     if(config.flags & GF_FLAG_PROFILE)
     {
-        float printMS   = (float)printing / 1e6f;
-        float gfinitMS  = (float)gfInitTime / 1e6f;
-        float libgit2MS = (float)ligbgit2InitTime / 1e6f;
-        float gatherMS  = (float)gathering / 1e6f;
-        float perCommit = (gatherMS + printMS) / (float)set.totalCommitCount;
+        float printMS   = (float)printing         / 1e6f;
+        float gfinitMS  = (float)gfInitTime       / 1e6f;
+        float gatherMS  = (float)gathering        / 1e6f;
+        float perCommit = (gatherMS + printMS)    / (float)set.totalCommitCount;
 
         printf("gitfluss init: %10.5f ms\n", gfinitMS);
-        printf("libgit2 init:  %10.5f ms\n", libgit2MS);
         printf("gather time:   %10.5f ms\n", gatherMS);
         printf("print time:    %10.5f ms\n", printMS);
         printf("per commit:    %10.5f ms\n", perCommit);
@@ -833,5 +826,4 @@ int main
     {
         free((void*)config.character);
     }
-    git_libgit2_shutdown();
 }
