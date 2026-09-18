@@ -14,6 +14,7 @@ fi
 
 args_always="-DBUILD_LINUX \
 src/gitfluss_main.c \
+src/gitfluss_git.c \
 src/gitfluss_parsing.c \
 src/linux_gitfluss_platform.c \
 vendor/datasurf/vendor/puddle/src/string_view.c \

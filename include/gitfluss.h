@@ -4,6 +4,7 @@
 #include "string_view.h"
 
 #include <stdint.h>
+#include <stdbool.h>
 
 #ifdef BUILD_LINUX
     #define CONF_PATH     ".gitflussconf"
@@ -39,6 +40,10 @@
 
 #define f_internal static
 #define BILLION    1000000000L
+
+#define bool  _Bool
+#define true  1
+#define false 0
 
 #define ANSI_END "\033[0m"
 
@@ -148,6 +153,22 @@ typedef struct gfThreadData
 }
 gfThreadData;
 
+typedef struct gfCommitInfo
+{
+    StringView name;
+    StringView email;
+    StringView summary;
+    int64_t    time;
+}
+gfCommitInfo;
+
+typedef struct gfRevwalk
+{
+    // FIXME: placeholder
+    uint8_t placeholder;
+}
+gfRevwalk;
+
 extern int64_t gfQueryTime
 (
     void
@@ -219,6 +240,21 @@ extern void gfReadArgs
     int    argc,
     char   **argv,
     gfConf *config
+);
+
+extern void gfGetCommitInfo
+(
+    StringView   repository,
+    // placeholder
+    uint8_t      *oid,
+    gfCommitInfo *info
+);
+
+extern bool gfRevwalkNext
+(
+    gfRevwalk *revwalk,
+    //placeholder
+    uint8_t   *oid
 );
 
 #endif

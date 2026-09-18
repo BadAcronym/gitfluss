@@ -1,7 +1,5 @@
 #include "gitfluss.h"
 
-#include <git2.h>
-
 #include <stdint.h>
 #include <stdio.h>
 
@@ -253,35 +251,39 @@ f_internal void *gatherRepoData
     uint32_t          authorcount = data->authorcount;
     uint8_t           flags       = data->flags;
 
-    git_repository *repo    = 0;
-    git_revwalk    *revwalk = 0;
-    git_oid        oid      = {0};
+    // git_repository *repo    = 0;
+    // git_revwalk    *revwalk = 0;
+    // git_oid        oid      = {0};
 
     uint32_t repoCommitCount = 0;
 
     char current_repo_cstr[repository.size + 1];
     sv_cstr(repository, current_repo_cstr);
 
-    git_repository_open(&repo, current_repo_cstr);
-    git_revwalk_new(&revwalk, repo);
-    git_revwalk_push_head(revwalk);
+    // git_repository_open(&repo, current_repo_cstr);
+    // git_revwalk_new(&revwalk, repo);
+    // git_revwalk_push_head(revwalk);
 
-    uint8_t    any_author = 0;
-    git_commit *commit    = 0;
+    bool anyAuthor = false;
 
-    while(!git_revwalk_next(&oid, revwalk))
+    gfRevwalk    revwalk = {0};
+    gfCommitInfo commit  = {0};
+    // placeholder
+    uint8_t      oid     = 0;
+
+    // while(!git_revwalk_next(&oid, revwalk))
+    while(gfRevwalkNext(&revwalk, &oid))
     {
-        git_commit_lookup(&commit, repo, &oid);
+        // git_commit_lookup(&commit, repo, &oid);
+        // const git_signature *sign = git_commit_author(commit);
+        gfGetCommitInfo(repository, &oid, &commit);
 
-        const git_signature *sign = git_commit_author(commit);
+        StringView author = commit.email;
+        uint8_t    counts = anyAuthor;
 
-        StringView author = cstr_sv(sign->email);
-        git_time   commit_time = sign->when;
-        uint8_t    counts      = any_author;
-
-        if(commit_time.time < set->startYearTime || commit_time.time > set->endYearTime)
+        if(commit.time < set->startYearTime || commit.time > set->endYearTime)
         {
-            git_commit_free(commit);
+            // git_commit_free(commit);
             continue;
         }
 
@@ -294,7 +296,7 @@ f_internal void *gatherRepoData
             else if(sv_same(authorlist[j], cstr_sv("any")))
             {
                 counts     = 1;
-                any_author = 1;
+                anyAuthor = 1;
             }
         }
 
@@ -305,13 +307,13 @@ f_internal void *gatherRepoData
         if(counts)
         {
             ++repoCommitCount;
-            int64_t daysSince    = (set->currDayEnd - commit_time.time) / (24 * 3600);
+            int64_t daysSince    = (set->currDayEnd - commit.time) / (24 * 3600);
             int64_t currDayStart = set->currDayEnd - (24 * 3600);
 
             gfLock(set);
-            if(commit_time.time < set->oldestCommitTime)
+            if(commit.time < set->oldestCommitTime)
             {
-                set->oldestCommitTime = commit_time.time;
+                set->oldestCommitTime = commit.time;
             }
 
             ++set->heatSet->heatmap[daysSince];
@@ -320,31 +322,28 @@ f_internal void *gatherRepoData
             {
                 ++set->sorted[daysSince];
             }
-            if(commit_time.time >= currDayStart)
+            if(commit.time >= currDayStart)
             {
                 ++set->commitsToday;
             }
             gfUnlock(set);
 
-            if(flags & GF_FLAG_SUMMARY && commit_time.time >= currDayStart)
+            if(flags & GF_FLAG_SUMMARY && commit.time >= currDayStart)
             {
-                StringView summary = cstr_sv(git_commit_summary(commit));
                 // TODO: instead of printing (because it's in reverse), add the
                 // summary, timestamp & everything to a list and print at the
                 // end.
                 printf("("PRI_SV")\n[%02u:%02u]: "PRI_SV"\n\n",
                        ARG_SV(repository),
-                       (uint32_t)(commit_time.time - currDayStart) / 3600,
-                       (uint32_t)(commit_time.time % 3600) / 60,
-                       ARG_SV(summary));
+                       (uint32_t)(commit.time - currDayStart) / 3600,
+                       (uint32_t)(commit.time % 3600) / 60,
+                       ARG_SV(commit.summary));
             }
         }
         else if(flags & GF_FLAG_NOMATCH)
         {
             fprintf(stderr, "unmatched author: "PRI_SV"\n", ARG_SV(author));
         }
-
-        git_commit_free(commit);
     }
 
     if(repoCommitCount > set->repoMax)
@@ -354,9 +353,6 @@ f_internal void *gatherRepoData
         set->repoMax     = repoCommitCount;
         gfUnlock(set);
     }
-
-    git_revwalk_free(revwalk);
-    git_repository_free(repo);
 
     return 0;
 }
