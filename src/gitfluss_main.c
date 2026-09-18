@@ -246,7 +246,7 @@ f_internal void *gatherRepoData
 ){
     gfThreadData      *data       = (gfThreadData*)arguments;
     gfDisplaySettings *set        = data->set;
-    StringView        repository  = data->repository;
+    StringView        repo_sv     = data->repository;
     StringView        *authorlist = data->authorlist;
     uint32_t          authorcount = data->authorcount;
     uint8_t           flags       = data->flags;
@@ -257,8 +257,7 @@ f_internal void *gatherRepoData
 
     uint32_t repoCommitCount = 0;
 
-    char current_repo_cstr[repository.size + 1];
-    sv_cstr(repository, current_repo_cstr);
+    gfRepository repo = gfOpenRepository(repo_sv);
 
     // git_repository_open(&repo, current_repo_cstr);
     // git_revwalk_new(&revwalk, repo);
@@ -276,7 +275,7 @@ f_internal void *gatherRepoData
     {
         // git_commit_lookup(&commit, repo, &oid);
         // const git_signature *sign = git_commit_author(commit);
-        gfGetCommitInfo(repository, &oid, &commit);
+        gfGetCommitInfo(repo, &oid, &commit);
 
         StringView author = commit.email;
         uint8_t    counts = anyAuthor;
@@ -334,7 +333,7 @@ f_internal void *gatherRepoData
                 // summary, timestamp & everything to a list and print at the
                 // end.
                 printf("("PRI_SV")\n[%02u:%02u]: "PRI_SV"\n\n",
-                       ARG_SV(repository),
+                       ARG_SV(repo_sv),
                        (uint32_t)(commit.time - currDayStart) / 3600,
                        (uint32_t)(commit.time % 3600) / 60,
                        ARG_SV(commit.summary));
@@ -349,7 +348,9 @@ f_internal void *gatherRepoData
     if(repoCommitCount > set->repoMax)
     {
         gfLock(set);
-        set->biggestRepo = cstr_sv_cpy(current_repo_cstr, set->biggestRepoBuf);
+        char currentRepo[repo_sv.size + 1];
+        sv_cstr(repo_sv, currentRepo);
+        set->biggestRepo = cstr_sv_cpy(currentRepo, set->biggestRepoBuf);
         set->repoMax     = repoCommitCount;
         gfUnlock(set);
     }

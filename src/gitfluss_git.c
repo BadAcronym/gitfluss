@@ -1,8 +1,15 @@
 #include "gitfluss.h"
 
+gfRepository gfOpenRepository
+(
+    StringView repo_sv
+){
+    return (gfRepository){0};
+}
+
 void gfGetCommitInfo
 (
-    StringView   repository,
+    gfRepository repository,
     // placeholder
     uint8_t      *oid,
     gfCommitInfo *info

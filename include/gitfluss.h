@@ -169,6 +169,13 @@ typedef struct gfRevwalk
 }
 gfRevwalk;
 
+typedef struct gfRepository
+{
+    // FIXME: placeholder
+    uint8_t placeholder;
+}
+gfRepository;
+
 extern int64_t gfQueryTime
 (
     void
@@ -242,9 +249,14 @@ extern void gfReadArgs
     gfConf *config
 );
 
+extern gfRepository gfOpenRepository
+(
+    StringView repo_sv
+);
+
 extern void gfGetCommitInfo
 (
-    StringView   repository,
+    gfRepository repository,
     // placeholder
     uint8_t      *oid,
     gfCommitInfo *info
