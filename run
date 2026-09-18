@@ -17,6 +17,9 @@ src/gitfluss_main.c \
 src/gitfluss_git.c \
 src/gitfluss_parsing.c \
 src/linux_gitfluss_platform.c \
+vendor/datasurf/src/datasurf_zlib.c \
+vendor/datasurf/src/datasurf_huffman.c \
+vendor/datasurf/src/datasurf_algo_deflate.c \
 vendor/datasurf/vendor/puddle/src/string_view.c \
 vendor/datasurf/vendor/puddle/src/linux_pd_path.c \
 -Iinclude/ \
@@ -33,8 +36,9 @@ args_debug="-DDEBUG -g -O0"
 args_asan="$args_debug -DASAN \
 -fsanitize=address,leak,undefined \
 -fno-omit-frame-pointer \
--static-libasan \
--O0"
+-static-libasan"
+
+args_trace="$args_debug -DTRACE"
 
 function compile()
 {
@@ -87,8 +91,13 @@ if [[ $build = "asan" ]]
 then
     compile "$args_always $args_asan"
 else
+if [[ $build = "trace" ]]
+then
+    compile "$args_always $args_trace"
+else
     echo -e "\033[31m\nERROR: invalid make config: $build.\033[0m"
     exit 3;
+fi
 fi
 fi
 fi

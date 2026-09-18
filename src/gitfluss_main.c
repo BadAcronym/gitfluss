@@ -1,4 +1,6 @@
 #include "gitfluss.h"
+#include "datasurf_main.h"
+#include "pd_print_macros.h"
 
 #include <stdint.h>
 #include <stdio.h>
@@ -806,4 +808,14 @@ int main
     {
         free((void*)config.character);
     }
+
+    // TESTING: get simple info about a singular git object?
+    FILE *file = fopen("./.git/objects/03/16469dca00bbf56ac5345c2b87245b6571388d", "rb");
+    uint8_t enough[8192] = {0};
+
+    dsReadZlibPtr((uint8_t*)file, enough, 8192);
+
+    StringView enough_sv = cstr_sv((char *)enough);
+    PD_DEBUG("read test object:");
+    PD_DEBUG(PRI_SV, ARG_SV(enough_sv));
 }
