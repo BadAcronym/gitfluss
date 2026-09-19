@@ -2,7 +2,7 @@
 #include "pd_path.h"
 #include "pd_print_macros.h"
 
-f_internal void commitLookup
+void gfGetCommitInfo
 (
     StringView   repository,
     StringView   hash,
@@ -50,7 +50,7 @@ void gfGetRepositoryHead
     if(!(sv_find(refIdent, readHead) == readHead.data))
     {
         PD_TRACE("identified HEAD: '"PRI_SV"'", ARG_SV(readHead));
-        commitLookup(absolute, readHead, commit);
+        gfGetCommitInfo(absolute, readHead, commit);
         return;
     }
 
@@ -85,17 +85,6 @@ void gfGetRepositoryHead
     StringView hash = cstr_sv(hashBuf);
 
     PD_TRACE("identified HEAD: '"PRI_SV"'", ARG_SV(hash));
-    commitLookup(repository, hash, commit);
+    gfGetCommitInfo(repository, hash, commit);
     fclose(file);
-}
-
-void gfGetCommitInfo
-(
-    StringView   repository,
-    StringView   hash,
-    gfCommitInfo *commit
-){
-    // open commit from hash in either objects/firsttwocharacters/rest
-    // or look in packfile
-    // return info into commit
 }
