@@ -1,5 +1,7 @@
 #include "gitfluss.h"
+
 #include "pd_path.h"
+#include "pd_print_macros.h"
 
 f_internal void printHelp
 (
@@ -136,9 +138,7 @@ void gfAddAuthor
         config->authors = cstr_sv_cpy(author_cstr, new_buf);
     }
 
-    #ifdef DEBUG
-        fprintf(stderr, "author list: "PRI_SV"\n", ARG_SV(config->authors));
-    #endif
+    PD_TRACE("author list: "PRI_SV"", ARG_SV(config->authors));
 }
 
 void gfAddAuthorlist
@@ -265,9 +265,7 @@ void gfAddPath
         verifyDirectory(resolved);
     }
 
-    #ifdef DEBUG
-        fprintf(stderr, "path list: "PRI_SV"\n", ARG_SV(config->repositories));
-    #endif
+    PD_TRACE("path list: "PRI_SV"", ARG_SV(config->repositories));
 }
 
 void gfAddPathlist

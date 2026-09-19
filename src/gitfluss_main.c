@@ -367,10 +367,8 @@ f_internal void gatherData
         threadData[i].set         = set;
         threadData[i].flags       = config->flags;
 
-        #ifdef DEBUG
-            fprintf(stderr, "Thread %u: analyzing repository: '"PRI_SV"'\n", i,
-                    ARG_SV(threadData[i].repository));
-        #endif
+        PD_TRACE("Thread %u: analyzing repository: '"PRI_SV"'",
+                 i, ARG_SV(threadData[i].repository));
 
         gfDispatchThread(&threads[i], (void*)gatherRepoData, &threadData[i]);
     }
