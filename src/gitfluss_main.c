@@ -260,7 +260,7 @@ f_internal void *gatherRepoData
     gfCommitInfo commit = {0};
     gfGetRepositoryHead(repository, &commit);
 
-    while(commit.parent)
+    while(commit.parentHash.size)
     {
         StringView author = commit.authorMail;
         uint8_t    counts = anyAuthor;
@@ -329,7 +329,7 @@ f_internal void *gatherRepoData
         }
 
     nextCommit:
-        gfGetCommitInfo(repository, commit.parent, &commit);
+        gfGetCommitInfo(repository, commit.parentHash, &commit);
     }
 
     if(repoCommitCount > set->repoMax)

@@ -159,8 +159,8 @@ typedef struct gfCommitInfo
     StringView authorMail;
     StringView commiterName;
     StringView commiterMail;
+    StringView parentHash;
     StringView summary;
-    uint64_t   parent;
     int64_t    time;
 }
 gfCommitInfo;
@@ -247,7 +247,7 @@ extern void gfGetRepositoryHead
 extern void gfGetCommitInfo
 (
     StringView   repository,
-    uint64_t     hash,
+    StringView   hash,
     gfCommitInfo *commit
 );
 
