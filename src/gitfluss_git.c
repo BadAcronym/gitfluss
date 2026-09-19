@@ -15,6 +15,14 @@ f_internal void freeSV
     }
 }
 
+f_internal int64_t readTimeFromSV
+(
+    StringView sv
+){
+    // TODO: read this
+    return 0;
+}
+
 f_internal void readCommitData
 (
     StringView   path,
@@ -60,28 +68,85 @@ f_internal void readCommitData
     parsed.data = (char*)commitBuf;
     parsed.size = 1024;
 
-    StringView svBuf[8];
+    StringView svBuf[10];
 
     sv_separate_by_delim(parsed, svBuf, '\n');
 
-    StringView parent = svBuf[1];
-    sv_trim(&parent, 8, SV_LEFT);
+    StringView summary      = {0};
+    StringView authorName   = {0};
+    StringView authorMail   = {0};
+    StringView commiterName = {0};
+    StringView commiterMail = {0};
+    StringView parent       = {0};
+    int64_t    authorTime   = 0;
+    int64_t    commiterTime = 0;
 
-    StringView authorLine   = svBuf[2];
-    StringView commiterLine = svBuf[3];
-    StringView summary      = svBuf[4];
+    StringView space         = cstr_sv(" ");
+    StringView spaceKarat    = cstr_sv(" <");
+    StringView karatSpace    = cstr_sv("> ");
+    StringView authorIdent   = cstr_sv("author");
+    StringView parentIdent   = cstr_sv("parent");
+    StringView commiterIdent = cstr_sv("commiter");
 
-    PD_TRACE("parsed parent:       "PRI_SV, ARG_SV(parent));
+    for(uint8_t i = 0; i < 8; ++i)
+    {
+        if(sv_find(authorIdent, svBuf[i]))
+        {
+            authorName = svBuf[i];
+            sv_trim(&authorName, 7, SV_LEFT);
+            const char *startKaratLoc = sv_find(spaceKarat, authorName);
+            const char *endKaratLoc   = sv_find(karatSpace, authorName);
+            authorName.size = startKaratLoc - authorName.data;
+
+            authorMail.data = startKaratLoc + 2;
+            authorMail.size = endKaratLoc   - authorMail.data;
+
+            StringView authorTimeSV;
+            authorTimeSV.data = authorMail.data + authorMail.size + 2;
+            authorTimeSV.size = sv_find(space, authorTimeSV) - authorTimeSV.data;
+            authorTime = readTimeFromSV(authorTimeSV);
+
+            PD_TRACE("parsed authorName:   "PRI_SV, ARG_SV(authorName));
+            PD_TRACE("parsed authorMail:   "PRI_SV, ARG_SV(authorMail));
+            PD_TRACE("parsed authorTime:   "PRI_SV, ARG_SV(authorTimeSV));
+        }
+        else if(sv_find(commiterIdent, svBuf[i]))
+        {
+            commiterName = svBuf[i];
+            sv_trim(&commiterName, 9, SV_LEFT);
+            const char *startKaratLoc = sv_find(spaceKarat, commiterName);
+            const char *endKaratLoc   = sv_find(karatSpace, commiterName);
+            commiterName.size = startKaratLoc - commiterName.data;
+
+            commiterMail.data = startKaratLoc + 2;
+            commiterMail.size = endKaratLoc   - commiterMail.data;
+
+            StringView commiterTimeSV;
+            commiterTimeSV.data = commiterMail.data + commiterMail.size + 2;
+            commiterTimeSV.size = sv_find(space, commiterTimeSV) - commiterTimeSV.data;
+            commiterTime = readTimeFromSV(commiterTimeSV);
+
+            PD_TRACE("parsed commiterName: "PRI_SV, ARG_SV(commiterName));
+            PD_TRACE("parsed commiterMail: "PRI_SV, ARG_SV(commiterMail));
+            PD_TRACE("parsed commiterTime: "PRI_SV, ARG_SV(commiterTimeSV));
+        }
+        else if(sv_find(parentIdent, svBuf[i]))
+        {
+            parent = svBuf[i];
+            sv_trim(&parent, 7, SV_LEFT);
+
+            PD_TRACE("parsed parent:       "PRI_SV, ARG_SV(parent));
+        }
+    }
+
     PD_TRACE("parsed summary:      "PRI_SV, ARG_SV(summary));
-    PD_TRACE("parsed authorLine:   "PRI_SV, ARG_SV(authorLine));
-    PD_TRACE("parsed commiterLine: "PRI_SV, ARG_SV(commiterLine));
 
-    commit->summary      = sv_cpy(summary);
+    // commit->summary      = sv_cpy(summary);
     // commit->authorName   = sv_cpy(authorName);
     // commit->authorMail   = sv_cpy(authorMail);
     // commit->commiterName = sv_cpy(commiterName);
     // commit->commiterMail = sv_cpy(commiterMail);
-    commit->parentHash   = sv_cpy(parent);
+    // commit->parentHash   = sv_cpy(parent);
 
     fclose(file);
 }
@@ -92,12 +157,7 @@ void gfGetCommitInfo
     StringView   hash,
     gfCommitInfo *commit
 ){
-    if(hash.size == 40 || hash.size == 64)
-    {
-        hash.size -= 1;
-    }
-
-    PD_ASSERT(hash.size == 39 || hash.size == 63, "commit hash has invalid size: %lu. "
+    PD_ASSERT(hash.size == 40 || hash.size == 64, "commit hash has invalid size: %lu. "
               "should be either 40 or 64 characters big. passed hash was: '"PRI_SV"'",
               hash.size, ARG_SV(hash));
 
