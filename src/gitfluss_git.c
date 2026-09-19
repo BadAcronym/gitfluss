@@ -11,8 +11,9 @@ f_internal void freeSV
     if(sv->data)
     {
         free((void*)sv->data);
-        sv->size = 0;
     }
+    sv->data = 0;
+    sv->size = 0;
 }
 
 f_internal int64_t readTimeFromSV
@@ -39,19 +40,6 @@ f_internal void readCommitData
     StringView   path,
     gfCommitInfo *commit
 ){
-    if(!commit)
-    {
-        PD_ERROR("commit that was passed is nullptr.");
-        return;
-    }
-
-    freeSV(&commit->summary);
-    freeSV(&commit->parentHash);
-    freeSV(&commit->authorName);
-    freeSV(&commit->authorMail);
-    freeSV(&commit->commiterName);
-    freeSV(&commit->commiterMail);
-
     PD_TRACE("opening to read commit from path: '"PRI_SV"'", ARG_SV(path));
 
     char pathBuf[path.size + 1];
@@ -98,11 +86,14 @@ f_internal void readCommitData
     StringView parentIdent   = cstr_sv("parent");
     StringView commiterIdent = cstr_sv("commiter");
 
+    uint8_t summaryLine = 0;
+
     for(uint8_t i = 0; i < 8; ++i)
     {
         if(sv_find(authorIdent, svBuf[i]))
         {
-            authorName = svBuf[i];
+            summaryLine = i + 2;
+            authorName  = svBuf[i];
             sv_trim(&authorName, 7, SV_LEFT);
             const char *startKaratLoc = sv_find(spaceKarat, authorName);
             const char *endKaratLoc   = sv_find(karatSpace, authorName);
@@ -136,6 +127,7 @@ f_internal void readCommitData
         }
         else if(sv_find(commiterIdent, svBuf[i]))
         {
+            summaryLine  = i + 2;
             commiterName = svBuf[i];
             sv_trim(&commiterName, 9, SV_LEFT);
             const char *startKaratLoc = sv_find(spaceKarat, commiterName);
@@ -177,7 +169,9 @@ f_internal void readCommitData
         }
     }
 
-    PD_TRACE("parsed summary:      "PRI_SV, ARG_SV(summary));
+    summary = svBuf[summaryLine];
+
+    PD_TRACE("parsed summary: '"PRI_SV"'", ARG_SV(summary));
 
     commit->authorTime   = authorTime;
     commit->commiterTime = commiterTime;
@@ -216,6 +210,21 @@ void gfGetCommitInfo
     StringView   hash,
     gfCommitInfo *commit
 ){
+    if(!commit)
+    {
+        PD_ERROR("commit that was passed is nullptr.");
+        return;
+    }
+
+    freeSV(&commit->summary);
+    freeSV(&commit->parentHash);
+    freeSV(&commit->authorName);
+    freeSV(&commit->authorMail);
+    freeSV(&commit->commiterName);
+    freeSV(&commit->commiterMail);
+
+    PD_ASSERT(repository.data && repository.size, "cannot open null repository.");
+
     PD_ASSERT(hash.size == 40 || hash.size == 64, "commit hash has invalid size: %lu. "
               "should be either 40 or 64 characters big. passed hash was: '"PRI_SV"'",
               hash.size, ARG_SV(hash));
@@ -242,8 +251,8 @@ void gfGetCommitInfo
         return;
     }
 
-    // PD_WARN("could not find commit in '"PRI_SV"'. commit lookup from packfiles "
-    //         "unimplemented. tee-hee", ARG_SV(commitPath));
+    PD_WARN("could not find commit in '"PRI_SV"'. commit lookup from packfiles "
+            "unimplemented. tee-hee", ARG_SV(commitPath));
 }
 
 void gfGetRepositoryHead

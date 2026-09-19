@@ -260,10 +260,12 @@ f_internal void *gatherRepoData
     gfCommitInfo commit = {0};
     gfGetRepositoryHead(repository, &commit);
 
-    while(commit.parentHash.size)
+    for(;;)
     {
         StringView author = commit.authorMail;
-        uint8_t    counts = anyAuthor;
+        bool       counts = anyAuthor;
+
+        PD_ASSERT(author.data && author.size, "cannot work with null author.");
 
         if(commit.authorTime < set->startYearTime ||
            commit.authorTime > set->endYearTime
@@ -275,12 +277,12 @@ f_internal void *gatherRepoData
         {
             if(sv_same(authorlist[j], author))
             {
-                counts = 1;
+                counts = true;
             }
             else if(sv_same(authorlist[j], cstr_sv("any")))
             {
-                counts     = 1;
-                anyAuthor = 1;
+                counts    = true;
+                anyAuthor = true;
             }
         }
 
@@ -330,6 +332,10 @@ f_internal void *gatherRepoData
         }
 
     nextCommit:
+        if(!commit.parentHash.data || !commit.parentHash.size)
+        {
+            break;
+        }
         gfGetCommitInfo(repository, commit.parentHash, &commit);
     }
 
