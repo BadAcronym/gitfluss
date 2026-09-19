@@ -2,6 +2,15 @@
 #include "pd_path.h"
 #include "pd_print_macros.h"
 
+f_internal void readCommitData
+(
+    StringView   path,
+    gfCommitInfo *commit
+){
+    PD_TRACE("opening to read commit from path: '"PRI_SV"'", ARG_SV(path));
+    PD_WARN("actually reading commit unimplemented. tee-hee");
+}
+
 void gfGetCommitInfo
 (
     StringView   repository,
@@ -10,7 +19,31 @@ void gfGetCommitInfo
 ){
     PD_ASSERT(hash.size == 40 || hash.size == 64, "commit hash has invalid size: %lu. "
               "should be either 40 or 64.", hash.size);
-    PD_WARN("commit hash lookup unimplemented. tee-hee");
+
+    StringView hashStart = hash;
+    hashStart.size = 2;
+
+    StringView hashRest = hash;
+    sv_trim(&hashRest, 2, SV_LEFT);
+
+    StringView folder = cstr_sv("/.git/objects/");
+    StringView sep    = cstr_sv("/");
+
+    char pathBuf[4096] = {0};
+    StringView commitPath = sv_concat(repository, folder, pathBuf);
+    commitPath = sv_concat(commitPath, hashStart, pathBuf);
+    commitPath = sv_concat(commitPath, sep, pathBuf);
+    commitPath = sv_concat(commitPath, hashRest, pathBuf);
+
+    uint8_t result = pdVerifyPath(commitPath);
+    if(result == PD_TYPE_FILE)
+    {
+        readCommitData(commitPath, commit);
+        return;
+    }
+
+    PD_WARN("could not find commit in '"PRI_SV"'. commit lookup from packfiles "
+            "unimplemented. tee-hee", ARG_SV(commitPath));
     // open commit from either .git/objects/firsttwocharacters/rest
     // or look in packfile
     // return info into commit
