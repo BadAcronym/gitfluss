@@ -1,26 +1,18 @@
 #include "gitfluss.h"
 
-gfRepository gfOpenRepository
+void gfGetRepositoryHead
 (
-    StringView repo_sv
+    StringView   repository,
+    gfCommitInfo *commit
 ){
-    return (gfRepository){0};
+
 }
 
 void gfGetCommitInfo
 (
-    gfRepository repository,
-    // placeholder
-    uint8_t      *oid,
-    gfCommitInfo *info
+    StringView   repository,
+    uint64_t     hash,
+    gfCommitInfo *commit
 ){
-}
 
-bool gfRevwalkNext
-(
-    gfRevwalk *revwalk,
-    //placeholder
-    uint8_t   *oid
-){
-    return 0;
 }

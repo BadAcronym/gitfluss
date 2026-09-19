@@ -155,26 +155,15 @@ gfThreadData;
 
 typedef struct gfCommitInfo
 {
-    StringView name;
-    StringView email;
+    StringView authorName;
+    StringView authorMail;
+    StringView commiterName;
+    StringView commiterMail;
     StringView summary;
+    uint64_t   parent;
     int64_t    time;
 }
 gfCommitInfo;
-
-typedef struct gfRevwalk
-{
-    // FIXME: placeholder
-    uint8_t placeholder;
-}
-gfRevwalk;
-
-typedef struct gfRepository
-{
-    // FIXME: placeholder
-    uint8_t placeholder;
-}
-gfRepository;
 
 extern int64_t gfQueryTime
 (
@@ -249,24 +238,17 @@ extern void gfReadArgs
     gfConf *config
 );
 
-extern gfRepository gfOpenRepository
+extern void gfGetRepositoryHead
 (
-    StringView repo_sv
+    StringView   repository,
+    gfCommitInfo *commit
 );
 
 extern void gfGetCommitInfo
 (
-    gfRepository repository,
-    // placeholder
-    uint8_t      *oid,
-    gfCommitInfo *info
-);
-
-extern bool gfRevwalkNext
-(
-    gfRevwalk *revwalk,
-    //placeholder
-    uint8_t   *oid
+    StringView   repository,
+    uint64_t     hash,
+    gfCommitInfo *commit
 );
 
 #endif

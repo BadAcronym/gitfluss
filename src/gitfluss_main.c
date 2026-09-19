@@ -248,44 +248,26 @@ f_internal void *gatherRepoData
 ){
     gfThreadData      *data       = (gfThreadData*)arguments;
     gfDisplaySettings *set        = data->set;
-    StringView        repo_sv     = data->repository;
+    StringView        repository     = data->repository;
     StringView        *authorlist = data->authorlist;
     uint32_t          authorcount = data->authorcount;
     uint8_t           flags       = data->flags;
 
-    // git_repository *repo    = 0;
-    // git_revwalk    *revwalk = 0;
-    // git_oid        oid      = {0};
-
     uint32_t repoCommitCount = 0;
-
-    gfRepository repo = gfOpenRepository(repo_sv);
-
-    // git_repository_open(&repo, current_repo_cstr);
-    // git_revwalk_new(&revwalk, repo);
-    // git_revwalk_push_head(revwalk);
 
     bool anyAuthor = false;
 
-    gfRevwalk    revwalk = {0};
-    gfCommitInfo commit  = {0};
-    // placeholder
-    uint8_t      oid     = 0;
+    gfCommitInfo commit = {0};
+    gfGetRepositoryHead(repository, &commit);
 
-    // while(!git_revwalk_next(&oid, revwalk))
-    while(gfRevwalkNext(&revwalk, &oid))
+    while(commit.parent)
     {
-        // git_commit_lookup(&commit, repo, &oid);
-        // const git_signature *sign = git_commit_author(commit);
-        gfGetCommitInfo(repo, &oid, &commit);
-
-        StringView author = commit.email;
+        StringView author = commit.authorMail;
         uint8_t    counts = anyAuthor;
 
         if(commit.time < set->startYearTime || commit.time > set->endYearTime)
         {
-            // git_commit_free(commit);
-            continue;
+            goto nextCommit;
         }
 
         for(uint16_t j = 0; !counts && j < authorcount; ++j)
@@ -335,7 +317,7 @@ f_internal void *gatherRepoData
                 // summary, timestamp & everything to a list and print at the
                 // end.
                 printf("("PRI_SV")\n[%02u:%02u]: "PRI_SV"\n\n",
-                       ARG_SV(repo_sv),
+                       ARG_SV(repository),
                        (uint32_t)(commit.time - currDayStart) / 3600,
                        (uint32_t)(commit.time % 3600) / 60,
                        ARG_SV(commit.summary));
@@ -345,13 +327,16 @@ f_internal void *gatherRepoData
         {
             fprintf(stderr, "unmatched author: "PRI_SV"\n", ARG_SV(author));
         }
+
+    nextCommit:
+        gfGetCommitInfo(repository, commit.parent, &commit);
     }
 
     if(repoCommitCount > set->repoMax)
     {
         gfLock(set);
-        char currentRepo[repo_sv.size + 1];
-        sv_cstr(repo_sv, currentRepo);
+        char currentRepo[repository.size + 1];
+        sv_cstr(repository, currentRepo);
         set->biggestRepo = cstr_sv_cpy(currentRepo, set->biggestRepoBuf);
         set->repoMax     = repoCommitCount;
         gfUnlock(set);
@@ -810,12 +795,33 @@ int main
     }
 
     // TESTING: get simple info about a singular git object?
-    FILE *file = fopen("./.git/objects/03/16469dca00bbf56ac5345c2b87245b6571388d", "rb");
-    uint8_t enough[8192] = {0};
+    FILE *file = fopen("./.git/objects/37/547c50c5ed701f27b47df2961e349a78e6df6b", "rb");
+    if(!file)
+    {
+        return 1;
+    }
 
-    dsReadZlibPtr((uint8_t*)file, enough, 8192);
+    uint8_t zlib[4096] = {0};
+    uint8_t enough[bufsize * 4] = {0};
 
-    StringView enough_sv = cstr_sv((char *)enough);
-    PD_DEBUG("read test object:");
-    PD_DEBUG(PRI_SV, ARG_SV(enough_sv));
+    bool     keepReading = true;
+    uint64_t elements    = 0;
+    for(uint32_t i = 0; keepReading; ++i)
+    {
+        elements    = fread(&zlib[i], 1, 1, file);
+        keepReading = elements == 1;
+    }
+
+    elements = dsReadZlibPtr(zlib, enough, bufsize * 4);
+
+    PD_DEBUG("read test object (size %lu):", elements);
+
+    char *testPtr = (char*)enough;
+    uint32_t lastSize = 0;
+    for(uint32_t i = 0; i < elements; ++i)
+    {
+        StringView sv = cstr_sv((char *)testPtr + i);
+        i += sv.size;
+        PD_DEBUG(PRI_SV, ARG_SV(sv));
+    }
 }
