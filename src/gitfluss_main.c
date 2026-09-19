@@ -359,6 +359,8 @@ f_internal void gatherData
     gfThread     threads[set->repositoryCount];
     gfThreadData threadData[set->repositoryCount];
 
+    PD_TRACE("dispatching %u threads.", set->repositoryCount);
+
     for(uint32_t i = 0; i < set->repositoryCount; ++i)
     {
         threadData[i].id          = i;
@@ -368,7 +370,7 @@ f_internal void gatherData
         threadData[i].set         = set;
         threadData[i].flags       = config->flags;
 
-        PD_TRACE("Thread %u: analyzing repository: '"PRI_SV"'",
+        PD_TRACE("thread %u: analyzing repository: '"PRI_SV"'",
                  i, ARG_SV(threadData[i].repository));
 
         gfDispatchThread(&threads[i], (void*)gatherRepoData, &threadData[i]);
@@ -376,6 +378,7 @@ f_internal void gatherData
 
     for(uint32_t i = 0; i < set->repositoryCount; ++i)
     {
+        PD_TRACE("waiting on thread #%u", i);
         gfWaitThread(threads[i]);
     }
 }
