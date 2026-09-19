@@ -265,8 +265,9 @@ f_internal void *gatherRepoData
         StringView author = commit.authorMail;
         uint8_t    counts = anyAuthor;
 
-        if(commit.time < set->startYearTime || commit.time > set->endYearTime)
-        {
+        if(commit.authorTime < set->startYearTime ||
+           commit.authorTime > set->endYearTime
+        ){
             goto nextCommit;
         }
 
@@ -290,13 +291,13 @@ f_internal void *gatherRepoData
         if(counts)
         {
             ++repoCommitCount;
-            int64_t daysSince    = (set->currDayEnd - commit.time) / (24 * 3600);
+            int64_t daysSince    = (set->currDayEnd - commit.authorTime) / (24 * 3600);
             int64_t currDayStart = set->currDayEnd - (24 * 3600);
 
             gfLock(set);
-            if(commit.time < set->oldestCommitTime)
+            if(commit.authorTime < set->oldestCommitTime)
             {
-                set->oldestCommitTime = commit.time;
+                set->oldestCommitTime = commit.authorTime;
             }
 
             ++set->heatSet->heatmap[daysSince];
@@ -305,21 +306,21 @@ f_internal void *gatherRepoData
             {
                 ++set->sorted[daysSince];
             }
-            if(commit.time >= currDayStart)
+            if(commit.authorTime >= currDayStart)
             {
                 ++set->commitsToday;
             }
             gfUnlock(set);
 
-            if(flags & GF_FLAG_SUMMARY && commit.time >= currDayStart)
+            if(flags & GF_FLAG_SUMMARY && commit.authorTime >= currDayStart)
             {
                 // TODO: instead of printing (because it's in reverse), add the
                 // summary, timestamp & everything to a list and print at the
                 // end.
                 printf("("PRI_SV")\n[%02u:%02u]: "PRI_SV"\n\n",
                        ARG_SV(repository),
-                       (uint32_t)(commit.time - currDayStart) / 3600,
-                       (uint32_t)(commit.time % 3600) / 60,
+                       (uint32_t)(commit.authorTime - currDayStart) / 3600,
+                       (uint32_t)(commit.authorTime % 3600) / 60,
                        ARG_SV(commit.summary));
             }
         }
@@ -790,36 +791,5 @@ int main
     if(config.character)
     {
         free((void*)config.character);
-    }
-
-    // TESTING: get simple info about a singular git object?
-    FILE *file = fopen("./.git/objects/37/547c50c5ed701f27b47df2961e349a78e6df6b", "rb");
-    if(!file)
-    {
-        return 1;
-    }
-
-    uint8_t zlib[4096] = {0};
-    uint8_t enough[bufsize * 4] = {0};
-
-    bool     keepReading = true;
-    uint64_t elements    = 0;
-    for(uint32_t i = 0; keepReading; ++i)
-    {
-        elements    = fread(&zlib[i], 1, 1, file);
-        keepReading = elements == 1;
-    }
-
-    elements = dsReadZlibPtr(zlib, enough, bufsize * 4);
-
-    PD_DEBUG("read test object (size %lu):", elements);
-
-    char *testPtr = (char*)enough;
-    uint32_t lastSize = 0;
-    for(uint32_t i = 0; i < elements; ++i)
-    {
-        StringView sv = cstr_sv((char *)testPtr + i);
-        i += sv.size;
-        PD_DEBUG(PRI_SV, ARG_SV(sv));
     }
 }

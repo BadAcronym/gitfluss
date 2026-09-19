@@ -155,13 +155,14 @@ gfThreadData;
 
 typedef struct gfCommitInfo
 {
+    StringView summary;
+    StringView parentHash;
     StringView authorName;
     StringView authorMail;
     StringView commiterName;
     StringView commiterMail;
-    StringView parentHash;
-    StringView summary;
-    int64_t    time;
+    int64_t    authorTime;
+    int64_t    commiterTime;
 }
 gfCommitInfo;
 

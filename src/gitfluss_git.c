@@ -1,14 +1,89 @@
 #include "gitfluss.h"
+
+#include "datasurf_main.h"
 #include "pd_path.h"
 #include "pd_print_macros.h"
+
+f_internal void freeSV
+(
+    StringView *sv
+){
+    if(sv->data)
+    {
+        free((void*)sv->data);
+        sv->size = 0;
+    }
+}
 
 f_internal void readCommitData
 (
     StringView   path,
     gfCommitInfo *commit
 ){
+    if(!commit)
+    {
+        PD_ERROR("commit that was passed is nullptr.");
+        return;
+    }
+
+    freeSV(&commit->summary);
+    freeSV(&commit->parentHash);
+    freeSV(&commit->authorName);
+    freeSV(&commit->authorMail);
+    freeSV(&commit->commiterName);
+    freeSV(&commit->commiterMail);
+
     PD_TRACE("opening to read commit from path: '"PRI_SV"'", ARG_SV(path));
-    PD_WARN("actually reading commit unimplemented. tee-hee");
+
+    char pathBuf[path.size + 1];
+    sv_cstr(path, pathBuf);
+
+    FILE *file = fopen(pathBuf, "rb");
+    if(!file)
+    {
+        PD_WARN("failed to open commit file: '%s'", pathBuf);
+        return;
+    }
+
+    uint8_t zlibBuf[1024] = {0};
+
+    uint64_t elements = 1;
+    for(uint64_t i = 0; i < 1024 && elements == 1; ++i)
+    {
+        elements = fread(&zlibBuf[i], 1, 1, file);
+    }
+
+    uint8_t commitBuf[1024] = {0};
+    dsReadZlibPtr(zlibBuf, commitBuf, 1024);
+
+    StringView parsed;
+    parsed.data = (char*)commitBuf;
+    parsed.size = 1024;
+
+    StringView svBuf[8];
+
+    sv_separate_by_delim(parsed, svBuf, '\n');
+
+    StringView parent = svBuf[1];
+    sv_trim(&parent, 8, SV_LEFT);
+
+    StringView authorLine   = svBuf[2];
+    StringView commiterLine = svBuf[3];
+    StringView summary      = svBuf[4];
+
+    PD_TRACE("parsed parent:       "PRI_SV, ARG_SV(parent));
+    PD_TRACE("parsed summary:      "PRI_SV, ARG_SV(summary));
+    PD_TRACE("parsed authorLine:   "PRI_SV, ARG_SV(authorLine));
+    PD_TRACE("parsed commiterLine: "PRI_SV, ARG_SV(commiterLine));
+
+    commit->summary      = sv_cpy(summary);
+    // commit->authorName   = sv_cpy(authorName);
+    // commit->authorMail   = sv_cpy(authorMail);
+    // commit->commiterName = sv_cpy(commiterName);
+    // commit->commiterMail = sv_cpy(commiterMail);
+    commit->parentHash   = sv_cpy(parent);
+
+    fclose(file);
 }
 
 void gfGetCommitInfo
@@ -17,8 +92,14 @@ void gfGetCommitInfo
     StringView   hash,
     gfCommitInfo *commit
 ){
-    PD_ASSERT(hash.size == 40 || hash.size == 64, "commit hash has invalid size: %lu. "
-              "should be either 40 or 64.", hash.size);
+    if(hash.size == 40 || hash.size == 64)
+    {
+        hash.size -= 1;
+    }
+
+    PD_ASSERT(hash.size == 39 || hash.size == 63, "commit hash has invalid size: %lu. "
+              "should be either 40 or 64 characters big. passed hash was: '"PRI_SV"'",
+              hash.size, ARG_SV(hash));
 
     StringView hashStart = hash;
     hashStart.size = 2;
@@ -44,9 +125,6 @@ void gfGetCommitInfo
 
     PD_WARN("could not find commit in '"PRI_SV"'. commit lookup from packfiles "
             "unimplemented. tee-hee", ARG_SV(commitPath));
-    // open commit from either .git/objects/firsttwocharacters/rest
-    // or look in packfile
-    // return info into commit
 }
 
 void gfGetRepositoryHead
