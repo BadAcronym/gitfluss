@@ -103,9 +103,7 @@ f_internal void setColour
         config->colour = WHITE;
     }
 
-    #ifdef DEBUG
-        fprintf(stderr, "detected colour: "PRI_SV"\n", ARG_SV(colour));
-    #endif
+    PD_DEBUG("detected colour: "PRI_SV"", ARG_SV(colour));
 }
 
 void gfAddAuthor
@@ -156,20 +154,16 @@ void gfAddAuthorlist
 
     if(pdVerifyPath(path_expanded) != PD_TYPE_FILE)
     {
-        #ifdef DEBUG
-        fprintf(stderr, "\033[33;1mWARNING: tasked with opening author list file: '"
-                PRI_SV"', no such file exists.\033[0m\n", ARG_SV(path_expanded));
-        #endif
+        PD_WARN("tasked with opening author list file: '"PRI_SV"', no such file "
+                "exists.", ARG_SV(path_expanded));
         return;
     }
 
     FILE *file = fopen(path_expanded_cstr, "r");
     if(!file)
     {
-        #ifdef DEBUG
-        fprintf(stderr, "\033[33;1mWARNING: tasked with opening author list file: '%s' "
-                        ", failed to open.\033[0m\n", path_expanded_cstr);
-        #endif
+        PD_WARN("tasked with opening author list file: '%s' , failed to open.",
+                path_expanded_cstr);
         return;
     }
 
@@ -198,8 +192,7 @@ f_internal void verifyDirectory
     uint8_t result = pdVerifyPath(resolved);
     if(result == PD_TYPE_FILE)
     {
-        fprintf(stderr, "\033[33;3mWARNING: path '"PRI_SV"' is a file, not a "
-                        "directory.\033[0m\n", ARG_SV(resolved));
+        PD_WARN("path '"PRI_SV"' is a file, not a directory.", ARG_SV(resolved));
         return;
     }
     else if(result == PD_TYPE_ERROR || result == PD_TYPE_OTHER)
@@ -207,9 +200,10 @@ f_internal void verifyDirectory
         StringView dashes = cstr_sv("--");
         if(sv_find(dashes, resolved) == resolved.data)
         {
+            return;
         }
-        fprintf(stderr, "\033[33;3mWARNING: path '"PRI_SV"' does not exist. Ignoring..."
-                "\033[0m\n", ARG_SV(resolved));
+
+        PD_WARN("path '"PRI_SV"' does not exist. Ignoring...", ARG_SV(resolved));
     }
 }
 
@@ -245,8 +239,8 @@ void gfAddPath
         pathSep[resolved.size + 1] = '\0';
         if(sv_find(pathComp, config->repositories))
         {
-            fprintf(stderr, "\033[33;3mPath '"PRI_SV"' already in repository "
-                            "list. Ignoring duplicate...\033[0m\n", ARG_SV(resolved));
+            PD_DEBUG("path '"PRI_SV"' already in repository list. Ignoring "
+                     "duplicate...", ARG_SV(resolved));
             return;
         }
 
@@ -280,20 +274,16 @@ void gfAddPathlist
 
     if(pdVerifyPath(path_expanded) != PD_TYPE_FILE)
     {
-        #ifdef DEBUG
-        fprintf(stderr, "\033[33;1mWARNING: tasked with opening path list file: '"
-                PRI_SV"', no such file exists.\033[0m\n", ARG_SV(path_expanded));
-        #endif
+        PD_WARN("tasked with opening path list file: '"PRI_SV"', no such file exists.",
+                ARG_SV(path_expanded));
         return;
     }
 
     FILE *file = fopen(path_expanded_cstr, "r");
     if(!file)
     {
-        #ifdef DEBUG
-        fprintf(stderr, "\033[33;1mWARNING: tasked with opening path list file: '"
-                        PRI_SV"', failed to open.\033[0m\n", ARG_SV(path_expanded));
-        #endif
+        PD_DEBUG("tasked with opening path list file: '"PRI_SV"', failed to open.",
+                 ARG_SV(path_expanded));
         return;
     }
 
@@ -315,22 +305,27 @@ void gfAddPathlist
     fclose(file);
 }
 
-f_internal uint8_t parseDigits
+f_internal uint8_t parseYear
 (
     const char *string
 ){
     uint8_t number = 0;
-    for(uint16_t i = 0; string[i] != '\0' && string[i] != '\n'; ++i)
+    for(uint8_t i = 0; string[i] != '\0' && string[i] != '\n'; ++i)
     {
+        if(i > 2)
+        {
+            PD_WARN("trying to read too many digits into year: %u.", i);
+            return number;
+        }
+
         if(string[i] > 0x2F && string[i] < 0x3A)
         {
             number *= 10;
-            number += ((uint8_t)string[i] - 0x30);
+            number += (string[i] - 0x30);
         }
         else
         {
-            fprintf(stderr, "\033[33;3mWARNING: character '%c' is not a digit. "
-                    "Ignoring...\033[0m\n", string[i]);
+            PD_WARN("character '%c' is not a digit. Ignoring...", string[i]);
         }
     }
 
@@ -532,7 +527,7 @@ void gfReadConfig
         const char* yearloc = sv_find(years_sv, buffer);
         if(yearloc)
         {
-            config->years = parseDigits(buffer.data + years_sv.size + 1);
+            config->years = parseYear(buffer.data + years_sv.size + 1);
             continue;
         }
 
@@ -571,8 +566,7 @@ f_internal void printSpecMissing
 (
     const char *arg
 ){
-    fprintf(stderr, "\033[33;3mWARNING: option '%s' requires a "
-            "specified argument. Ignoring...\033[0m\n", arg);
+    PD_WARN("option '%s' requires a specified argument. Ignoring...", arg);
 }
 
 f_internal uint8_t checkIdentMissing
@@ -830,7 +824,7 @@ void gfReadArgs
                 continue;
             }
 
-            config->years = parseDigits(argv[i + 1]);
+            config->years = parseYear(argv[i + 1]);
             ++i;
             continue;
         }
@@ -871,8 +865,7 @@ void gfReadArgs
         }
         else
         {
-            fprintf(stderr, "\033[31;3mERROR: unknown option '"PRI_SV
-                    "'.\033[0m\n", ARG_SV(arg));
+            PD_ERROR("unknown option '"PRI_SV"'.", ARG_SV(arg));
             printHelp();
             exit(1);
         }

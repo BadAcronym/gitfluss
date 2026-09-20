@@ -328,7 +328,7 @@ f_internal void *gatherRepoData
         }
         else if(flags & GF_FLAG_NOMATCH)
         {
-            fprintf(stderr, "unmatched author: "PRI_SV"\n", ARG_SV(author));
+            printf("unmatched author: "PRI_SV"\n", ARG_SV(author));
         }
 
     nextCommit:
@@ -544,10 +544,8 @@ f_internal void displayData
     {
         currentYear = 1970 + (yearStart / (365 * 24 * 3600));
         yearStart -= 365 * 24 * 3600;
-        #ifdef DEBUG
-            fprintf(stderr, "calculating year frame [%li-%li] @ start %li\n",
-                             currentYear - 1, currentYear, yearStart);
-        #endif
+        PD_DEBUG("calculating year frame [%li-%li] @ start %li",
+                 currentYear - 1, currentYear, yearStart);
 
         if((currentYear + 1) % 4 == 2)
         {
@@ -648,9 +646,8 @@ f_internal void displayData
         uint32_t currPrintYear = 1970 + heatSet.yearsEpoch;
         if(currPrintYear < 1971)
         {
-            fprintf(stderr, "\033[33;3mWARNING: skipping year frame [%u] because you "
-                            "could not possibly have git commits older than the epoch."
-                            "\033[0m\n", i);
+            PD_WARN("skipping year frame [%u] because you could not possibly have git "
+                    "commits older than the epoch.", i);
             calculateHeatmap(&heatSet, 1);
             continue;
         }
@@ -686,12 +683,8 @@ void sortStrings
     }
     config->repositories = cstr_sv(config->sortedRepos);
 
-    #ifdef DEBUG
-        fprintf(stderr, "\nfinal, sorted author list:\n"PRI_SV"\n",
-                ARG_SV(config->authors));
-        fprintf(stderr, "\nfinal, sorted paths:\n"PRI_SV"\n\n",
-                ARG_SV(config->repositories));
-    #endif
+    PD_DEBUG("\nfinal, sorted author list:\n"PRI_SV"", ARG_SV(config->authors));
+    PD_DEBUG("\nfinal, sorted paths:\n"PRI_SV"\n", ARG_SV(config->repositories));
 }
 
 int main
