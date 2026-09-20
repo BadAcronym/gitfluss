@@ -164,8 +164,6 @@ f_internal void readCommitData
         {
             parent = svBuf[i];
             sv_trim(&parent, 7, SV_LEFT);
-
-            PD_TRACE("parsed parent:       "PRI_SV, ARG_SV(parent));
         }
     }
 
@@ -198,6 +196,7 @@ f_internal void readCommitData
     }
     if(parent.size)
     {
+        PD_TRACE("parsed parent: "PRI_SV, ARG_SV(parent));
         commit->parentHash = sv_cpy(parent);
     }
 
@@ -216,13 +215,6 @@ void gfGetCommitInfo
         return;
     }
 
-    freeSV(&commit->summary);
-    freeSV(&commit->parentHash);
-    freeSV(&commit->authorName);
-    freeSV(&commit->authorMail);
-    freeSV(&commit->commiterName);
-    freeSV(&commit->commiterMail);
-
     PD_ASSERT(repository.data && repository.size, "cannot open null repository.");
 
     PD_ASSERT(hash.size == 40 || hash.size == 64, "commit hash has invalid size: %lu. "
@@ -240,9 +232,17 @@ void gfGetCommitInfo
 
     char pathBuf[4096] = {0};
     StringView commitPath = sv_concat(repository, folder, pathBuf);
+    // ASAN: used here after being freead already.
     commitPath = sv_concat(commitPath, hashStart, pathBuf);
     commitPath = sv_concat(commitPath, sep, pathBuf);
     commitPath = sv_concat(commitPath, hashRest, pathBuf);
+
+    freeSV(&commit->summary);
+    freeSV(&commit->parentHash);
+    freeSV(&commit->authorName);
+    freeSV(&commit->authorMail);
+    freeSV(&commit->commiterName);
+    freeSV(&commit->commiterMail);
 
     uint8_t result = pdVerifyPath(commitPath);
     if(result == PD_TYPE_FILE)
