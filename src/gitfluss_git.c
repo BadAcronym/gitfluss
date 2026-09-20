@@ -24,7 +24,7 @@ f_internal int64_t readTimeFromSV
 
     for(uint8_t i = 0; i < sv.size; ++i)
     {
-        if(sv.data[i] == 0x20)
+        if(sv.data[i] == 0x20 || sv.data[i] == 0x0A || !sv.data[i])
         {
             break;
         }
@@ -232,7 +232,6 @@ void gfGetCommitInfo
 
     char pathBuf[4096] = {0};
     StringView commitPath = sv_concat(repository, folder, pathBuf);
-    // ASAN: used here after being freead already.
     commitPath = sv_concat(commitPath, hashStart, pathBuf);
     commitPath = sv_concat(commitPath, sep, pathBuf);
     commitPath = sv_concat(commitPath, hashRest, pathBuf);
