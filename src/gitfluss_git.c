@@ -4,6 +4,18 @@
 #include "pd_path.h"
 #include "pd_print_macros.h"
 
+s_global StringView singleDot      = { .size = 1,  .data = "."                };
+s_global StringView doubleDot      = { .size = 2,  .data = ".."               };
+s_global StringView spaceKarat     = { .size = 2,  .data = " <"               };
+s_global StringView karatSpace     = { .size = 2,  .data = "> "               };
+s_global StringView idxIdent       = { .size = 4,  .data = ".idx"             };
+s_global StringView refIdent       = { .size = 4,  .data = "ref:"             };
+s_global StringView packIdent      = { .size = 5,  .data = ".pack"            };
+s_global StringView authorIdent    = { .size = 6,  .data = "author"           };
+s_global StringView parentIdent    = { .size = 6,  .data = "parent"           };
+s_global StringView commiterIdent  = { .size = 8,  .data = "commiter"         };
+s_global StringView multiPackIndex = { .size = 16, .data = "multi-pack-index" };
+
 f_internal void freeSV
 (
     StringView *sv
@@ -78,12 +90,6 @@ f_internal void readCommitData
     StringView parent       = {0};
     int64_t    authorTime   = 0;
     int64_t    commiterTime = 0;
-
-    StringView spaceKarat    = cstr_sv(" <");
-    StringView karatSpace    = cstr_sv("> ");
-    StringView authorIdent   = cstr_sv("author");
-    StringView parentIdent   = cstr_sv("parent");
-    StringView commiterIdent = cstr_sv("commiter");
 
     uint8_t summaryLine = 0;
 
@@ -281,12 +287,6 @@ void gfInitRepository
         fileBuf[i].size = 0;
     }
 
-    StringView singleDot      = cstr_sv(".");
-    StringView doubleDot      = cstr_sv("..");
-    StringView idxIdent       = cstr_sv(".idx");
-    StringView packIdent      = cstr_sv(".pack");
-    StringView multiPackIndex = cstr_sv("multi-pack-index");
-
     sv_separate_by_delim(list, fileBuf, ';', fileCount);
     for(uint64_t i = 0; i < fileCount; ++i)
     {
@@ -331,7 +331,6 @@ void gfInitRepository
     }
 
     StringView readHead = cstr_sv(headBuf);
-    StringView refIdent = cstr_sv("ref:");
 
     if(!(sv_find(refIdent, readHead) == readHead.data))
     {
