@@ -5,17 +5,17 @@
 #include <stdint.h>
 #include <stdio.h>
 
-const char *months[12] =
+s_global const char *months[12] =
 {
     "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"
 };
 
-const char *days[7] =
+s_global const char *days[7] =
 {
     "Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"
 };
 
-const char *colours[40] =
+s_global const char *colours[40] =
 {
     // reds
     "\033[38;2;80;10;10m",
@@ -728,8 +728,8 @@ int main
 
     if(!config.authors.data || sv_same(config.authors, cstr_sv("")))
     {
-        StringView any_author = cstr_sv("any");
-        gfAddAuthor(&config, any_author);
+        StringView anyIdent = cstr_sv("any");
+        gfAddAuthor(&config, anyIdent);
     }
 
     if(!config.repositories.data || sv_same(config.repositories, cstr_sv("")))
