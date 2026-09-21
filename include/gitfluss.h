@@ -166,6 +166,13 @@ typedef struct gfCommitInfo
 }
 gfCommitInfo;
 
+typedef struct gfRepository
+{
+    StringView   path;
+    gfCommitInfo *packedCommits;
+}
+gfRepository;
+
 extern int64_t gfQueryTime
 (
     void
@@ -241,7 +248,7 @@ extern void gfReadArgs
 
 extern void gfInitRepository
 (
-    StringView   repository,
+    gfRepository *repo,
     gfCommitInfo *head
 );
 

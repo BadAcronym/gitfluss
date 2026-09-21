@@ -248,7 +248,6 @@ f_internal void *gatherRepoData
 ){
     gfThreadData      *data       = (gfThreadData*)arguments;
     gfDisplaySettings *set        = data->set;
-    StringView        repository  = data->repository;
     StringView        *authorlist = data->authorlist;
     uint32_t          authorcount = data->authorcount;
     uint8_t           flags       = data->flags;
@@ -258,7 +257,9 @@ f_internal void *gatherRepoData
     bool anyAuthor = false;
 
     gfCommitInfo commit = {0};
-    gfInitRepository(repository, &commit);
+    gfRepository repo   = {0};
+    repo.path           = data->repository;
+    gfInitRepository(&repo, &commit);
 
     for(;;)
     {
@@ -320,7 +321,7 @@ f_internal void *gatherRepoData
                 // summary, timestamp & everything to a list and print at the
                 // end.
                 printf("("PRI_SV")\n[%02u:%02u]: "PRI_SV"\n\n",
-                       ARG_SV(repository),
+                       ARG_SV(repo.path),
                        (uint32_t)(commit.authorTime - currDayStart) / 3600,
                        (uint32_t)(commit.authorTime % 3600) / 60,
                        ARG_SV(commit.summary));
@@ -336,14 +337,14 @@ f_internal void *gatherRepoData
         {
             break;
         }
-        gfGetCommitInfo(repository, commit.parentHash, &commit);
+        gfGetCommitInfo(repo.path, commit.parentHash, &commit);
     }
 
     if(repoCommitCount > set->repoMax)
     {
         gfLock(set);
-        char currentRepo[repository.size + 1];
-        sv_cstr(repository, currentRepo);
+        char currentRepo[repo.path.size + 1];
+        sv_cstr(repo.path, currentRepo);
         set->biggestRepo = cstr_sv_cpy(currentRepo, set->biggestRepoBuf);
         set->repoMax     = repoCommitCount;
         gfUnlock(set);

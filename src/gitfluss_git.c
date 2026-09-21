@@ -4,17 +4,17 @@
 #include "pd_path.h"
 #include "pd_print_macros.h"
 
-s_global StringView singleDot      = { .size = 1,  .data = "."                };
-s_global StringView doubleDot      = { .size = 2,  .data = ".."               };
-s_global StringView spaceKarat     = { .size = 2,  .data = " <"               };
-s_global StringView karatSpace     = { .size = 2,  .data = "> "               };
-s_global StringView idxIdent       = { .size = 4,  .data = ".idx"             };
-s_global StringView refIdent       = { .size = 4,  .data = "ref:"             };
-s_global StringView packIdent      = { .size = 5,  .data = ".pack"            };
-s_global StringView authorIdent    = { .size = 6,  .data = "author"           };
-s_global StringView parentIdent    = { .size = 6,  .data = "parent"           };
-s_global StringView commiterIdent  = { .size = 8,  .data = "commiter"         };
-s_global StringView multiPackIndex = { .size = 16, .data = "multi-pack-index" };
+s_global const StringView singleDot      = { .size = 1,  .data = "."                };
+s_global const StringView doubleDot      = { .size = 2,  .data = ".."               };
+s_global const StringView spaceKarat     = { .size = 2,  .data = " <"               };
+s_global const StringView karatSpace     = { .size = 2,  .data = "> "               };
+s_global const StringView idxIdent       = { .size = 4,  .data = ".idx"             };
+s_global const StringView refIdent       = { .size = 4,  .data = "ref:"             };
+s_global const StringView packIdent      = { .size = 5,  .data = ".pack"            };
+s_global const StringView authorIdent    = { .size = 6,  .data = "author"           };
+s_global const StringView parentIdent    = { .size = 6,  .data = "parent"           };
+s_global const StringView commiterIdent  = { .size = 8,  .data = "commiter"         };
+s_global const StringView multiPackIndex = { .size = 16, .data = "multi-pack-index" };
 
 f_internal void freeSV
 (
@@ -117,7 +117,7 @@ f_internal void readCommitData
             authorTimeSV.data = authorMail.data + authorMail.size + 2;
             for(uint32_t j = 0; j < 20; ++j)
             {
-                if(authorTimeSV.data[j] == 0x20 || authorTimeSV.data[j] == 0x0A)
+                if(authorTimeSV.data[j] == 0x20 || !authorTimeSV.data[j])
                 {
                     break;
                 }
@@ -152,7 +152,7 @@ f_internal void readCommitData
             commiterTimeSV.data = commiterMail.data + commiterMail.size + 2;
             for(uint32_t j = 0; j < 20; ++j)
             {
-                if(commiterTimeSV.data[j] == 0x20 || commiterTimeSV.data[j] == 0x0A)
+                if(commiterTimeSV.data[j] == 0x20 || !commiterTimeSV.data[j])
                 {
                     break;
                 }
@@ -255,18 +255,17 @@ void gfGetCommitInfo
         return;
     }
 
-    PD_WARN("could not find commit in '"PRI_SV"'. commit lookup from packfiles "
-            "unimplemented. tee-hee", ARG_SV(commitPath));
+    PD_WARN("TODO: handle commit '"PRI_SV"' from packfile. ", ARG_SV(commitPath));
 }
 
 void gfInitRepository
 (
-    StringView   repository,
+    gfRepository *repo,
     gfCommitInfo *head
 ){
     char packBuf[4096]     = {0};
     char absoluteBuf[4096] = {0};
-    StringView absolute = pdExpandPath(repository, absoluteBuf);
+    StringView absolute = pdExpandPath(repo->path, absoluteBuf);
     StringView gitPACK  = cstr_sv("/.git/objects/pack");
     StringView gitHEAD  = cstr_sv("/.git/HEAD");
 
@@ -274,7 +273,7 @@ void gfInitRepository
     gitHEAD = sv_concat(absolute, gitHEAD, absoluteBuf);
 
     PD_TRACE("resolved head of '"PRI_SV"' to '"PRI_SV"'",
-             ARG_SV(repository), ARG_SV(gitHEAD));
+             ARG_SV(repo->path), ARG_SV(gitHEAD));
 
     char listBuf[8192] = {0};
     StringView list      = pdListFiles(gitPACK, listBuf);
@@ -319,7 +318,7 @@ void gfInitRepository
     FILE *file = fopen(absoluteBuf, "rb");
     if(!file)
     {
-        PD_WARN("couldn't open repository: '"PRI_SV"'", ARG_SV(repository));
+        PD_WARN("couldn't open repository: '"PRI_SV"'", ARG_SV(repo->path));
         return;
     }
 
@@ -347,7 +346,7 @@ void gfInitRepository
     char refBuf[4096] = {0};
 
     ref      = sv_concat(ref, readHead, refBuf);
-    readHead = sv_concat(repository, ref, headBuf);
+    readHead = sv_concat(repo->path, ref, headBuf);
 
     fclose(file);
 
@@ -370,6 +369,6 @@ void gfInitRepository
     StringView hash = cstr_sv(hashBuf);
 
     PD_TRACE("identified HEAD: '"PRI_SV"'", ARG_SV(hash));
-    gfGetCommitInfo(repository, hash, head);
+    gfGetCommitInfo(repo->path, hash, head);
     fclose(file);
 }
