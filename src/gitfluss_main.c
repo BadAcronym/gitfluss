@@ -360,7 +360,7 @@ f_internal void gatherData
     uint32_t   authorcount = sv_count_by_delim(config->authors, ';');
     StringView authorlist[authorcount];
 
-    sv_separate_by_delim(config->authors, authorlist, ';');
+    sv_separate_by_delim(config->authors, authorlist, ';', authorcount);
 
     gfThread     threads[set->repositoryCount];
     gfThreadData threadData[set->repositoryCount];

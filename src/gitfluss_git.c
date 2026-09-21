@@ -67,9 +67,8 @@ f_internal void readCommitData
     parsed.data = (char*)commitBuf;
     parsed.size = 1024;
 
-    StringView svBuf[10];
-
-    sv_separate_by_delim(parsed, svBuf, '\n');
+    StringView svBuf[8] = {0};
+    sv_separate_by_delim(parsed, svBuf, '\n', 8);
 
     StringView summary      = {0};
     StringView authorName   = {0};
@@ -88,7 +87,7 @@ f_internal void readCommitData
 
     uint8_t summaryLine = 0;
 
-    for(uint8_t i = 0; i < 8; ++i)
+    for(uint8_t i = 0; i < 6; ++i)
     {
         if(sv_find(authorIdent, svBuf[i]))
         {
@@ -259,14 +258,63 @@ void gfInitRepository
     StringView   repository,
     gfCommitInfo *head
 ){
+    char packBuf[4096]     = {0};
     char absoluteBuf[4096] = {0};
     StringView absolute = pdExpandPath(repository, absoluteBuf);
-    StringView head_sv  = cstr_sv("/.git/HEAD");
+    StringView gitPACK  = cstr_sv("/.git/objects/pack");
+    StringView gitHEAD  = cstr_sv("/.git/HEAD");
 
-    head_sv = sv_concat(absolute, head_sv, absoluteBuf);
+    gitPACK = sv_concat(absolute, gitPACK, packBuf);
+    gitHEAD = sv_concat(absolute, gitHEAD, absoluteBuf);
 
     PD_TRACE("resolved head of '"PRI_SV"' to '"PRI_SV"'",
-             ARG_SV(repository), ARG_SV(head));
+             ARG_SV(repository), ARG_SV(gitHEAD));
+
+    char listBuf[8192] = {0};
+    StringView list      = pdListFiles(gitPACK, listBuf);
+    uint64_t   fileCount = sv_count_by_delim(list, ';');
+
+    StringView fileBuf[fileCount];
+    for(uint64_t i = 0; i < fileCount; ++i)
+    {
+        fileBuf[i].data = 0;
+        fileBuf[i].size = 0;
+    }
+
+    StringView singleDot      = cstr_sv(".");
+    StringView doubleDot      = cstr_sv("..");
+    StringView idxIdent       = cstr_sv(".idx");
+    StringView packIdent      = cstr_sv(".pack");
+    StringView multiPackIndex = cstr_sv("multi-pack-index");
+
+    sv_separate_by_delim(list, fileBuf, ';', fileCount);
+    for(uint64_t i = 0; i < fileCount; ++i)
+    {
+        if(sv_same(fileBuf[i], singleDot) || sv_same(fileBuf[i], doubleDot))
+        {
+            continue;
+        }
+        else if(sv_same(fileBuf[i], multiPackIndex))
+        {
+            PD_WARN("TODO: handle mpi: "PRI_SV, ARG_SV(fileBuf[i]));
+            continue;
+        }
+        else if(sv_find(idxIdent, fileBuf[i]))
+        {
+            PD_WARN("TODO: handle idx file: "PRI_SV, ARG_SV(fileBuf[i]));
+            continue;
+        }
+        else if(sv_find(packIdent, fileBuf[i]))
+        {
+            PD_WARN("TODO: handle pack file: "PRI_SV, ARG_SV(fileBuf[i]));
+            continue;
+        }
+
+        PD_TRACE("ignored file in objects/pack: "PRI_SV, ARG_SV(fileBuf[i]));
+    }
+
+    // TODO: open & read all packfiles, create index of what hashes are where for later
+    // lookup
 
     FILE *file = fopen(absoluteBuf, "rb");
     if(!file)
@@ -274,9 +322,6 @@ void gfInitRepository
         PD_WARN("couldn't open repository: '"PRI_SV"'", ARG_SV(repository));
         return;
     }
-
-    // TODO: open & read all packfiles, create index of what hashes are where for later
-    // lookup
 
     char headBuf[4096] = {0};
     uint64_t elements = 1;
