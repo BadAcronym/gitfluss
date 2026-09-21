@@ -239,10 +239,10 @@ extern void gfReadArgs
     gfConf *config
 );
 
-extern void gfGetRepositoryHead
+extern void gfInitRepository
 (
     StringView   repository,
-    gfCommitInfo *commit
+    gfCommitInfo *head
 );
 
 extern void gfGetCommitInfo

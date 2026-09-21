@@ -248,7 +248,7 @@ f_internal void *gatherRepoData
 ){
     gfThreadData      *data       = (gfThreadData*)arguments;
     gfDisplaySettings *set        = data->set;
-    StringView        repository     = data->repository;
+    StringView        repository  = data->repository;
     StringView        *authorlist = data->authorlist;
     uint32_t          authorcount = data->authorcount;
     uint8_t           flags       = data->flags;
@@ -258,7 +258,7 @@ f_internal void *gatherRepoData
     bool anyAuthor = false;
 
     gfCommitInfo commit = {0};
-    gfGetRepositoryHead(repository, &commit);
+    gfInitRepository(repository, &commit);
 
     for(;;)
     {

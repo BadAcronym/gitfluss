@@ -254,16 +254,16 @@ void gfGetCommitInfo
             "unimplemented. tee-hee", ARG_SV(commitPath));
 }
 
-void gfGetRepositoryHead
+void gfInitRepository
 (
     StringView   repository,
-    gfCommitInfo *commit
+    gfCommitInfo *head
 ){
     char absoluteBuf[4096] = {0};
     StringView absolute = pdExpandPath(repository, absoluteBuf);
-    StringView head     = cstr_sv("/.git/HEAD");
+    StringView head_sv  = cstr_sv("/.git/HEAD");
 
-    head = sv_concat(absolute, head, absoluteBuf);
+    head_sv = sv_concat(absolute, head_sv, absoluteBuf);
 
     PD_TRACE("resolved head of '"PRI_SV"' to '"PRI_SV"'",
              ARG_SV(repository), ARG_SV(head));
@@ -274,6 +274,9 @@ void gfGetRepositoryHead
         PD_WARN("couldn't open repository: '"PRI_SV"'", ARG_SV(repository));
         return;
     }
+
+    // TODO: open & read all packfiles, create index of what hashes are where for later
+    // lookup
 
     char headBuf[4096] = {0};
     uint64_t elements = 1;
@@ -288,7 +291,7 @@ void gfGetRepositoryHead
     if(!(sv_find(refIdent, readHead) == readHead.data))
     {
         PD_TRACE("identified HEAD: '"PRI_SV"'", ARG_SV(readHead));
-        gfGetCommitInfo(absolute, readHead, commit);
+        gfGetCommitInfo(absolute, readHead, head);
         return;
     }
 
@@ -323,6 +326,6 @@ void gfGetRepositoryHead
     StringView hash = cstr_sv(hashBuf);
 
     PD_TRACE("identified HEAD: '"PRI_SV"'", ARG_SV(hash));
-    gfGetCommitInfo(repository, hash, commit);
+    gfGetCommitInfo(repository, hash, head);
     fclose(file);
 }
