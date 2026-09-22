@@ -366,8 +366,9 @@ f_internal void readPackFile
         bool     readMore = byte >> 7;
         uint8_t  type     = byte >> 4 & 0x07;
         uint64_t length   = byte & 0x0F;
+        uint8_t  shift    = 4;
 
-        for(uint8_t j = 0; readMore && j < 8; ++j)
+        for(uint8_t j = 0; readMore && j < 10; ++j)
         {
             if((fread(&byte, 1, 1, file)) != 1)
             {
@@ -376,10 +377,16 @@ f_internal void readPackFile
                 goto closefile;
             }
 
-            readMore = byte >> 7;
-            length  += byte &  0x7F;
+            uint64_t chunk = byte & 0x7F;
+
+            PD_ASSERT(shift < 64, "cannot shift more than 64 bits.");
+            PD_ASSERT(chunk < (UINT64_MAX >> shift), "chunk is too large.");
+
+            readMore = byte  >> 7;
+            length  |= chunk << shift;
+            shift   += 7;
         }
-        PD_TRACE("parsed length from pack object: %lu", length);
+        PD_TRACE("parsed length from pack object %u: %lu", i, length);
 
         PD_ASSERT(type > 0 && type < 8, "invalid object type on obj %u: %u. "
                   "read Byte: 0x%X", i, type, byte);
@@ -389,7 +396,7 @@ f_internal void readPackFile
             uint8_t zlibBuf[length];
             for(uint64_t j = 0; j < length; ++j)
             {
-                if(fread(&zlibBuf[i], 1, 1, file) != 1)
+                if(fread(&zlibBuf[j], 1, 1, file) != 1)
                 {
                     PD_WARN("couldn't read commit object from pack file: '"PRI_SV"'",
                             ARG_SV(path));
@@ -398,9 +405,20 @@ f_internal void readPackFile
             }
             gfCommitInfo commit = {0};
 
+            // FIXME: length is the amount of uncompressed bytes to read, so, cap. I
+            // need to change the signature of dsReadZlibPtr to return both the amount
+            // of uncompressed bytes produced, as well as the amount of compressed bytes
+            // that were read.
+            // FIXME: commits could technically overflow the stack buffer? so I should
+            // use the heap for large objects. can I know how big the limit is, before
+            // the stack would be overflowed?
+
             readCommitFromPtr(zlibBuf, &commit, length);
 
-            // put commit data into data structure, free it at the end, too
+            // TODO:
+            // put commit data into hashed data structure.
+            // for this, we need to know what the current hash of the commit is.
+            // do we know at all?
 
             gfFreeCommit(&commit);
         }
@@ -416,11 +434,14 @@ f_internal void readPackFile
         }
         else
         {
-            if((fread(&byte, 1, length, file)) != length)
+            for(uint64_t j = 0; j < length; ++j)
             {
-                PD_WARN("couldn't skip ahead to next object to handle in pack file: '"
-                        PRI_SV"'", ARG_SV(path));
-                goto closefile;
+                if((fread(&byte, 1, 1, file)) != 1)
+                {
+                    PD_WARN("couldn't skip ahead to next object to handle in pack "
+                            "file: '"PRI_SV"'", ARG_SV(path));
+                    goto closefile;
+                }
             }
         }
     }
@@ -446,9 +467,14 @@ void gfInitRepository
     PD_TRACE("resolved head of '"PRI_SV"' to '"PRI_SV"'",
              ARG_SV(repo->path), ARG_SV(gitHEAD));
 
-    char listBuf[8192] = {0};
-    StringView list      = pdListFiles(gitPACK, listBuf);
-    uint64_t   fileCount = sv_count_by_delim(list, ';');
+    if(pdVerifyPath(gitPACK) != PD_TYPE_DIRECTORY)
+    {
+        return;
+    }
+
+    char       listBuf[8192] = {0};
+    StringView list          = pdListFiles(gitPACK, listBuf);
+    uint64_t   fileCount     = sv_count_by_delim(list, ';');
 
     StringView fileBuf[fileCount];
     for(uint64_t i = 0; i < fileCount; ++i)

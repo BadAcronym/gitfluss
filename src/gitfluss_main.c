@@ -261,9 +261,6 @@ f_internal void *gatherRepoData
     repo.path           = data->repository;
     gfInitRepository(&repo, &commit);
 
-    PD_ASSERT(commit.authorMail.data && commit.authorMail.size,
-             "could not resolve commit author from HEAD");
-
     while(commit.parentHash.data && commit.parentHash.size)
     {
         StringView author = commit.authorMail;
