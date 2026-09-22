@@ -403,7 +403,10 @@ f_internal void readPackFile
 
             // TODO: put commit data into hashed data structure.
             // for this, we need to know what the current hash of the commit is.
-            // do we know at all?
+            // do we know at all? I don't want to have to recompute the hash.
+            // TODO: I think, to get the hash, we can simply store the offset of the
+            // commit. do we store a list of offsets and try to match them up with the
+            // ones from .idx? kinda whack but might actually work
 
             index += dfInfo.compressedBytesRead;
 
@@ -411,12 +414,12 @@ f_internal void readPackFile
         }
         else if(type == GF_OBJ_OFS_DELTA)
         {
-            PD_WARN("TODO: handle OBJ_OFS_DELTA");
+            PD_WARN("TODO: handle OBJ_OFS_DELTA if it's of base type commit.");
             goto closefile;
         }
         else if(type == GF_OBJ_REF_DELTA)
         {
-            PD_WARN("TODO: handle OBJ_REF_DELTA");
+            PD_WARN("TODO: handle OBJ_REF_DELTA if it's of base type commit.");
             goto closefile;
         }
         else
