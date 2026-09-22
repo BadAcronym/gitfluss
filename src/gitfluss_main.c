@@ -252,6 +252,7 @@ f_internal void *gatherRepoData
     uint32_t          authorcount = data->authorcount;
     uint8_t           flags       = data->flags;
 
+    int64_t  currDayStart    = set->currDayEnd - (24 * 3600);
     uint32_t repoCommitCount = 0;
 
     bool anyAuthor = false;
@@ -294,8 +295,7 @@ f_internal void *gatherRepoData
         if(counts)
         {
             ++repoCommitCount;
-            int64_t daysSince    = (set->currDayEnd - commit.authorTime) / (24 * 3600);
-            int64_t currDayStart = set->currDayEnd - (24 * 3600);
+            int64_t daysSince = (set->currDayEnd - commit.authorTime) / (24 * 3600);
 
             gfLock(set);
             if(commit.authorTime < set->oldestCommitTime)
@@ -741,19 +741,23 @@ int main
     }
 
     int64_t timezoneOffset = gfQueryTimezoneOffset();
+    PD_DEBUG("queried timezoneOffset: %"PRIi64, timezoneOffset);
 
     gfHeatmapSettings heatSet = {0};
     heatSet.heatmap = heatmap;
     heatSet.now     = gfQueryTime();
 
+    int64_t nowAdjusted = heatSet.now + timezoneOffset;
+
     gfDisplaySettings set = {0};
-    set.heatSet          = &heatSet;
-    set.sorted           = sorted;
-    set.biggestRepoBuf   = biggestRepoBuf;
-    set.oldestCommitTime = INT64_MAX;
-    set.repositoryCount  = sv_count_by_delim(config.repositories, ';');
-    set.currDayEnd       = heatSet.now - heatSet.now % (24 * 3600)
-                           + 24 * 3600 + timezoneOffset;
+    set.heatSet           = &heatSet;
+    set.sorted            = sorted;
+    set.biggestRepoBuf    = biggestRepoBuf;
+    set.oldestCommitTime  = INT64_MAX;
+    set.repositoryCount   = sv_count_by_delim(config.repositories, ';');
+    set.currDayEnd        = (heatSet.now - nowAdjusted % (24 * 3600) + 24 * 3600);
+
+    PD_DEBUG("currDayEnd: %"PRIi64, set.currDayEnd);
 
     #ifdef BUILD_WINDOWS
         SRWLOCK lock;

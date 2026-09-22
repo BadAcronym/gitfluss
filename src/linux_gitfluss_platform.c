@@ -29,7 +29,7 @@ int64_t gfQueryTimezoneOffset
 
     localtime_r(&timeStruct, &timeBroken);
 
-    return -timeBroken.tm_gmtoff;
+    return timeBroken.tm_gmtoff;
 }
 
 void gfDispatchThread
