@@ -62,7 +62,7 @@ f_internal int64_t readTimeFromSV
     return time;
 }
 
-f_internal void readCommitFromPtr
+f_internal DeflateInfo readCommitFromPtr
 (
     uint8_t      *zlib,
     gfCommitInfo *commit,
@@ -74,7 +74,7 @@ f_internal void readCommitFromPtr
         commitBuf[i] = 0;
     }
 
-    dsReadZlibPtr(zlib, commitBuf, length);
+    DeflateInfo dfInfo = dsReadZlibPtr(zlib, commitBuf, length);
 
     StringView parsed = {0};
     parsed.data = (char*)commitBuf;
@@ -205,6 +205,8 @@ f_internal void readCommitFromPtr
         PD_TRACE("parsed parent: "PRI_SV, ARG_SV(parent));
         commit->parentHash = sv_cpy(parent);
     }
+
+    return dfInfo;
 }
 
 f_internal void readCommitFromFile
@@ -405,15 +407,14 @@ f_internal void readPackFile
             }
             gfCommitInfo commit = {0};
 
-            // FIXME: length is the amount of uncompressed bytes to read, so, cap. I
-            // need to change the signature of dsReadZlibPtr to return both the amount
-            // of uncompressed bytes produced, as well as the amount of compressed bytes
-            // that were read.
-            // FIXME: commits could technically overflow the stack buffer? so I should
+            // FIXME: commis could technically overflow the stack buffer? so I should
             // use the heap for large objects. can I know how big the limit is, before
             // the stack would be overflowed?
 
-            readCommitFromPtr(zlibBuf, &commit, length);
+            DeflateInfo dfInfo = readCommitFromPtr(zlibBuf, &commit, length);
+
+            PD_ASSERT(dfInfo.bytesWritten == length, "expected to decompress into %"
+                      PRIu64" bytes, actual: %"PRIu64".", length, dfInfo.bytesWritten);
 
             // TODO:
             // put commit data into hashed data structure.

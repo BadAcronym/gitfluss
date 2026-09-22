@@ -5,6 +5,7 @@
 
 #include <stdint.h>
 #include <stdbool.h>
+#include <inttypes.h>
 
 #ifdef BUILD_LINUX
     #define CONF_PATH     ".gitflussconf"
