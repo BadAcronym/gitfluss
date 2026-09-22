@@ -1,7 +1,7 @@
 #ifndef GF_HEADER
 #define GF_HEADER
 
-#include "string_view.h"
+#include "pd_string_view.h"
 
 #include <stdint.h>
 #include <stdbool.h>

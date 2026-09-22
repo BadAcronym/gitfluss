@@ -1,7 +1,9 @@
 #include "gitfluss.h"
 
 #include "datasurf_main.h"
+
 #include "pd_path.h"
+#include "pd_dyn_arr.h"
 #include "pd_print_macros.h"
 
 s_global const StringView singleDot      = { .size = 1,  .data = "."                };
@@ -68,17 +70,13 @@ f_internal DeflateInfo readCommitFromPtr
     gfCommitInfo *commit,
     uint64_t     length
 ){
-    uint8_t commitBuf[length];
-    for(uint64_t i = 0; i < length; ++i)
-    {
-        commitBuf[i] = 0;
-    }
+    uint8_t *commitBuf = calloc(8192, 1);
 
-    DeflateInfo dfInfo = dsReadZlibPtr(zlib, commitBuf, length);
+    DeflateInfo dfInfo = dsReadZlibPtr(zlib, commitBuf, 8192);
 
     StringView parsed = {0};
     parsed.data = (char*)commitBuf;
-    parsed.size = length;
+    parsed.size = 8192;
 
     StringView svBuf[10] = {0};
     sv_separate_by_delim(parsed, svBuf, '\n', 10);
@@ -206,6 +204,7 @@ f_internal DeflateInfo readCommitFromPtr
         commit->parentHash = sv_cpy(parent);
     }
 
+    free(commitBuf);
     return dfInfo;
 }
 
@@ -309,6 +308,8 @@ f_internal void readPackFile
         return;
     }
 
+    uint8_t *packFile = 0;
+
     uint8_t byte = 0;
     for(uint8_t i = 0; i < 4; ++i)
     {
@@ -340,8 +341,9 @@ f_internal void readPackFile
         version += (uint32_t)(byte << ((3 - i) * 8));
         #endif
     }
-    PD_TRACE("parsed packfile version %u.", version);
-    PD_ASSERT(version == 2 || version == 3, "unknown packfile version: %u", version);
+    PD_TRACE("parsed packfile version %"PRIu32".", version);
+    PD_ASSERT(version == 2 || version == 3, "unknown packfile version: %"PRIu32,
+              version);
 
     uint32_t numObj = 0;
     for(uint8_t i = 0; i < 4; ++i)
@@ -354,16 +356,35 @@ f_internal void readPackFile
         }
         numObj += (uint32_t)(byte << ((3 - i) * 8));
     }
-    PD_TRACE("parsed number of objects: %u.", numObj);
+    PD_TRACE("parsed number of objects: %"PRIu32".", numObj);
 
-    for(uint32_t i = 0; i < numObj; ++i)
+    // FIXME: instead of fread-ing every byte separately (awfully slow),
+    // read the entire file with 1 call by first viewing how big it is with
+    // fseek(, , SEEK_END). that gives us the size that we can fread() and act upon
+    // below. we should also assert that the index does not exceed this size.
+
+    for(;;)
     {
-        if((fread(&byte, 1, 1, file)) != 1)
+        if(fread(&byte, 1, 1, file) != 1)
         {
-            PD_WARN("couldn't read number of objects from pack file: '"PRI_SV"'",
-                    ARG_SV(path));
+            if(feof(file))
+            {
+                break;
+            }
+
+            PD_WARN("couldn't read object from pack file: '"PRI_SV"'", ARG_SV(path));
             goto closefile;
         }
+
+        pdArrPush(packFile, byte);
+    }
+    PD_TRACE("read pack file into buffer that's %"PRIu64" bytes big.",
+             pdArrSize(packFile));
+
+    uint64_t index = 0;
+    for(uint32_t i = 0; i < numObj; ++i)
+    {
+        byte = packFile[index++];
 
         bool     readMore = byte >> 7;
         uint8_t  type     = byte >> 4 & 0x07;
@@ -372,12 +393,7 @@ f_internal void readPackFile
 
         for(uint8_t j = 0; readMore && j < 10; ++j)
         {
-            if((fread(&byte, 1, 1, file)) != 1)
-            {
-                PD_WARN("couldn't read length of object from pack file: '"PRI_SV"'",
-                        ARG_SV(path));
-                goto closefile;
-            }
+            byte = packFile[index++];
 
             uint64_t chunk = byte & 0x7F;
 
@@ -388,38 +404,25 @@ f_internal void readPackFile
             length  |= chunk << shift;
             shift   += 7;
         }
-        PD_TRACE("parsed length from pack object %u: %lu", i, length);
+        PD_TRACE("parsed length from pack object %"PRIu32": %"PRIu64"", i, length);
 
-        PD_ASSERT(type > 0 && type < 8, "invalid object type on obj %u: %u. "
-                  "read Byte: 0x%X", i, type, byte);
+        PD_ASSERT(type > 0 && type < 8, "invalid object type on obj %"PRIu32": %"PRIu32
+                  ". read Byte: 0x%X", i, type, byte);
 
         if(type == GF_OBJ_COMMIT)
         {
-            uint8_t zlibBuf[length];
-            for(uint64_t j = 0; j < length; ++j)
-            {
-                if(fread(&zlibBuf[j], 1, 1, file) != 1)
-                {
-                    PD_WARN("couldn't read commit object from pack file: '"PRI_SV"'",
-                            ARG_SV(path));
-                    goto closefile;
-                }
-            }
             gfCommitInfo commit = {0};
-
-            // FIXME: commis could technically overflow the stack buffer? so I should
-            // use the heap for large objects. can I know how big the limit is, before
-            // the stack would be overflowed?
-
-            DeflateInfo dfInfo = readCommitFromPtr(zlibBuf, &commit, length);
+            DeflateInfo  dfInfo = readCommitFromPtr(&packFile[index], &commit,
+                                                    length);
 
             PD_ASSERT(dfInfo.bytesWritten == length, "expected to decompress into %"
                       PRIu64" bytes, actual: %"PRIu64".", length, dfInfo.bytesWritten);
 
-            // TODO:
-            // put commit data into hashed data structure.
+            // TODO: put commit data into hashed data structure.
             // for this, we need to know what the current hash of the commit is.
             // do we know at all?
+
+            index += dfInfo.compressedBytesRead;
 
             gfFreeCommit(&commit);
         }
@@ -448,6 +451,7 @@ f_internal void readPackFile
     }
 
 closefile:
+    pdArrFree(packFile);
     fclose(file);
 }
 
