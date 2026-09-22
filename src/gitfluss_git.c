@@ -10,6 +10,7 @@ s_global const StringView spaceKarat     = { .size = 2,  .data = " <"           
 s_global const StringView karatSpace     = { .size = 2,  .data = "> "               };
 s_global const StringView idxIdent       = { .size = 4,  .data = ".idx"             };
 s_global const StringView refIdent       = { .size = 4,  .data = "ref:"             };
+s_global const StringView packMagic      = { .size = 4,  .data = "PACK"             };
 s_global const StringView packIdent      = { .size = 5,  .data = ".pack"            };
 s_global const StringView authorIdent    = { .size = 6,  .data = "author"           };
 s_global const StringView parentIdent    = { .size = 6,  .data = "parent"           };
@@ -258,6 +259,58 @@ void gfGetCommitInfo
     PD_WARN("TODO: handle commit '"PRI_SV"' from packfile. ", ARG_SV(commitPath));
 }
 
+f_internal void readMpiFile
+(
+    StringView path
+){
+    PD_WARN("TODO: handle mpi file: '"PRI_SV"'", ARG_SV(path));
+}
+
+f_internal void readIdxFile
+(
+    StringView path
+){
+    PD_WARN("TODO: handle idx file: '"PRI_SV"'", ARG_SV(path));
+}
+
+f_internal void readPackFile
+(
+    StringView path
+){
+    FILE *file = fopen(path.data, "rb");
+    if(!file)
+    {
+        PD_WARN("couldn't open pack file: '"PRI_SV"'", ARG_SV(path));
+        return;
+    }
+
+    uint64_t elements = 0;
+    for(uint8_t i = 0; i < 4; ++i)
+    {
+        char byte = 0;
+        if((elements = fread(&byte, 1, 1, file)) != 1)
+        {
+            PD_WARN("couldn't read header from pack file: '"PRI_SV"'", ARG_SV(path));
+            return;
+        }
+
+        if(byte != packMagic.data[i])
+        {
+            PD_WARN("could not validate pack header in file: '"PRI_SV"'. expected: %u, "
+                    "got: %u.", ARG_SV(path), packMagic.data[i], byte);
+            return;
+        }
+    }
+
+    // followed by:
+    // 4-byte version number
+    // 4-byte number of objects contained in the pack
+    // number objects
+
+    fclose(file);
+    PD_WARN("TODO: handle pack file: '"PRI_SV"'", ARG_SV(path));
+}
+
 void gfInitRepository
 (
     gfRepository *repo,
@@ -266,7 +319,7 @@ void gfInitRepository
     char packBuf[4096]     = {0};
     char absoluteBuf[4096] = {0};
     StringView absolute = pdExpandPath(repo->path, absoluteBuf);
-    StringView gitPACK  = cstr_sv("/.git/objects/pack");
+    StringView gitPACK  = cstr_sv("/.git/objects/pack/");
     StringView gitHEAD  = cstr_sv("/.git/HEAD");
 
     gitPACK = sv_concat(absolute, gitPACK, packBuf);
@@ -295,21 +348,24 @@ void gfInitRepository
         }
         else if(sv_same(fileBuf[i], multiPackIndex))
         {
-            PD_WARN("TODO: handle mpi: "PRI_SV, ARG_SV(fileBuf[i]));
+            char tmpBuf[4096] = {0};
+            readMpiFile(sv_concat(gitPACK, fileBuf[i], tmpBuf));
             continue;
         }
         else if(sv_find(idxIdent, fileBuf[i]))
         {
-            PD_WARN("TODO: handle idx file: "PRI_SV, ARG_SV(fileBuf[i]));
+            char tmpBuf[4096] = {0};
+            readIdxFile(sv_concat(gitPACK, fileBuf[i], tmpBuf));
             continue;
         }
         else if(sv_find(packIdent, fileBuf[i]))
         {
-            PD_WARN("TODO: handle pack file: "PRI_SV, ARG_SV(fileBuf[i]));
+            char tmpBuf[4096] = {0};
+            readPackFile(sv_concat(gitPACK, fileBuf[i], tmpBuf));
             continue;
         }
 
-        PD_TRACE("ignored file in objects/pack: "PRI_SV, ARG_SV(fileBuf[i]));
+        PD_TRACE("unhandled fileType in objects/pack: '"PRI_SV"'", ARG_SV(fileBuf[i]));
     }
 
     // TODO: open & read all packfiles, create index of what hashes are where for later
