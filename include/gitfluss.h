@@ -263,4 +263,9 @@ extern void gfGetCommitInfo
     gfCommitInfo *commit
 );
 
+extern void gfFreeCommit
+(
+    gfCommitInfo *commit
+);
+
 #endif

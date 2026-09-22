@@ -264,7 +264,7 @@ f_internal void *gatherRepoData
     PD_ASSERT(commit.authorMail.data && commit.authorMail.size,
              "could not resolve commit author from HEAD");
 
-    for(;;)
+    while(commit.parentHash.data && commit.parentHash.size)
     {
         StringView author = commit.authorMail;
         bool       counts = anyAuthor;
@@ -353,6 +353,7 @@ f_internal void *gatherRepoData
         gfUnlock(set);
     }
 
+    gfFreeCommit(&commit);
     return 0;
 }
 

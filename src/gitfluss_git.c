@@ -29,6 +29,20 @@ f_internal void freeSV
     sv->size = 0;
 }
 
+void gfFreeCommit
+(
+    gfCommitInfo *commit
+){
+    commit->authorTime   = 0;
+    commit->commiterTime = 0;
+    freeSV(&commit->summary);
+    freeSV(&commit->parentHash);
+    freeSV(&commit->authorName);
+    freeSV(&commit->authorMail);
+    freeSV(&commit->commiterName);
+    freeSV(&commit->commiterMail);
+}
+
 f_internal int64_t readTimeFromSV
 (
     StringView sv
@@ -48,40 +62,26 @@ f_internal int64_t readTimeFromSV
     return time;
 }
 
-f_internal void readCommitData
+f_internal void readCommitFromPtr
 (
-    StringView   path,
-    gfCommitInfo *commit
+    uint8_t      *zlib,
+    gfCommitInfo *commit,
+    uint64_t     length
 ){
-    PD_TRACE("opening to read commit from path: '"PRI_SV"'", ARG_SV(path));
-
-    char pathBuf[path.size + 1];
-    sv_cstr(path, pathBuf);
-
-    FILE *file = fopen(pathBuf, "rb");
-    if(!file)
+    uint8_t commitBuf[length];
+    for(uint64_t i = 0; i < length; ++i)
     {
-        PD_WARN("failed to open commit file: '%s'", pathBuf);
-        return;
+        commitBuf[i] = 0;
     }
 
-    uint8_t zlibBuf[1024] = {0};
+    dsReadZlibPtr(zlib, commitBuf, length);
 
-    uint64_t elements = 1;
-    for(uint64_t i = 0; i < 1024 && elements == 1; ++i)
-    {
-        elements = fread(&zlibBuf[i], 1, 1, file);
-    }
-
-    uint8_t commitBuf[1024] = {0};
-    dsReadZlibPtr(zlibBuf, commitBuf, 1024);
-
-    StringView parsed;
+    StringView parsed = {0};
     parsed.data = (char*)commitBuf;
-    parsed.size = 1024;
+    parsed.size = length;
 
-    StringView svBuf[8] = {0};
-    sv_separate_by_delim(parsed, svBuf, '\n', 8);
+    StringView svBuf[10] = {0};
+    sv_separate_by_delim(parsed, svBuf, '\n', 10);
 
     StringView summary      = {0};
     StringView authorName   = {0};
@@ -205,6 +205,34 @@ f_internal void readCommitData
         PD_TRACE("parsed parent: "PRI_SV, ARG_SV(parent));
         commit->parentHash = sv_cpy(parent);
     }
+}
+
+f_internal void readCommitFromFile
+(
+    StringView   path,
+    gfCommitInfo *commit
+){
+    PD_TRACE("opening to read commit from path: '"PRI_SV"'", ARG_SV(path));
+
+    char pathBuf[path.size + 1];
+    sv_cstr(path, pathBuf);
+
+    FILE *file = fopen(pathBuf, "rb");
+    if(!file)
+    {
+        PD_WARN("failed to open commit file: '%s'", pathBuf);
+        return;
+    }
+
+    uint8_t zlibBuf[1024] = {0};
+
+    uint64_t elements = 1;
+    for(uint64_t i = 0; i < 1024 && elements == 1; ++i)
+    {
+        elements = fread(&zlibBuf[i], 1, 1, file);
+    }
+
+    readCommitFromPtr(zlibBuf, commit, 1024);
 
     fclose(file);
 }
@@ -242,19 +270,12 @@ void gfGetCommitInfo
     commitPath = sv_concat(commitPath, sep, pathBuf);
     commitPath = sv_concat(commitPath, hashRest, pathBuf);
 
-    freeSV(&commit->summary);
-    freeSV(&commit->parentHash);
-    freeSV(&commit->authorName);
-    freeSV(&commit->authorMail);
-    freeSV(&commit->commiterName);
-    freeSV(&commit->commiterMail);
-    commit->authorTime   = 0;
-    commit->commiterTime = 0;
+    gfFreeCommit(commit);
 
     uint8_t result = pdVerifyPath(commitPath);
     if(result == PD_TYPE_FILE)
     {
-        readCommitData(commitPath, commit);
+        readCommitFromFile(commitPath, commit);
         return;
     }
 
@@ -358,26 +379,40 @@ f_internal void readPackFile
             readMore = byte >> 7;
             length  += byte &  0x7F;
         }
+        PD_TRACE("parsed length from pack object: %lu", length);
 
         PD_ASSERT(type > 0 && type < 8, "invalid object type on obj %u: %u. "
                   "read Byte: 0x%X", i, type, byte);
 
         if(type == GF_OBJ_COMMIT)
         {
-            // read length amount of zlib compressed commit data and put it into
-            // data structure!
-            PD_WARN("TODO: handle GF_OBJ_COMMIT");
-            return;
+            uint8_t zlibBuf[length];
+            for(uint64_t j = 0; j < length; ++j)
+            {
+                if(fread(&zlibBuf[i], 1, 1, file) != 1)
+                {
+                    PD_WARN("couldn't read commit object from pack file: '"PRI_SV"'",
+                            ARG_SV(path));
+                    goto closefile;
+                }
+            }
+            gfCommitInfo commit = {0};
+
+            readCommitFromPtr(zlibBuf, &commit, length);
+
+            // put commit data into data structure, free it at the end, too
+
+            gfFreeCommit(&commit);
         }
         else if(type == GF_OBJ_OFS_DELTA)
         {
             PD_WARN("TODO: handle OBJ_OFS_DELTA");
-            return;
+            goto closefile;
         }
         else if(type == GF_OBJ_REF_DELTA)
         {
             PD_WARN("TODO: handle OBJ_REF_DELTA");
-            return;
+            goto closefile;
         }
         else
         {
