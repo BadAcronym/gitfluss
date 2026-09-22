@@ -261,12 +261,15 @@ f_internal void *gatherRepoData
     repo.path           = data->repository;
     gfInitRepository(&repo, &commit);
 
+    PD_ASSERT(commit.authorMail.data && commit.authorMail.size,
+             "could not resolve commit author from HEAD");
+
     for(;;)
     {
         StringView author = commit.authorMail;
         bool       counts = anyAuthor;
 
-        PD_ASSERT(author.data && author.size, "cannot work with null author.");
+        PD_ASSERT(author.data && author.size, "unresolved commit author.");
 
         if(commit.authorTime < set->startYearTime ||
            commit.authorTime > set->endYearTime

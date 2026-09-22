@@ -248,6 +248,8 @@ void gfGetCommitInfo
     freeSV(&commit->authorMail);
     freeSV(&commit->commiterName);
     freeSV(&commit->commiterMail);
+    commit->authorTime   = 0;
+    commit->commiterTime = 0;
 
     uint8_t result = pdVerifyPath(commitPath);
     if(result == PD_TYPE_FILE)
