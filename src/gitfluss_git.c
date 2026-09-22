@@ -307,7 +307,6 @@ f_internal void readPackFile
         PD_WARN("couldn't open pack file: '"PRI_SV"'", ARG_SV(path));
         return;
     }
-
     uint8_t *packFile = 0;
 
     uint8_t byte = 0;
@@ -358,28 +357,21 @@ f_internal void readPackFile
     }
     PD_TRACE("parsed number of objects: %"PRIu32".", numObj);
 
-    // FIXME: instead of fread-ing every byte separately (awfully slow),
-    // read the entire file with 1 call by first viewing how big it is with
-    // fseek(, , SEEK_END). that gives us the size that we can fread() and act upon
-    // below. we should also assert that the index does not exceed this size.
+    uint64_t before = (uint64_t)ftell(file);
+    fseek(file, 0, SEEK_END);
+    uint64_t packFileSize = (uint64_t)ftell(file) - before;
+    packFile = malloc(packFileSize);
 
-    for(;;)
+    fseek(file, before, SEEK_SET);
+
+    uint64_t elements = fread(packFile, 1, packFileSize, file);
+    if(elements != packFileSize)
     {
-        if(fread(&byte, 1, 1, file) != 1)
-        {
-            if(feof(file))
-            {
-                break;
-            }
-
-            PD_WARN("couldn't read object from pack file: '"PRI_SV"'", ARG_SV(path));
-            goto closefile;
-        }
-
-        pdArrPush(packFile, byte);
+        PD_WARN("couldn't read pack file into memory. tried to read %"PRIu64", but "
+                "read %"PRIu64" instead.: '"PRI_SV"'",
+                packFileSize, elements, ARG_SV(path));
+        goto closefile;
     }
-    PD_TRACE("read pack file into buffer that's %"PRIu64" bytes big.",
-             pdArrSize(packFile));
 
     uint64_t index = 0;
     for(uint32_t i = 0; i < numObj; ++i)
@@ -438,20 +430,20 @@ f_internal void readPackFile
         }
         else
         {
-            for(uint64_t j = 0; j < length; ++j)
-            {
-                if((fread(&byte, 1, 1, file)) != 1)
-                {
-                    PD_WARN("couldn't skip ahead to next object to handle in pack "
-                            "file: '"PRI_SV"'", ARG_SV(path));
-                    goto closefile;
-                }
-            }
+            uint8_t     *tmpBuf = malloc(length);
+            DeflateInfo dfInfo  = dsReadZlibPtr(&packFile[index], tmpBuf, UINT64_MAX);
+
+            index += dfInfo.compressedBytesRead;
+
+            free(tmpBuf);
         }
     }
 
 closefile:
-    pdArrFree(packFile);
+    if(packFile)
+    {
+        free(packFile);
+    }
     fclose(file);
 }
 
