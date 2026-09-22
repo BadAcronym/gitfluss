@@ -67,6 +67,10 @@
 #define GF_FLAG_NOMATCH 0x10
 #define GF_FLAG_SUMMARY 0x20
 
+#define GF_OBJ_COMMIT    1
+#define GF_OBJ_OFS_DELTA 6
+#define GF_OBJ_REF_DELTA 7
+
 typedef struct gfConf
 {
     StringView repositories;

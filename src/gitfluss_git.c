@@ -286,31 +286,112 @@ f_internal void readPackFile
         return;
     }
 
-    uint64_t elements = 0;
+    uint8_t byte = 0;
     for(uint8_t i = 0; i < 4; ++i)
     {
-        char byte = 0;
-        if((elements = fread(&byte, 1, 1, file)) != 1)
+        if(fread(&byte, 1, 1, file) != 1)
         {
             PD_WARN("couldn't read header from pack file: '"PRI_SV"'", ARG_SV(path));
-            return;
+            goto closefile;
         }
 
-        if(byte != packMagic.data[i])
+        if((char)byte != packMagic.data[i])
         {
             PD_WARN("could not validate pack header in file: '"PRI_SV"'. expected: %u, "
                     "got: %u.", ARG_SV(path), packMagic.data[i], byte);
-            return;
+            goto closefile;
         }
     }
 
-    // followed by:
-    // 4-byte version number
-    // 4-byte number of objects contained in the pack
-    // number objects
+    #ifdef DEBUG
+    uint32_t version = 0;
+    #endif
+    for(uint8_t i = 0; i < 4; ++i)
+    {
+        if(fread(&byte, 1, 1, file) != 1)
+        {
+            PD_WARN("couldn't read version from pack file: '"PRI_SV"'", ARG_SV(path));
+            goto closefile;
+        }
+        #ifdef DEBUG
+        version += (uint32_t)(byte << ((3 - i) * 8));
+        #endif
+    }
+    PD_TRACE("parsed packfile version %u.", version);
+    PD_ASSERT(version == 2 || version == 3, "unknown packfile version: %u", version);
 
+    uint32_t numObj = 0;
+    for(uint8_t i = 0; i < 4; ++i)
+    {
+        if(fread(&byte, 1, 1, file) != 1)
+        {
+            PD_WARN("couldn't read number of objects from pack file: '"PRI_SV"'",
+                    ARG_SV(path));
+            goto closefile;
+        }
+        numObj += (uint32_t)(byte << ((3 - i) * 8));
+    }
+    PD_TRACE("parsed number of objects: %u.", numObj);
+
+    for(uint32_t i = 0; i < numObj; ++i)
+    {
+        if((fread(&byte, 1, 1, file)) != 1)
+        {
+            PD_WARN("couldn't read number of objects from pack file: '"PRI_SV"'",
+                    ARG_SV(path));
+            goto closefile;
+        }
+
+        bool     readMore = byte >> 7;
+        uint8_t  type     = byte >> 4 & 0x07;
+        uint64_t length   = byte & 0x0F;
+
+        for(uint8_t j = 0; readMore && j < 8; ++j)
+        {
+            if((fread(&byte, 1, 1, file)) != 1)
+            {
+                PD_WARN("couldn't read length of object from pack file: '"PRI_SV"'",
+                        ARG_SV(path));
+                goto closefile;
+            }
+
+            readMore = byte >> 7;
+            length  += byte &  0x7F;
+        }
+
+        PD_ASSERT(type > 0 && type < 8, "invalid object type on obj %u: %u. "
+                  "read Byte: 0x%X", i, type, byte);
+
+        if(type == GF_OBJ_COMMIT)
+        {
+            // read length amount of zlib compressed commit data and put it into
+            // data structure!
+            PD_WARN("TODO: handle GF_OBJ_COMMIT");
+            return;
+        }
+        else if(type == GF_OBJ_OFS_DELTA)
+        {
+            PD_WARN("TODO: handle OBJ_OFS_DELTA");
+            return;
+        }
+        else if(type == GF_OBJ_REF_DELTA)
+        {
+            PD_WARN("TODO: handle OBJ_REF_DELTA");
+            return;
+        }
+        else
+        {
+            if((fread(&byte, 1, length, file)) != length)
+            {
+                PD_WARN("couldn't skip ahead to next object to handle in pack file: '"
+                        PRI_SV"'", ARG_SV(path));
+                goto closefile;
+            }
+        }
+    }
+
+closefile:
     fclose(file);
-    PD_WARN("TODO: handle pack file: '"PRI_SV"'", ARG_SV(path));
 }
 
 void gfInitRepository
