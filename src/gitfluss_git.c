@@ -67,19 +67,15 @@ f_internal int64_t readTimeFromSV
 f_internal DeflateInfo readCommitFromPtr
 (
     uint8_t      *zlib,
-    gfCommitInfo *commit,
-    uint64_t     length
+    gfCommitInfo *commit
 ){
     uint8_t *commitBuf = calloc(8192, 1);
 
     DeflateInfo dfInfo = dsReadZlibPtr(zlib, commitBuf, 8192);
 
-    StringView parsed = {0};
-    parsed.data = (char*)commitBuf;
-    parsed.size = 8192;
-
-    StringView svBuf[10] = {0};
-    sv_separate_by_delim(parsed, svBuf, '\n', 10);
+    StringView commitSV = {0};
+    commitSV.data = (char*)commitBuf;
+    commitSV.size = 8192;
 
     StringView summary      = {0};
     StringView authorName   = {0};
@@ -90,88 +86,84 @@ f_internal DeflateInfo readCommitFromPtr
     int64_t    authorTime   = 0;
     int64_t    commiterTime = 0;
 
-    uint8_t summaryLine = 0;
-
-    for(uint8_t i = 0; i < 6; ++i)
+    const char *parentLoc = sv_find(parentIdent, commitSV);
+    if(parentLoc)
     {
-        if(sv_find(authorIdent, svBuf[i]))
+        parent.data = parentLoc + 7;
+        parent.size = 40;
+        if(parent.data[40] != 0x0A)
         {
-            summaryLine = i + 2;
-            authorName  = svBuf[i];
-            sv_trim(&authorName, 7, SV_LEFT);
-            const char *startKaratLoc = sv_find(spaceKarat, authorName);
-            const char *endKaratLoc   = sv_find(karatSpace, authorName);
-
-            if(!startKaratLoc || !endKaratLoc)
-            {
-                continue;
-            }
-
-            authorName.size = (uint64_t)(startKaratLoc - authorName.data);
-
-            authorMail.data = startKaratLoc + 2;
-            authorMail.size = (uint64_t)(endKaratLoc - authorMail.data);
-
-            StringView authorTimeSV = {0};
-            authorTimeSV.data = authorMail.data + authorMail.size + 2;
-            for(uint32_t j = 0; j < 20; ++j)
-            {
-                if(authorTimeSV.data[j] == 0x20 || !authorTimeSV.data[j])
-                {
-                    break;
-                }
-                ++authorTimeSV.size;
-            }
-
-            authorTime = readTimeFromSV(authorTimeSV);
-
-            PD_TRACE("parsed authorName:   "PRI_SV, ARG_SV(authorName));
-            PD_TRACE("parsed authorMail:   "PRI_SV, ARG_SV(authorMail));
-            PD_TRACE("parsed authorTime:   "PRI_SV, ARG_SV(authorTimeSV));
-        }
-        else if(sv_find(commiterIdent, svBuf[i]))
-        {
-            summaryLine  = i + 2;
-            commiterName = svBuf[i];
-            sv_trim(&commiterName, 9, SV_LEFT);
-            const char *startKaratLoc = sv_find(spaceKarat, commiterName);
-            const char *endKaratLoc   = sv_find(karatSpace, commiterName);
-
-            if(!startKaratLoc || !endKaratLoc)
-            {
-                continue;
-            }
-
-            commiterName.size = (uint64_t)(startKaratLoc - commiterName.data);
-
-            commiterMail.data = startKaratLoc + 2;
-            commiterMail.size = (uint64_t)(endKaratLoc - commiterMail.data);
-
-            StringView commiterTimeSV = {0};
-            commiterTimeSV.data = commiterMail.data + commiterMail.size + 2;
-            for(uint32_t j = 0; j < 20; ++j)
-            {
-                if(commiterTimeSV.data[j] == 0x20 || !commiterTimeSV.data[j])
-                {
-                    break;
-                }
-                ++commiterTimeSV.size;
-            }
-
-            commiterTime = readTimeFromSV(commiterTimeSV);
-
-            PD_TRACE("parsed commiterName: "PRI_SV, ARG_SV(commiterName));
-            PD_TRACE("parsed commiterMail: "PRI_SV, ARG_SV(commiterMail));
-            PD_TRACE("parsed commiterTime: "PRI_SV, ARG_SV(commiterTimeSV));
-        }
-        else if(sv_find(parentIdent, svBuf[i]))
-        {
-            parent = svBuf[i];
-            sv_trim(&parent, 7, SV_LEFT);
+            parent.size = 64;
         }
     }
 
-    summary = svBuf[summaryLine];
+    const char *authorLoc = sv_find(authorIdent, commitSV);
+    if(authorLoc)
+    {
+        authorName.data = authorLoc + 7;
+        authorName.size = 4096;
+
+        summary = sv_find_by_delim(authorName, '\n', 2);
+
+        const char *startKaratLoc = sv_find(spaceKarat, authorName);
+        const char *endKaratLoc   = sv_find(karatSpace, authorName);
+
+        authorName.size = (uint64_t)(startKaratLoc - authorName.data);
+
+        authorMail.data = startKaratLoc + 2;
+        authorMail.size = (uint64_t)(endKaratLoc - authorMail.data);
+
+        StringView authorTimeSV = {0};
+        authorTimeSV.data = authorMail.data + authorMail.size + 2;
+        for(uint32_t j = 0; j < 20; ++j)
+        {
+            if(authorTimeSV.data[j] == 0x20 || !authorTimeSV.data[j])
+            {
+                break;
+            }
+            ++authorTimeSV.size;
+        }
+
+        authorTime = readTimeFromSV(authorTimeSV);
+
+        PD_TRACE("parsed authorName:   "PRI_SV, ARG_SV(authorName));
+        PD_TRACE("parsed authorMail:   "PRI_SV, ARG_SV(authorMail));
+        PD_TRACE("parsed authorTime:   "PRI_SV, ARG_SV(authorTimeSV));
+    }
+
+    const char *commiterLoc = sv_find(commiterIdent, commitSV);
+    if(commiterLoc)
+    {
+        commiterName.data = commiterLoc + 9;
+        commiterName.size = 4096;
+
+        summary = sv_find_by_delim(authorName, '\n', 2);
+
+        const char *startKaratLoc = sv_find(spaceKarat, commiterName);
+        const char *endKaratLoc   = sv_find(karatSpace, commiterName);
+
+        commiterName.size = (uint64_t)(startKaratLoc - commiterName.data);
+
+        commiterMail.data = startKaratLoc + 2;
+        commiterMail.size = (uint64_t)(endKaratLoc - commiterMail.data);
+
+        StringView commiterTimeSV = {0};
+        commiterTimeSV.data = commiterMail.data + commiterMail.size + 2;
+        for(uint32_t j = 0; j < 20; ++j)
+        {
+            if(commiterTimeSV.data[j] == 0x20 || !commiterTimeSV.data[j])
+            {
+                break;
+            }
+            ++commiterTimeSV.size;
+        }
+
+        commiterTime = readTimeFromSV(commiterTimeSV);
+
+        PD_TRACE("parsed commiterName:   "PRI_SV, ARG_SV(commiterName));
+        PD_TRACE("parsed commiterMail:   "PRI_SV, ARG_SV(commiterMail));
+        PD_TRACE("parsed commiterTime:   "PRI_SV, ARG_SV(commiterTimeSV));
+    }
 
     PD_TRACE("parsed summary: '"PRI_SV"'", ARG_SV(summary));
 
@@ -233,7 +225,7 @@ f_internal void readCommitFromFile
         elements = fread(&zlibBuf[i], 1, 1, file);
     }
 
-    readCommitFromPtr(zlibBuf, commit, 1024);
+    readCommitFromPtr(zlibBuf, commit);
 
     fclose(file);
 }
@@ -357,9 +349,9 @@ f_internal void readPackFile
     }
     PD_TRACE("parsed number of objects: %"PRIu32".", numObj);
 
-    uint64_t before = (uint64_t)ftell(file);
+    long before = (long)ftell(file);
     fseek(file, 0, SEEK_END);
-    uint64_t packFileSize = (uint64_t)ftell(file) - before;
+    uint64_t packFileSize = (uint64_t)ftell(file) - (uint64_t)before;
     packFile = malloc(packFileSize);
 
     fseek(file, before, SEEK_SET);
@@ -404,8 +396,7 @@ f_internal void readPackFile
         if(type == GF_OBJ_COMMIT)
         {
             gfCommitInfo commit = {0};
-            DeflateInfo  dfInfo = readCommitFromPtr(&packFile[index], &commit,
-                                                    length);
+            DeflateInfo  dfInfo = readCommitFromPtr(&packFile[index], &commit);
 
             PD_ASSERT(dfInfo.bytesWritten == length, "expected to decompress into %"
                       PRIu64" bytes, actual: %"PRIu64".", length, dfInfo.bytesWritten);
