@@ -327,80 +327,80 @@ f_internal void readCommitsFromPackfile
         goto closefile;
     }
 
+    // TODO: read each specified object from offset that was provided
     for(uint32_t i = 0; i < amount; ++i)
     {
-        PD_WARN("TODO: handle commit at offset %"PRIu64, offsets[i]);
-    }
+        uint64_t index = offsets[i];
+        uint8_t  byte  = packFile[index++];
 
-    // uint8_t  byte  = packFile[index++];
-    //
-    // bool     readMore = byte >> 7;
-    // uint8_t  type     = byte >> 4 & 0x07;
-    // uint64_t length   = byte & 0x0F;
-    // uint8_t  shift    = 4;
-    //
-    // for(uint8_t j = 0; readMore && j < 10; ++j)
-    // {
-    //     byte = packFile[index++];
-    //
-    //     uint64_t chunk = byte & 0x7F;
-    //
-    //     PD_ASSERT(shift < 64, "cannot shift more than 64 bits.");
-    //     PD_ASSERT(chunk < (UINT64_MAX >> shift), "chunk is too large.");
-    //
-    //     readMore = byte  >> 7;
-    //     length  |= chunk << shift;
-    //     shift   += 7;
-    // }
-    // PD_TRACE("parsed length from pack object %"PRIu32" (type %"PRIu8"): %"PRIu64"",
-    //          i, type, length);
-    //
-    // PD_ASSERT(type > 0 && type < 8, "invalid object type on obj %"PRIu32": %"PRIu32
-    //           ". read Byte: 0x%X", i, type, byte);
-    //
-    // PD_ASSERT(index < packFileSize, "pack offset is out of bounds.");
-    //
-    // if(type == GF_OBJ_COMMIT)
-    // {
-    //     gfCommitInfo commit = {0};
-    //     DeflateInfo  dfInfo = readCommitFromPtr(&packFile[index], &commit);
-    //
-    //     PD_ASSERT(dfInfo.bytesWritten == length, "expected to decompress into %"
-    //               PRIu64" bytes, actual: %"PRIu64".", length, dfInfo.bytesWritten);
-    //
-    //     // TODO: parse
-    //
-    //     if(!dfInfo.success)
-    //     {
-    //         PD_WARN("could not successfully read commit object %"PRIu32" in pack "
-    //                 "file '"PRI_SV"'.", i, ARG_SV(path));
-    //         gfFreeCommit(&commit);
-    //         goto closefile;
-    //     }
-    //     PD_ASSERT(length == dfInfo.bytesWritten, "did not write the expected "
-    //               "amount (%"PRIu64") of bytes, but instead %"PRIu64, length,
-    //               dfInfo.bytesWritten);
-    //
-    //     index += dfInfo.compressedBytesRead;
-    //
-    //     gfFreeCommit(&commit);
-    // }
-    // else if(type == GF_OBJ_OFS_DELTA)
-    // {
-    //     PD_WARN("TODO: handle OBJ_OFS_DELTA if it's of base type commit.");
-    //     goto closefile;
-    // }
-    // else if(type == GF_OBJ_REF_DELTA)
-    // {
-    //     PD_WARN("TODO: handle OBJ_REF_DELTA if it's of base type commit.");
-    //     goto closefile;
-    // }
-    // else
-    // {
-    //     PD_ERROR("index does not point to a commit object, but one of type %"PRIu8".",
-    //              type);
-    //     goto closefile;
-    // }
+        bool     readMore = byte >> 7;
+        uint8_t  type     = byte >> 4 & 0x07;
+        uint64_t length   = byte & 0x0F;
+        uint8_t  shift    = 4;
+
+        for(uint8_t j = 0; readMore && j < 10; ++j)
+        {
+            byte = packFile[index++];
+
+            uint64_t chunk = byte & 0x7F;
+
+            PD_ASSERT(shift < 64, "cannot shift more than 64 bits.");
+            PD_ASSERT(chunk < (UINT64_MAX >> shift), "chunk is too large.");
+
+            readMore = byte  >> 7;
+            length  |= chunk << shift;
+            shift   += 7;
+        }
+        PD_TRACE("parsed length from pack object %"PRIu32" (type %"PRIu8"): %"PRIu64"",
+                 i, type, length);
+
+        PD_ASSERT(type > 0 && type < 8, "invalid object type on obj %"PRIu32": %"PRIu32
+                  ". read Byte: 0x%X", i, type, byte);
+
+        PD_ASSERT(index < packFileSize, "pack offset is out of bounds.");
+
+        if(type == GF_OBJ_COMMIT)
+        {
+            gfCommitInfo commit = {0};
+            DeflateInfo  dfInfo = readCommitFromPtr(&packFile[index], &commit);
+
+            PD_ASSERT(dfInfo.bytesWritten == length, "expected to decompress into %"
+                      PRIu64" bytes, actual: %"PRIu64".", length, dfInfo.bytesWritten);
+
+            // TODO: parse
+
+            if(!dfInfo.success)
+            {
+                PD_WARN("could not successfully read commit object %"PRIu32" in pack "
+                        "file '"PRI_SV"'.", i, ARG_SV(path));
+                gfFreeCommit(&commit);
+                goto closefile;
+            }
+            PD_ASSERT(length == dfInfo.bytesWritten, "did not write the expected "
+                      "amount (%"PRIu64") of bytes, but instead %"PRIu64, length,
+                      dfInfo.bytesWritten);
+
+            index += dfInfo.compressedBytesRead;
+
+            gfFreeCommit(&commit);
+        }
+        else if(type == GF_OBJ_OFS_DELTA)
+        {
+            PD_WARN("OBJ_OFS_DELTA unhandled.");
+            goto closefile;
+        }
+        else if(type == GF_OBJ_REF_DELTA)
+        {
+            PD_WARN("OBJ_REF_DELTA unhandled.");
+            goto closefile;
+        }
+        else
+        {
+            PD_ERROR("index does not point to a commit object, but one of type %"PRIu8".",
+                     type);
+            goto closefile;
+        }
+    }
 
 closefile:
     if(packFile)
