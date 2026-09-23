@@ -3,21 +3,16 @@
 #include "datasurf_main.h"
 
 #include "pd_path.h"
-#include "pd_dyn_arr.h"
 #include "pd_print_macros.h"
 
-s_global const StringView singleDot      = { .size = 1,  .data = "."                };
-s_global const StringView doubleDot      = { .size = 2,  .data = ".."               };
 s_global const StringView spaceKarat     = { .size = 2,  .data = " <"               };
 s_global const StringView karatSpace     = { .size = 2,  .data = "> "               };
 s_global const StringView idxIdent       = { .size = 4,  .data = ".idx"             };
 s_global const StringView refIdent       = { .size = 4,  .data = "ref:"             };
-s_global const StringView packMagic      = { .size = 4,  .data = "PACK"             };
-s_global const StringView packIdent      = { .size = 5,  .data = ".pack"            };
 s_global const StringView authorIdent    = { .size = 6,  .data = "author"           };
 s_global const StringView parentIdent    = { .size = 6,  .data = "parent"           };
 s_global const StringView commiterIdent  = { .size = 8,  .data = "commiter"         };
-s_global const StringView multiPackIndex = { .size = 16, .data = "multi-pack-index" };
+s_global const StringView multiPackIdent = { .size = 16, .data = "multi-pack-index" };
 
 f_internal void freeSV
 (
@@ -275,23 +270,39 @@ void gfGetCommitInfo
     PD_WARN("TODO: handle commit '"PRI_SV"' from packfile. ", ARG_SV(commitPath));
 }
 
-f_internal void readMpiFile
+f_internal void readMIDXFile
 (
     StringView path
 ){
+    // MIDX bytes
+    // 1 byte version number, must be 1
+    // 1 byte object ID version
+    // 1 byte number of "chunks"
+    // 1 byte number of base mpi files: currently always 0.
+    // 4 byte number of pack files
+    // ...
+
     PD_WARN("TODO: handle mpi file: '"PRI_SV"'", ARG_SV(path));
 }
 
-f_internal void readIdxFile
+f_internal void readIDXFile
 (
     StringView path
 ){
     PD_WARN("TODO: handle idx file: '"PRI_SV"'", ARG_SV(path));
 }
 
-f_internal void readPackFile
+// FIXME: I need to overhaul this completely. instead of reading all of the commits in
+// the pack and then storing them... I can just read the hashes and offsets from the
+// .idx file and jump to those offsets in a particular packfile.
+// best collect all the offset/hash pairs, go through those pairs and read the commit
+// data into a hashed structure that can be accessed just as easily as an actual
+// filepath.
+f_internal void readCommitsFromPackfile
 (
-    StringView path
+    StringView path,
+    uint32_t   amount,
+    uint64_t   *offsets
 ){
     FILE *file = fopen(path.data, "rb");
     if(!file)
@@ -301,60 +312,11 @@ f_internal void readPackFile
     }
     uint8_t *packFile = 0;
 
-    uint8_t byte = 0;
-    for(uint8_t i = 0; i < 4; ++i)
-    {
-        if(fread(&byte, 1, 1, file) != 1)
-        {
-            PD_WARN("couldn't read header from pack file: '"PRI_SV"'", ARG_SV(path));
-            goto closefile;
-        }
-
-        if((char)byte != packMagic.data[i])
-        {
-            PD_WARN("could not validate pack header in file: '"PRI_SV"'. expected: %u, "
-                    "got: %u.", ARG_SV(path), packMagic.data[i], byte);
-            goto closefile;
-        }
-    }
-
-    #ifdef DEBUG
-    uint32_t version = 0;
-    #endif
-    for(uint8_t i = 0; i < 4; ++i)
-    {
-        if(fread(&byte, 1, 1, file) != 1)
-        {
-            PD_WARN("couldn't read version from pack file: '"PRI_SV"'", ARG_SV(path));
-            goto closefile;
-        }
-        #ifdef DEBUG
-        version += (uint32_t)(byte << ((3 - i) * 8));
-        #endif
-    }
-    PD_TRACE("parsed packfile version %"PRIu32".", version);
-    PD_ASSERT(version == 2 || version == 3, "unknown packfile version: %"PRIu32,
-              version);
-
-    uint32_t numObj = 0;
-    for(uint8_t i = 0; i < 4; ++i)
-    {
-        if(fread(&byte, 1, 1, file) != 1)
-        {
-            PD_WARN("couldn't read number of objects from pack file: '"PRI_SV"'",
-                    ARG_SV(path));
-            goto closefile;
-        }
-        numObj += (uint32_t)(byte << ((3 - i) * 8));
-    }
-    PD_TRACE("parsed number of objects: %"PRIu32".", numObj);
-
-    long before = (long)ftell(file);
     fseek(file, 0, SEEK_END);
-    uint64_t packFileSize = (uint64_t)ftell(file) - (uint64_t)before;
+    uint64_t packFileSize = (uint64_t)ftell(file);
     packFile = malloc(packFileSize);
 
-    fseek(file, before, SEEK_SET);
+    fseek(file, 0, SEEK_SET);
 
     uint64_t elements = fread(packFile, 1, packFileSize, file);
     if(elements != packFileSize)
@@ -365,73 +327,80 @@ f_internal void readPackFile
         goto closefile;
     }
 
-    uint64_t index = 0;
-    for(uint32_t i = 0; i < numObj; ++i)
+    for(uint32_t i = 0; i < amount; ++i)
     {
-        byte = packFile[index++];
-
-        bool     readMore = byte >> 7;
-        uint8_t  type     = byte >> 4 & 0x07;
-        uint64_t length   = byte & 0x0F;
-        uint8_t  shift    = 4;
-
-        for(uint8_t j = 0; readMore && j < 10; ++j)
-        {
-            byte = packFile[index++];
-
-            uint64_t chunk = byte & 0x7F;
-
-            PD_ASSERT(shift < 64, "cannot shift more than 64 bits.");
-            PD_ASSERT(chunk < (UINT64_MAX >> shift), "chunk is too large.");
-
-            readMore = byte  >> 7;
-            length  |= chunk << shift;
-            shift   += 7;
-        }
-        PD_TRACE("parsed length from pack object %"PRIu32": %"PRIu64"", i, length);
-
-        PD_ASSERT(type > 0 && type < 8, "invalid object type on obj %"PRIu32": %"PRIu32
-                  ". read Byte: 0x%X", i, type, byte);
-
-        if(type == GF_OBJ_COMMIT)
-        {
-            gfCommitInfo commit = {0};
-            DeflateInfo  dfInfo = readCommitFromPtr(&packFile[index], &commit);
-
-            PD_ASSERT(dfInfo.bytesWritten == length, "expected to decompress into %"
-                      PRIu64" bytes, actual: %"PRIu64".", length, dfInfo.bytesWritten);
-
-            // TODO: put commit data into hashed data structure.
-            // for this, we need to know what the current hash of the commit is.
-            // do we know at all? I don't want to have to recompute the hash.
-            // TODO: I think, to get the hash, we can simply store the offset of the
-            // commit. do we store a list of offsets and try to match them up with the
-            // ones from .idx? kinda whack but might actually work
-
-            index += dfInfo.compressedBytesRead;
-
-            gfFreeCommit(&commit);
-        }
-        else if(type == GF_OBJ_OFS_DELTA)
-        {
-            PD_WARN("TODO: handle OBJ_OFS_DELTA if it's of base type commit.");
-            goto closefile;
-        }
-        else if(type == GF_OBJ_REF_DELTA)
-        {
-            PD_WARN("TODO: handle OBJ_REF_DELTA if it's of base type commit.");
-            goto closefile;
-        }
-        else
-        {
-            uint8_t     *tmpBuf = malloc(length);
-            DeflateInfo dfInfo  = dsReadZlibPtr(&packFile[index], tmpBuf, UINT64_MAX);
-
-            index += dfInfo.compressedBytesRead;
-
-            free(tmpBuf);
-        }
+        PD_WARN("TODO: handle commit at offset %"PRIu64, offsets[i]);
     }
+
+    // uint8_t  byte  = packFile[index++];
+    //
+    // bool     readMore = byte >> 7;
+    // uint8_t  type     = byte >> 4 & 0x07;
+    // uint64_t length   = byte & 0x0F;
+    // uint8_t  shift    = 4;
+    //
+    // for(uint8_t j = 0; readMore && j < 10; ++j)
+    // {
+    //     byte = packFile[index++];
+    //
+    //     uint64_t chunk = byte & 0x7F;
+    //
+    //     PD_ASSERT(shift < 64, "cannot shift more than 64 bits.");
+    //     PD_ASSERT(chunk < (UINT64_MAX >> shift), "chunk is too large.");
+    //
+    //     readMore = byte  >> 7;
+    //     length  |= chunk << shift;
+    //     shift   += 7;
+    // }
+    // PD_TRACE("parsed length from pack object %"PRIu32" (type %"PRIu8"): %"PRIu64"",
+    //          i, type, length);
+    //
+    // PD_ASSERT(type > 0 && type < 8, "invalid object type on obj %"PRIu32": %"PRIu32
+    //           ". read Byte: 0x%X", i, type, byte);
+    //
+    // PD_ASSERT(index < packFileSize, "pack offset is out of bounds.");
+    //
+    // if(type == GF_OBJ_COMMIT)
+    // {
+    //     gfCommitInfo commit = {0};
+    //     DeflateInfo  dfInfo = readCommitFromPtr(&packFile[index], &commit);
+    //
+    //     PD_ASSERT(dfInfo.bytesWritten == length, "expected to decompress into %"
+    //               PRIu64" bytes, actual: %"PRIu64".", length, dfInfo.bytesWritten);
+    //
+    //     // TODO: parse
+    //
+    //     if(!dfInfo.success)
+    //     {
+    //         PD_WARN("could not successfully read commit object %"PRIu32" in pack "
+    //                 "file '"PRI_SV"'.", i, ARG_SV(path));
+    //         gfFreeCommit(&commit);
+    //         goto closefile;
+    //     }
+    //     PD_ASSERT(length == dfInfo.bytesWritten, "did not write the expected "
+    //               "amount (%"PRIu64") of bytes, but instead %"PRIu64, length,
+    //               dfInfo.bytesWritten);
+    //
+    //     index += dfInfo.compressedBytesRead;
+    //
+    //     gfFreeCommit(&commit);
+    // }
+    // else if(type == GF_OBJ_OFS_DELTA)
+    // {
+    //     PD_WARN("TODO: handle OBJ_OFS_DELTA if it's of base type commit.");
+    //     goto closefile;
+    // }
+    // else if(type == GF_OBJ_REF_DELTA)
+    // {
+    //     PD_WARN("TODO: handle OBJ_REF_DELTA if it's of base type commit.");
+    //     goto closefile;
+    // }
+    // else
+    // {
+    //     PD_ERROR("index does not point to a commit object, but one of type %"PRIu8".",
+    //              type);
+    //     goto closefile;
+    // }
 
 closefile:
     if(packFile)
@@ -477,27 +446,15 @@ void gfInitRepository
     sv_separate_by_delim(list, fileBuf, ';', fileCount);
     for(uint64_t i = 0; i < fileCount; ++i)
     {
-        if(sv_same(fileBuf[i], singleDot) || sv_same(fileBuf[i], doubleDot))
-        {
-            continue;
-        }
-        else if(sv_same(fileBuf[i], multiPackIndex))
+        if(sv_same(multiPackIdent, fileBuf[i]))
         {
             char tmpBuf[4096] = {0};
-            readMpiFile(sv_concat(gitPACK, fileBuf[i], tmpBuf));
-            continue;
+            readMIDXFile(sv_concat(gitPACK, fileBuf[i], tmpBuf));
         }
         else if(sv_find(idxIdent, fileBuf[i]))
         {
             char tmpBuf[4096] = {0};
-            readIdxFile(sv_concat(gitPACK, fileBuf[i], tmpBuf));
-            continue;
-        }
-        else if(sv_find(packIdent, fileBuf[i]))
-        {
-            char tmpBuf[4096] = {0};
-            readPackFile(sv_concat(gitPACK, fileBuf[i], tmpBuf));
-            continue;
+            readIDXFile(sv_concat(gitPACK, fileBuf[i], tmpBuf));
         }
 
         PD_TRACE("unhandled fileType in objects/pack: '"PRI_SV"'", ARG_SV(fileBuf[i]));
