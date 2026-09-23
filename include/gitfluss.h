@@ -68,6 +68,9 @@
 #define GF_FLAG_NOMATCH 0x10
 #define GF_FLAG_SUMMARY 0x20
 
+#define GF_OBJ_ID_SHA1   1
+#define GF_OBJ_ID_SHA256 2
+
 #define GF_OBJ_COMMIT    1
 #define GF_OBJ_OFS_DELTA 6
 #define GF_OBJ_REF_DELTA 7

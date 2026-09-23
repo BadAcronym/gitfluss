@@ -9,6 +9,7 @@ s_global const StringView spaceKarat     = { .size = 2,  .data = " <"           
 s_global const StringView karatSpace     = { .size = 2,  .data = "> "               };
 s_global const StringView idxIdent       = { .size = 4,  .data = ".idx"             };
 s_global const StringView refIdent       = { .size = 4,  .data = "ref:"             };
+s_global const StringView magicMIDX      = { .size = 4,  .data = "MIDX"             };
 s_global const StringView authorIdent    = { .size = 6,  .data = "author"           };
 s_global const StringView parentIdent    = { .size = 6,  .data = "parent"           };
 s_global const StringView commiterIdent  = { .size = 8,  .data = "commiter"         };
@@ -274,15 +275,78 @@ f_internal void readMIDXFile
 (
     StringView path
 ){
-    // MIDX bytes
-    // 1 byte version number, must be 1
-    // 1 byte object ID version
-    // 1 byte number of "chunks"
-    // 1 byte number of base mpi files: currently always 0.
+    FILE *file = fopen(path.data, "rb");
+    if(!file)
+    {
+        PD_ERROR("failed to open MIDX file: '"PRI_SV"'.", ARG_SV(path));
+        return;
+    }
+
+    uint8_t byte = 0;
+
+    for(uint8_t i = 0; i < 4; ++i)
+    {
+        if(fread(&byte, 1, 1, file) != 1)
+        {
+            PD_ERROR("failed to read MIDX magic bytes from file: '"PRI_SV"'.",
+                     ARG_SV(path));
+            goto closefile;
+        }
+
+        if((char)byte != magicMIDX.data[i])
+        {
+            PD_ERROR("failed to validate MIDX magic bytes from file: '"PRI_SV"'. "
+                     "expected: 0x%X, got 0x%X.",
+                     ARG_SV(path), magicMIDX.data[i], byte);
+            goto closefile;
+        }
+    }
+
+    if(fread(&byte, 1, 1, file) != 1)
+    {
+        PD_ERROR("failed to read MIDX version number from file: '"PRI_SV"'.",
+                 ARG_SV(path));
+        goto closefile;
+    }
+    PD_ASSERT(byte == 1, "unknown MIDX version number: %"PRIu8, byte);
+
+    if(fread(&byte, 1, 1, file) != 1)
+    {
+        PD_ERROR("failed to read object ID version from file: '"PRI_SV"'.",
+                 ARG_SV(path));
+        goto closefile;
+    }
+    uint8_t objectID = byte;
+
+    PD_ASSERT(objectID == GF_OBJ_ID_SHA1 || objectID == GF_OBJ_ID_SHA256,
+              "unknown object ID number: %"PRIu8, objectID);
+
+    // TODO: ignore the rest of this file if the hashing algorithm doesn't match the
+    // repository's algorithm. for that, I need to figure out the repositoriy's alg
+    // first hehe
+
+    if(fread(&byte, 1, 1, file) != 1)
+    {
+        PD_ERROR("failed to read number of chunks from file: '"PRI_SV"'.",
+                 ARG_SV(path));
+        goto closefile;
+    }
+    uint8_t numChunks = byte;
+
+    if(fread(&byte, 1, 1, file) != 1)
+    {
+        PD_ERROR("failed to read number of base MIDX files from file: '"PRI_SV"'.",
+                 ARG_SV(path));
+        goto closefile;
+    }
+    PD_ASSERT(!byte, "number of base multi-pack-index files > 1: %"PRIu8, byte);
+
     // 4 byte number of pack files
     // ...
-
     PD_WARN("TODO: handle mpi file: '"PRI_SV"'", ARG_SV(path));
+
+closefile:
+    fclose(file);
 }
 
 f_internal void readIDXFile
@@ -298,6 +362,9 @@ f_internal void readIDXFile
 // best collect all the offset/hash pairs, go through those pairs and read the commit
 // data into a hashed structure that can be accessed just as easily as an actual
 // filepath.
+// PERF: instead of loading the entire file into memory, I should load the file from the
+// first commit offset to the end. the other offsets are then offsets of the first
+// offset, maybe?
 f_internal void readCommitsFromPackfile
 (
     StringView path,
