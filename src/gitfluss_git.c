@@ -5,15 +5,14 @@
 #include "pd_path.h"
 #include "pd_print_macros.h"
 
-s_global const StringView spaceKarat     = { .size = 2,  .data = " <"               };
-s_global const StringView karatSpace     = { .size = 2,  .data = "> "               };
-s_global const StringView idxIdent       = { .size = 4,  .data = ".idx"             };
-s_global const StringView refIdent       = { .size = 4,  .data = "ref:"             };
-s_global const StringView magicMIDX      = { .size = 4,  .data = "MIDX"             };
-s_global const StringView authorIdent    = { .size = 6,  .data = "author"           };
-s_global const StringView parentIdent    = { .size = 6,  .data = "parent"           };
-s_global const StringView commiterIdent  = { .size = 8,  .data = "commiter"         };
-s_global const StringView multiPackIdent = { .size = 16, .data = "multi-pack-index" };
+s_global const StringView spaceKarat     = { .size = 2,  .data = " <"       };
+s_global const StringView karatSpace     = { .size = 2,  .data = "> "       };
+s_global const StringView idxIdent       = { .size = 4,  .data = ".idx"     };
+s_global const StringView refIdent       = { .size = 4,  .data = "ref:"     };
+s_global const StringView idxV2Magic     = { .size = 4,  .data = "\377tOc"  };
+s_global const StringView authorIdent    = { .size = 6,  .data = "author"   };
+s_global const StringView parentIdent    = { .size = 6,  .data = "parent"   };
+s_global const StringView commiterIdent  = { .size = 8,  .data = "commiter" };
 
 f_internal void freeSV
 (
@@ -271,108 +270,136 @@ void gfGetCommitInfo
     PD_WARN("TODO: handle commit '"PRI_SV"' from packfile. ", ARG_SV(commitPath));
 }
 
-f_internal void readMIDXFile
+f_internal bool readIDXFanout
 (
-    StringView path
+    FILE     *file,
+    uint32_t *fanouts
 ){
-    FILE *file = fopen(path.data, "rb");
-    if(!file)
-    {
-        PD_ERROR("failed to open MIDX file: '"PRI_SV"'.", ARG_SV(path));
-        return;
-    }
-
     uint8_t byte = 0;
 
-    for(uint8_t i = 0; i < 4; ++i)
+    for(uint16_t i = 0; i < 256; ++i)
     {
-        if(fread(&byte, 1, 1, file) != 1)
+        for(uint8_t j = 0; j < 4; ++j)
         {
-            PD_ERROR("failed to read MIDX magic bytes from file: '"PRI_SV"'.",
-                     ARG_SV(path));
-            goto closefile;
-        }
+            if(fread(&byte, 1, 1, file) != 1)
+            {
+                PD_ERROR("could not read fanout entry %"PRIu16".", j);
+                return false;
+            }
 
-        if((char)byte != magicMIDX.data[i])
-        {
-            PD_ERROR("failed to validate MIDX magic bytes from file: '"PRI_SV"'. "
-                     "expected: 0x%X, got 0x%X.",
-                     ARG_SV(path), magicMIDX.data[i], byte);
-            goto closefile;
+            fanouts[i] |= (uint32_t)(byte << (3 - j));
         }
     }
 
-    if(fread(&byte, 1, 1, file) != 1)
+    return true;
+}
+
+f_internal void readIDXV1
+(
+    FILE *file
+){
+    uint32_t fanouts[256] = {0};
+    if(!readIDXFanout(file, fanouts))
     {
-        PD_ERROR("failed to read MIDX version number from file: '"PRI_SV"'.",
-                 ARG_SV(path));
+        PD_ERROR("could not read fanouts of v1 IDX file.");
         goto closefile;
     }
-    PD_ASSERT(byte == 1, "unknown MIDX version number: %"PRIu8, byte);
 
-    if(fread(&byte, 1, 1, file) != 1)
-    {
-        PD_ERROR("failed to read object ID version from file: '"PRI_SV"'.",
-                 ARG_SV(path));
-        goto closefile;
-    }
-    uint8_t objectID = byte;
-
-    PD_ASSERT(objectID == GF_OBJ_ID_SHA1 || objectID == GF_OBJ_ID_SHA256,
-              "unknown object ID number: %"PRIu8, objectID);
-
-    // TODO: ignore the rest of this file if the hashing algorithm doesn't match the
-    // repository's algorithm. for that, I need to figure out the repositoriy's alg
-    // first hehe
-
-    if(fread(&byte, 1, 1, file) != 1)
-    {
-        PD_ERROR("failed to read number of chunks from file: '"PRI_SV"'.",
-                 ARG_SV(path));
-        goto closefile;
-    }
-    uint8_t numChunks = byte;
-
-    if(fread(&byte, 1, 1, file) != 1)
-    {
-        PD_ERROR("failed to read number of base MIDX files from file: '"PRI_SV"'.",
-                 ARG_SV(path));
-        goto closefile;
-    }
-    PD_ASSERT(!byte, "number of base multi-pack-index files > 1: %"PRIu8, byte);
-
-    uint32_t numPackfiles = 0;
-    for(uint8_t i = 0; i < 4; ++i)
-    {
-        if(fread(&byte, 1, 1, file) != 1)
-        {
-            PD_ERROR("failed to read number of packfiles from file: '"PRI_SV"'.",
-                     ARG_SV(path));
-            goto closefile;
-        }
-        numPackfiles |= (uint32_t)(byte << (4 - i));
-    }
-
-    // ...
-    PD_WARN("TODO: handle mpi file: '"PRI_SV"'", ARG_SV(path));
+    // fanout[255] number of 24-byte entries, which are:
+    // 4  byte offset
+    // 20 byte name
 
 closefile:
     fclose(file);
 }
 
-f_internal void readIDXFile
+f_internal void readIDXV2
 (
-    StringView path
+    FILE *file
 ){
-    PD_WARN("TODO: handle idx file: '"PRI_SV"'", ARG_SV(path));
+    uint8_t  byte    = 0;
+    uint32_t version = 0;
+    for(uint8_t i = 0; i < 4; ++i)
+    {
+        if(fread(&byte, 1, 1, file) != 1)
+        {
+            PD_ERROR("failed to read IDX v2 version number.");
+            goto closefile;
+        }
+
+        version |= (uint32_t)(byte << (3 - i));
+    }
+
+    if(version != 2)
+    {
+        PD_ERROR("unknown IDX v2 version number: %"PRIu32, version);
+        goto closefile;
+    }
+
+    uint32_t fanouts[256] = {0};
+    if(!readIDXFanout(file, fanouts))
+    {
+        PD_ERROR("could not read fanouts of v2 IDX file.");
+        goto closefile;
+    }
+
+    // table of sorted object names
+    // table of 4-byte CRC32 values of packed object data
+    // table of 4-byte offset values
+    // table of 8-byte offset entries
+closefile:
+    fclose(file);
 }
 
-// FIXME: I need to overhaul this completely. instead of reading all of the commits in
-// the pack and then storing them... I can just read the hashes and offsets from the
-// .idx file and jump to those offsets in a particular packfile.
-// best collect all the offset/hash pairs, go through those pairs and read the commit
-// data into a hashed structure that can be accessed just as easily as an actual
-// filepath.
+f_internal void readPackedCommits
+(
+    StringView idxPath
+){
+    FILE *file = fopen(idxPath.data, "rb");
+    if(!file)
+    {
+        PD_ERROR("could not open .idx file: '"PRI_SV"'", ARG_SV(idxPath));
+        return;
+    }
+
+    bool    v2   = true;
+    uint8_t byte = 0;
+    for(uint8_t i = 0; i < 4; ++i)
+    {
+        if(fread(&byte, 1, 1, file) != 1)
+        {
+            PD_ERROR("couldn't read first 4 bytes of .idx file: '"PRI_SV"'",
+                     ARG_SV(idxPath));
+            fclose(file);
+            return;
+        }
+
+        if((char)byte != idxV2Magic.data[i])
+        {
+            v2 = false;
+            break;
+        }
+    }
+
+    if(v2)
+    {
+        PD_TRACE("reading .idx v2 file: '"PRI_SV"'", ARG_SV(idxPath));
+        readIDXV2(file);
+    }
+    else
+    {
+        PD_TRACE("reading .idx v1 file: '"PRI_SV"'", ARG_SV(idxPath));
+        fseek(file, 0, SEEK_SET);
+        readIDXV1(file);
+    }
+
+    PD_WARN("TODO: handle idx file: '"PRI_SV"'", ARG_SV(idxPath));
+}
+
+// TODO: best collect all the offset/hash pairs, go through those pairs and read
+// the commit data into a hashed structure that can be accessed just as easily
+// as an actual filepath.
+
 // PERF: instead of loading the entire file into memory, I should load the file from the
 // first commit offset to the end. the other offsets are then offsets of the first
 // offset, maybe?
@@ -524,15 +551,11 @@ void gfInitRepository
     sv_separate_by_delim(list, fileBuf, ';', fileCount);
     for(uint64_t i = 0; i < fileCount; ++i)
     {
-        if(sv_same(multiPackIdent, fileBuf[i]))
+        if(sv_find(idxIdent, fileBuf[i]))
         {
             char tmpBuf[4096] = {0};
-            readMIDXFile(sv_concat(gitPACK, fileBuf[i], tmpBuf));
-        }
-        else if(sv_find(idxIdent, fileBuf[i]))
-        {
-            char tmpBuf[4096] = {0};
-            readIDXFile(sv_concat(gitPACK, fileBuf[i], tmpBuf));
+            StringView idxPath = sv_concat(gitPACK, fileBuf[i], tmpBuf);
+            readPackedCommits(idxPath);
         }
 
         PD_TRACE("unhandled fileType in objects/pack: '"PRI_SV"'", ARG_SV(fileBuf[i]));
