@@ -298,16 +298,43 @@ f_internal void readIDXV1
 (
     FILE *file
 ){
-    uint32_t fanouts[256] = {0};
-    if(!readIDXFanout(file, fanouts))
+    uint32_t fanout[256] = {0};
+    if(!readIDXFanout(file, fanout))
     {
         PD_ERROR("could not read fanouts of v1 IDX file.");
         goto closefile;
     }
 
-    // fanout[255] number of 24-byte entries, which are:
-    // 4  byte offset
-    // 20 byte name
+    for(uint32_t i = 0; i < fanout[255]; ++i)
+    {
+        uint8_t  byte   = 0;
+        uint32_t offset = 0;
+        for(uint8_t j = 0; j < 4; ++j)
+        {
+            if(fread(&byte, 1, 1, file) != 1)
+            {
+                PD_ERROR("could not read offset of object %"PRIu32".", i);
+                goto closefile;
+            }
+
+            offset |= (uint32_t)(byte << (3 - j));
+        }
+
+        char nameBuf[20] = {0};
+
+        StringView name;
+        name.data = nameBuf;
+        name.size = 20;
+
+        if(fread(&nameBuf, 20, 1, file) != 1)
+        {
+            PD_ERROR("could not read name of object %"PRIu32".", i);
+            goto closefile;
+        }
+
+        PD_WARN("TODO: save offset of object %"PRIu32": %"PRIu32, i, offset);
+        PD_WARN("TODO: save name of object %"PRIu32": "PRI_SV, i, ARG_SV(name));
+    }
 
 closefile:
     fclose(file);
