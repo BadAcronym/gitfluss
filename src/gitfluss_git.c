@@ -5,14 +5,16 @@
 #include "pd_path.h"
 #include "pd_print_macros.h"
 
-s_global const StringView spaceKarat     = { .size = 2,  .data = " <"       };
-s_global const StringView karatSpace     = { .size = 2,  .data = "> "       };
-s_global const StringView idxIdent       = { .size = 4,  .data = ".idx"     };
-s_global const StringView refIdent       = { .size = 4,  .data = "ref:"     };
-s_global const StringView idxV2Magic     = { .size = 4,  .data = "\377tOc"  };
-s_global const StringView authorIdent    = { .size = 6,  .data = "author"   };
-s_global const StringView parentIdent    = { .size = 6,  .data = "parent"   };
-s_global const StringView commiterIdent  = { .size = 8,  .data = "commiter" };
+s_global const StringView sep             = { .size = 1,  .data = "/"              };
+s_global const StringView spaceKarat      = { .size = 2,  .data = " <"             };
+s_global const StringView karatSpace      = { .size = 2,  .data = "> "             };
+s_global const StringView idxIdent        = { .size = 4,  .data = ".idx"           };
+s_global const StringView refIdent        = { .size = 4,  .data = "ref:"           };
+s_global const StringView idxV2Magic      = { .size = 4,  .data = "\377tOc"        };
+s_global const StringView authorIdent     = { .size = 6,  .data = "author"         };
+s_global const StringView parentIdent     = { .size = 6,  .data = "parent"         };
+s_global const StringView commiterIdent   = { .size = 8,  .data = "commiter"       };
+s_global const StringView gitObjectFolder = { .size = 14, .data = "/.git/objects/" };
 
 f_internal void freeSV
 (
@@ -32,6 +34,8 @@ void gfFreeCommit
 ){
     commit->authorTime   = 0;
     commit->commiterTime = 0;
+
+    freeSV(&commit->hash);
     freeSV(&commit->summary);
     freeSV(&commit->parentHash);
     freeSV(&commit->authorName);
@@ -249,16 +253,15 @@ void gfGetCommitInfo
     StringView hashRest = hash;
     sv_trim(&hashRest, 2, SV_LEFT);
 
-    StringView folder = cstr_sv("/.git/objects/");
-    StringView sep    = cstr_sv("/");
-
     char pathBuf[4096] = {0};
-    StringView commitPath = sv_concat(repository, folder, pathBuf);
+    StringView commitPath = sv_concat(repository, gitObjectFolder, pathBuf);
     commitPath = sv_concat(commitPath, hashStart, pathBuf);
     commitPath = sv_concat(commitPath, sep, pathBuf);
     commitPath = sv_concat(commitPath, hashRest, pathBuf);
 
+    StringView ownHash = sv_cpy(hash);
     gfFreeCommit(commit);
+    commit->hash = ownHash;
 
     uint8_t result = pdVerifyPath(commitPath);
     if(result == PD_TYPE_FILE)
@@ -267,7 +270,7 @@ void gfGetCommitInfo
         return;
     }
 
-    PD_WARN("TODO: handle commit '"PRI_SV"' from packfile. ", ARG_SV(commitPath));
+    PD_WARN("TODO: handle commit '"PRI_SV"' from packfile. ", ARG_SV(ownHash));
 }
 
 f_internal bool readIDXFanout
@@ -320,24 +323,38 @@ f_internal void readIDXV1
             offset |= (uint32_t)(byte << (3 - j));
         }
 
-        char nameBuf[20] = {0};
+        // char nameBuf[20] = {0};
+        //
+        // StringView name = {0};
+        // name.data = nameBuf;
+        // name.size = 20;
+        //
+        // if(fread(&nameBuf, 20, 1, file) != 1)
+        // {
+        //     PD_ERROR("could not read name of object %"PRIu32".", i);
+        //     goto closefile;
+        // }
 
-        StringView name;
-        name.data = nameBuf;
-        name.size = 20;
-
-        if(fread(&nameBuf, 20, 1, file) != 1)
-        {
-            PD_ERROR("could not read name of object %"PRIu32".", i);
-            goto closefile;
-        }
-
-        PD_WARN("TODO: save offset of object %"PRIu32": %"PRIu32, i, offset);
-        PD_WARN("TODO: save name of object %"PRIu32": "PRI_SV, i, ARG_SV(name));
+        // PD_WARN("TODO: save offset of object %"PRIu32": %"PRIu32, i, offset);
+        // PD_WARN("TODO: save name of object %"PRIu32": "PRI_SV, i, ARG_SV(name));
     }
 
 closefile:
     fclose(file);
+}
+
+f_internal char valueToHexChar
+(
+    uint8_t value
+){
+    PD_ASSERT(value < 0x10, "cannot express values bigger than 15 in 4 bits.");
+
+    if(value > 9)
+    {
+        return value + 0x61 - 0x0A;
+    }
+
+    return value + 0x30;
 }
 
 f_internal void readIDXV2
@@ -363,11 +380,33 @@ f_internal void readIDXV2
         goto closefile;
     }
 
-    uint32_t fanouts[256] = {0};
-    if(!readIDXFanout(file, fanouts))
+    uint32_t fanout[256] = {0};
+    if(!readIDXFanout(file, fanout))
     {
         PD_ERROR("could not read fanouts of v2 IDX file.");
         goto closefile;
+    }
+
+    for(uint32_t i = 0; i < fanout[255]; ++i)
+    {
+        char nameBuf[40] = {0};
+
+        for(uint8_t j = 0; j < 40; j += 2)
+        {
+            if(fread(&byte, 1, 1, file) != 1)
+            {
+                PD_ERROR("could not read name of object %"PRIu32".", i);
+                goto closefile;
+            }
+            nameBuf[j]     = valueToHexChar(byte >> 4);
+            nameBuf[j + 1] = valueToHexChar(byte & 0x0F);
+        }
+
+        StringView name = {0};
+        name.data = nameBuf;
+        name.size = 40;
+
+        PD_TRACE("found objectname: "PRI_SV, ARG_SV(name));
     }
 
     // table of sorted object names
@@ -459,7 +498,6 @@ f_internal void readCommitsFromPackfile
         goto closefile;
     }
 
-    // TODO: read each specified object from offset that was provided
     for(uint32_t i = 0; i < amount; ++i)
     {
         uint64_t index = offsets[i];
@@ -499,8 +537,6 @@ f_internal void readCommitsFromPackfile
             PD_ASSERT(dfInfo.bytesWritten == length, "expected to decompress into %"
                       PRIu64" bytes, actual: %"PRIu64".", length, dfInfo.bytesWritten);
 
-            // TODO: parse
-
             if(!dfInfo.success)
             {
                 PD_WARN("could not successfully read commit object %"PRIu32" in pack "
@@ -512,8 +548,11 @@ f_internal void readCommitsFromPackfile
                       "amount (%"PRIu64") of bytes, but instead %"PRIu64, length,
                       dfInfo.bytesWritten);
 
-            index += dfInfo.compressedBytesRead;
+            // TODO: move commit into buffer of dynamic arrays of commits.
+            // that way, we still access by buffer[firstTwo] and at most have to
+            // validate against one or two hashes.
 
+            index += dfInfo.compressedBytesRead;
             gfFreeCommit(&commit);
         }
         else if(type == GF_OBJ_OFS_DELTA)
@@ -528,9 +567,7 @@ f_internal void readCommitsFromPackfile
         }
         else
         {
-            PD_ERROR("index does not point to a commit object, but one of type %"PRIu8".",
-                     type);
-            goto closefile;
+            continue;
         }
     }
 
@@ -584,12 +621,7 @@ void gfInitRepository
             StringView idxPath = sv_concat(gitPACK, fileBuf[i], tmpBuf);
             readPackedCommits(idxPath);
         }
-
-        PD_TRACE("unhandled fileType in objects/pack: '"PRI_SV"'", ARG_SV(fileBuf[i]));
     }
-
-    // TODO: open & read all packfiles, create index of what hashes are where for later
-    // lookup
 
     FILE *file = fopen(absoluteBuf, "rb");
     if(!file)

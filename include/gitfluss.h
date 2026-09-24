@@ -163,6 +163,7 @@ gfThreadData;
 
 typedef struct gfCommitInfo
 {
+    StringView hash;
     StringView summary;
     StringView parentHash;
     StringView authorName;
