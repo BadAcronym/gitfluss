@@ -290,7 +290,7 @@ f_internal bool readIDXFanout
                 return false;
             }
 
-            fanouts[i] |= (uint32_t)(byte << (3 - j));
+            fanouts[i] |= (uint32_t)(byte << (8 * (3 - j)));
         }
     }
 
@@ -299,7 +299,8 @@ f_internal bool readIDXFanout
 
 f_internal void readIDXV1
 (
-    FILE *file
+    FILE     *file,
+    uint64_t packFileSize
 ){
     uint32_t fanout[256] = {0};
     if(!readIDXFanout(file, fanout))
@@ -320,23 +321,11 @@ f_internal void readIDXV1
                 goto closefile;
             }
 
-            offset |= (uint32_t)(byte << (3 - j));
+            offset |= (uint32_t)(byte << (8 * (3 - j)));
         }
 
-        // char nameBuf[20] = {0};
-        //
-        // StringView name = {0};
-        // name.data = nameBuf;
-        // name.size = 20;
-        //
-        // if(fread(&nameBuf, 20, 1, file) != 1)
-        // {
-        //     PD_ERROR("could not read name of object %"PRIu32".", i);
-        //     goto closefile;
-        // }
-
-        // PD_WARN("TODO: save offset of object %"PRIu32": %"PRIu32, i, offset);
-        // PD_WARN("TODO: save name of object %"PRIu32": "PRI_SV, i, ARG_SV(name));
+        PD_WARN("TODO: handle v1 .idx files");
+        goto closefile;
     }
 
 closefile:
@@ -359,7 +348,8 @@ f_internal char valueToHexChar
 
 f_internal void readIDXV2
 (
-    FILE *file
+    FILE     *file,
+    uint64_t packFileSize
 ){
     uint8_t  byte    = 0;
     uint32_t version = 0;
@@ -387,11 +377,14 @@ f_internal void readIDXV2
         goto closefile;
     }
 
+    // TODO: figure out object ID size (20 or 32 bytes, SHA-1 or 256.)
+    uint8_t oidSize = 20;
+
     for(uint32_t i = 0; i < fanout[255]; ++i)
     {
-        char nameBuf[40] = {0};
+        char nameBuf[64] = {0};
 
-        for(uint8_t j = 0; j < 40; j += 2)
+        for(uint8_t j = 0; j < oidSize * 2; j += 2)
         {
             if(fread(&byte, 1, 1, file) != 1)
             {
@@ -404,15 +397,52 @@ f_internal void readIDXV2
 
         StringView name = {0};
         name.data = nameBuf;
-        name.size = 40;
+        name.size = oidSize * 2;
 
-        PD_TRACE("found objectname: "PRI_SV, ARG_SV(name));
+        // TODO: save names somewhere
+        PD_TRACE("found object name: "PRI_SV, ARG_SV(name));
     }
 
-    // table of sorted object names
-    // table of 4-byte CRC32 values of packed object data
-    // table of 4-byte offset values
-    // table of 8-byte offset entries
+    if(fseek(file, fanout[255] * 4, SEEK_CUR) != 0)
+    {
+        PD_ERROR("could not skip CRC table.");
+        goto closefile;
+    }
+
+    for(uint32_t i = 0; i < fanout[255]; ++i)
+    {
+        uint32_t offset = 0;
+        for(uint8_t j = 0; j < 4; ++j)
+        {
+            if(fread(&byte, 1, 1, file) != 1)
+            {
+                PD_ERROR("could not read offset of object %"PRIu32".", i);
+                goto closefile;
+            }
+
+            offset |= (uint32_t)(byte << (8 * (3 - j)));
+        }
+
+        if(offset & 0x80000000)
+        {
+            offset &= 0x7FFFFFFF;
+            // TODO: do something with these
+            PD_TRACE("TODO: handle object offset via index into large offset table: %"
+                     PRIu32, offset);
+            continue;
+        }
+
+        if(offset >= packFileSize)
+        {
+            PD_ERROR("invalid pack offset %"PRIu32" for filesize %"PRIu64,
+                     offset, packFileSize);
+            return;
+        }
+
+        // TODO: save offsets somewhere
+        PD_TRACE("found object offset: %"PRIu32, offset);
+    }
+
 closefile:
     fclose(file);
 }
@@ -447,16 +477,35 @@ f_internal void readPackedCommits
         }
     }
 
+    char packBuf[4096] = {0};
+    idxPath.size -= 4;
+    StringView packPath = sv_concat(idxPath, cstr_sv(".pack"), packBuf);
+    idxPath.size += 4;
+
+    uint64_t packFileSize = 0;
+
+    FILE *packFile = fopen(packPath.data, "rb");
+    if(!packFile)
+    {
+        PD_ERROR("could not open packfile from path '%s'.", packPath.data);
+    }
+    else
+    {
+        fseek(packFile, 0, SEEK_END);
+        packFileSize = (uint64_t)ftell(packFile);
+    }
+    fclose(packFile);
+
     if(v2)
     {
         PD_TRACE("reading .idx v2 file: '"PRI_SV"'", ARG_SV(idxPath));
-        readIDXV2(file);
+        readIDXV2(file, packFileSize);
     }
     else
     {
         PD_TRACE("reading .idx v1 file: '"PRI_SV"'", ARG_SV(idxPath));
         fseek(file, 0, SEEK_SET);
-        readIDXV1(file);
+        readIDXV1(file, packFileSize);
     }
 
     PD_WARN("TODO: handle idx file: '"PRI_SV"'", ARG_SV(idxPath));
@@ -663,7 +712,7 @@ void gfInitRepository
     file = fopen(headBuf, "r");
     if(!file)
     {
-        PD_WARN("couldn't open file under ref: '"PRI_SV"'", ARG_SV(readHead));
+        PD_WARN("TODO: resolve packed ref: '%s'", headBuf);
         return;
     }
 
