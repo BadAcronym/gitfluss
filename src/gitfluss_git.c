@@ -341,7 +341,18 @@ f_internal void readMIDXFile
     }
     PD_ASSERT(!byte, "number of base multi-pack-index files > 1: %"PRIu8, byte);
 
-    // 4 byte number of pack files
+    uint32_t numPackfiles = 0;
+    for(uint8_t i = 0; i < 4; ++i)
+    {
+        if(fread(&byte, 1, 1, file) != 1)
+        {
+            PD_ERROR("failed to read number of packfiles from file: '"PRI_SV"'.",
+                     ARG_SV(path));
+            goto closefile;
+        }
+        numPackfiles |= (uint32_t)(byte << (4 - i));
+    }
+
     // ...
     PD_WARN("TODO: handle mpi file: '"PRI_SV"'", ARG_SV(path));
 
