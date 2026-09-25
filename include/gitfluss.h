@@ -182,6 +182,13 @@ typedef struct gfRepository
 }
 gfRepository;
 
+typedef struct gfObjectOffset
+{
+    StringView hash;
+    uint32_t   offset;
+}
+gfObjectOffset;
+
 extern int64_t gfQueryTime
 (
     void

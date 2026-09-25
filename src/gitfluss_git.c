@@ -3,6 +3,7 @@
 #include "datasurf_main.h"
 
 #include "pd_path.h"
+#include "pd_dyn_arr.h"
 #include "pd_print_macros.h"
 
 s_global const StringView sep             = { .size = 1,  .data = "/"              };
@@ -297,12 +298,14 @@ f_internal bool readIDXFanout
     return true;
 }
 
-f_internal void readIDXV1
+f_internal gfObjectOffset *readIDXV1
 (
     FILE     *file,
     uint64_t packFileSize
 ){
-    uint32_t fanout[256] = {0};
+    uint32_t       fanout[256] = {0};
+    gfObjectOffset *objof      = 0;
+
     if(!readIDXFanout(file, fanout))
     {
         PD_ERROR("could not read fanouts of v1 IDX file.");
@@ -330,6 +333,7 @@ f_internal void readIDXV1
 
 closefile:
     fclose(file);
+    return objof;
 }
 
 f_internal char valueToHexChar
@@ -346,11 +350,15 @@ f_internal char valueToHexChar
     return value + 0x30;
 }
 
-f_internal void readIDXV2
+// PERF: probably do the same thing as I tried to do with the packfile. read the entire
+// thing into memory first, then iterate byte-by-byte instead of reading byte-by-byte.
+f_internal gfObjectOffset *readIDXV2
 (
     FILE     *file,
     uint64_t packFileSize
 ){
+    gfObjectOffset *objof = 0;
+
     uint8_t  byte    = 0;
     uint32_t version = 0;
     for(uint8_t i = 0; i < 4; ++i)
@@ -380,6 +388,8 @@ f_internal void readIDXV2
     // TODO: figure out object ID size (20 or 32 bytes, SHA-1 or 256.)
     uint8_t oidSize = 20;
 
+    pdArrReserve(objof, fanout[255]);
+
     for(uint32_t i = 0; i < fanout[255]; ++i)
     {
         char nameBuf[64] = {0};
@@ -389,6 +399,7 @@ f_internal void readIDXV2
             if(fread(&byte, 1, 1, file) != 1)
             {
                 PD_ERROR("could not read name of object %"PRIu32".", i);
+                pdArrFree(objof);
                 goto closefile;
             }
             nameBuf[j]     = valueToHexChar(byte >> 4);
@@ -399,13 +410,15 @@ f_internal void readIDXV2
         name.data = nameBuf;
         name.size = oidSize * 2;
 
-        // TODO: save names somewhere
-        PD_TRACE("found object name: "PRI_SV, ARG_SV(name));
+        gfObjectOffset oo = {0};
+        oo.hash = sv_cpy(name);
+        pdArrPush(objof, oo);
     }
 
     if(fseek(file, fanout[255] * 4, SEEK_CUR) != 0)
     {
         PD_ERROR("could not skip CRC table.");
+        pdArrFree(objof);
         goto closefile;
     }
 
@@ -417,6 +430,7 @@ f_internal void readIDXV2
             if(fread(&byte, 1, 1, file) != 1)
             {
                 PD_ERROR("could not read offset of object %"PRIu32".", i);
+                pdArrFree(objof);
                 goto closefile;
             }
 
@@ -436,15 +450,16 @@ f_internal void readIDXV2
         {
             PD_ERROR("invalid pack offset %"PRIu32" for filesize %"PRIu64,
                      offset, packFileSize);
-            return;
+            pdArrFree(objof);
+            goto closefile;
         }
 
-        // TODO: save offsets somewhere
-        PD_TRACE("found object offset: %"PRIu32, offset);
+        objof[i].offset = offset;
     }
 
 closefile:
     fclose(file);
+    return objof;
 }
 
 f_internal void readPackedCommits
@@ -496,18 +511,34 @@ f_internal void readPackedCommits
     }
     fclose(packFile);
 
+    gfObjectOffset *objof = 0;
+
     if(v2)
     {
         PD_TRACE("reading .idx v2 file: '"PRI_SV"'", ARG_SV(idxPath));
-        readIDXV2(file, packFileSize);
+        objof = readIDXV2(file, packFileSize);
     }
     else
     {
         PD_TRACE("reading .idx v1 file: '"PRI_SV"'", ARG_SV(idxPath));
         fseek(file, 0, SEEK_SET);
-        readIDXV1(file, packFileSize);
+        objof = readIDXV1(file, packFileSize);
     }
 
+    if(!objof)
+    {
+        PD_ERROR("could not read any object-offset pairs.");
+        return;
+    }
+
+    for(uint64_t i = 0; i < pdArrSize(objof); ++i)
+    {
+        PD_TRACE("found object hash:   "PRI_SV, ARG_SV(objof[i].hash));
+        PD_TRACE("found object offset: %"PRIu32, objof[i].offset);
+        freeSV(&objof[i].hash);
+    }
+
+    pdArrFree(objof);
     PD_WARN("TODO: handle idx file: '"PRI_SV"'", ARG_SV(idxPath));
 }
 
