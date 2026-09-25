@@ -265,14 +265,16 @@ extern void gfReadArgs
 extern void gfInitRepository
 (
     gfRepository *repo,
-    gfCommitInfo *head
+    gfCommitInfo *head,
+    gfCommitInfo **commitTable
 );
 
 extern void gfGetCommitInfo
 (
     StringView   repository,
     StringView   hash,
-    gfCommitInfo *commit
+    gfCommitInfo *commit,
+    gfCommitInfo **table
 );
 
 extern void gfFreeCommit

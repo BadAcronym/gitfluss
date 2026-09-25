@@ -1,5 +1,8 @@
 #include "gitfluss.h"
+
 #include "datasurf_main.h"
+
+#include "pd_dyn_arr.h"
 #include "pd_print_macros.h"
 
 #include <stdint.h>
@@ -257,10 +260,12 @@ f_internal void *gatherRepoData
 
     bool anyAuthor = false;
 
-    gfCommitInfo commit = {0};
-    gfRepository repo   = {0};
-    repo.path           = data->repository;
-    gfInitRepository(&repo, &commit);
+    gfCommitInfo *table[256] = {0};
+
+    gfCommitInfo commit  = {0};
+    gfRepository repo    = {0};
+    repo.path            = data->repository;
+    gfInitRepository(&repo, &commit, table);
 
     while(commit.parentHash.data && commit.parentHash.size)
     {
@@ -337,7 +342,7 @@ f_internal void *gatherRepoData
         {
             break;
         }
-        gfGetCommitInfo(repo.path, commit.parentHash, &commit);
+        gfGetCommitInfo(repo.path, commit.parentHash, &commit, table);
     }
 
     if(repoCommitCount > set->repoMax)
@@ -348,6 +353,20 @@ f_internal void *gatherRepoData
         set->biggestRepo = cstr_sv_cpy(currentRepo, set->biggestRepoBuf);
         set->repoMax     = repoCommitCount;
         gfUnlock(set);
+    }
+
+    for(uint16_t i = 0; i < 256; ++i)
+    {
+        if(!table[i])
+        {
+            continue;
+        }
+
+        for(uint64_t j = 0; j < pdArrSize(table[i]); ++j)
+        {
+            gfFreeCommit(&table[i][j]);
+        }
+        pdArrFree(table[i]);
     }
 
     gfFreeCommit(&commit);

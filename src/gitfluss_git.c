@@ -234,7 +234,8 @@ void gfGetCommitInfo
 (
     StringView   repository,
     StringView   hash,
-    gfCommitInfo *commit
+    gfCommitInfo *commit,
+    gfCommitInfo **table
 ){
     if(!commit)
     {
@@ -344,10 +345,38 @@ f_internal char valueToHexChar
 
     if(value > 9)
     {
-        return value + 0x61 - 0x0A;
+        return value + 0x57;
     }
 
     return value + 0x30;
+}
+
+f_internal uint8_t twoCharsToByte
+(
+    char c1,
+    char c2
+){
+    uint8_t v1 = 0;
+    uint8_t v2 = 0;
+
+    PD_ASSERT((c1 > 0x2F && c1 < 0x3A) || (c1 > 0x60 && c1 < 0x67),
+              "c1 outside of valid range. passed char: '%c' (0x%X)", c1, c1);
+    PD_ASSERT((c2 > 0x2F && c2 < 0x3A) || (c2 > 0x60 && c2 < 0x67),
+              "c2 outside of valid range. passed char: '%c' (0x%X)", c2, c2);
+
+    v1 = (uint8_t)c1 - 0x10;
+    if(c1 > 0x60)
+    {
+        v1 = (uint8_t)c1 - 0x54;
+    }
+
+    v2 = (uint8_t)c2 - 0x10;
+    if(c2 > 0x60)
+    {
+        v2 = (uint8_t)c2 - 0x54;
+    }
+
+    return (uint8_t)(v1 | (v2 << 4));
 }
 
 // PERF: probably do the same thing as I tried to do with the packfile. read the entire
@@ -464,7 +493,8 @@ closefile:
 
 f_internal void readPackedCommits
 (
-    StringView idxPath
+    StringView   idxPath,
+    gfCommitInfo **commitTable
 ){
     FILE *file = fopen(idxPath.data, "rb");
     if(!file)
@@ -481,7 +511,6 @@ f_internal void readPackedCommits
         {
             PD_ERROR("couldn't read first 4 bytes of .idx file: '"PRI_SV"'",
                      ARG_SV(idxPath));
-            fclose(file);
             return;
         }
 
@@ -503,6 +532,7 @@ f_internal void readPackedCommits
     if(!packFile)
     {
         PD_ERROR("could not open packfile from path '%s'.", packPath.data);
+        return;
     }
     else
     {
@@ -533,13 +563,23 @@ f_internal void readPackedCommits
 
     for(uint64_t i = 0; i < pdArrSize(objof); ++i)
     {
+        uint8_t firstTwo = twoCharsToByte(objof[i].hash.data[0], objof[i].hash.data[1]);
+
+        gfCommitInfo commit = {0};
+        // ASAN: this leaks
+        commit.hash = sv_cpy(objof[i].hash);
+
+        // ASAN: this leaks
+        pdArrPush(commitTable[firstTwo], commit);
+
+        // read commit from offset into packfile
+
         PD_TRACE("found object hash:   "PRI_SV, ARG_SV(objof[i].hash));
         PD_TRACE("found object offset: %"PRIu32, objof[i].offset);
         freeSV(&objof[i].hash);
     }
 
     pdArrFree(objof);
-    PD_WARN("TODO: handle idx file: '"PRI_SV"'", ARG_SV(idxPath));
 }
 
 // TODO: best collect all the offset/hash pairs, go through those pairs and read
@@ -662,7 +702,8 @@ closefile:
 void gfInitRepository
 (
     gfRepository *repo,
-    gfCommitInfo *head
+    gfCommitInfo *head,
+    gfCommitInfo **commitTable
 ){
     char packBuf[4096]     = {0};
     char absoluteBuf[4096] = {0};
@@ -699,7 +740,7 @@ void gfInitRepository
         {
             char tmpBuf[4096] = {0};
             StringView idxPath = sv_concat(gitPACK, fileBuf[i], tmpBuf);
-            readPackedCommits(idxPath);
+            readPackedCommits(idxPath, commitTable);
         }
     }
 
@@ -722,8 +763,8 @@ void gfInitRepository
     if(!(sv_find(refIdent, readHead) == readHead.data))
     {
         PD_TRACE("identified HEAD: '"PRI_SV"'", ARG_SV(readHead));
-        gfGetCommitInfo(absolute, readHead, head);
-        return;
+        gfGetCommitInfo(absolute, readHead, head, 0);
+        goto closefile;
     }
 
     readHead.data += 5;
@@ -757,6 +798,8 @@ void gfInitRepository
     StringView hash = cstr_sv(hashBuf);
 
     PD_TRACE("identified HEAD: '"PRI_SV"'", ARG_SV(hash));
-    gfGetCommitInfo(repo->path, hash, head);
+    gfGetCommitInfo(repo->path, hash, head, 0);
+
+closefile:
     fclose(file);
 }
