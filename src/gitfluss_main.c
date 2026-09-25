@@ -342,7 +342,10 @@ f_internal void *gatherRepoData
         {
             break;
         }
-        gfGetCommitInfo(repo.path, commit.parentHash, &commit, table);
+        if(!gfGetCommitInfo(repo.path, commit.parentHash, &commit, table))
+        {
+            goto error;
+        }
     }
 
     if(repoCommitCount > set->repoMax)
@@ -362,7 +365,8 @@ f_internal void *gatherRepoData
             continue;
         }
 
-        for(uint64_t j = 0; j < pdArrSize(table[i]); ++j)
+        uint64_t arraySize = pdArrSize(table[i]);
+        for(uint64_t j = 0; j < arraySize; ++j)
         {
             gfFreeCommit(&table[i][j]);
         }
@@ -371,6 +375,9 @@ f_internal void *gatherRepoData
 
     gfFreeCommit(&commit);
     return 0;
+
+error:
+    exit(1);
 }
 
 f_internal void gatherData

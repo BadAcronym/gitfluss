@@ -25,6 +25,7 @@ f_internal void freeSV
     {
         free((void*)sv->data);
     }
+
     sv->data = 0;
     sv->size = 0;
 }
@@ -43,6 +44,48 @@ void gfFreeCommit
     freeSV(&commit->authorMail);
     freeSV(&commit->commiterName);
     freeSV(&commit->commiterMail);
+}
+
+f_internal char valueToHexChar
+(
+    uint8_t value
+){
+    PD_ASSERT(value < 0x10, "cannot express values bigger than 15 in 4 bits.");
+
+    if(value > 9)
+    {
+        return value + 0x57;
+    }
+
+    return value + 0x30;
+}
+
+f_internal uint8_t twoCharsToByte
+(
+    char c1,
+    char c2
+){
+    uint8_t v1 = 0;
+    uint8_t v2 = 0;
+
+    PD_ASSERT((c1 > 0x2F && c1 < 0x3A) || (c1 > 0x60 && c1 < 0x67),
+              "c1 outside of valid range. passed char: '%c' (0x%X)", c1, c1);
+    PD_ASSERT((c2 > 0x2F && c2 < 0x3A) || (c2 > 0x60 && c2 < 0x67),
+              "c2 outside of valid range. passed char: '%c' (0x%X)", c2, c2);
+
+    v1 = (uint8_t)c1 - '0';
+    if(c1 > 0x60)
+    {
+        v1 = (uint8_t)c1 - 0x54;
+    }
+
+    v2 = (uint8_t)c2 - '0';
+    if(c2 > 0x60)
+    {
+        v2 = (uint8_t)c2 - 0x54;
+    }
+
+    return (uint8_t)((v1 << 4) | v2);
 }
 
 f_internal int64_t readTimeFromSV
@@ -225,12 +268,13 @@ f_internal void readCommitFromFile
         elements = fread(&zlibBuf[i], 1, 1, file);
     }
 
+    PD_TRACE("reading commit from loose object.");
     readCommitFromPtr(zlibBuf, commit);
 
     fclose(file);
 }
 
-void gfGetCommitInfo
+bool gfGetCommitInfo
 (
     StringView   repository,
     StringView   hash,
@@ -240,7 +284,7 @@ void gfGetCommitInfo
     if(!commit)
     {
         PD_ERROR("commit that was passed is nullptr.");
-        return;
+        return false;
     }
 
     PD_ASSERT(repository.data && repository.size, "cannot open null repository.");
@@ -248,6 +292,10 @@ void gfGetCommitInfo
     PD_ASSERT(hash.size == 40 || hash.size == 64, "commit hash has invalid size: %lu. "
               "should be either 40 or 64 characters big. passed hash was: '"PRI_SV"'",
               hash.size, ARG_SV(hash));
+
+    PD_ASSERT(hash.data, "cannot lookup commit with no hash.");
+
+    PD_TRACE("looking for commit with hash: "PRI_SV, ARG_SV(hash));
 
     StringView hashStart = hash;
     hashStart.size = 2;
@@ -261,18 +309,56 @@ void gfGetCommitInfo
     commitPath = sv_concat(commitPath, sep, pathBuf);
     commitPath = sv_concat(commitPath, hashRest, pathBuf);
 
-    StringView ownHash = sv_cpy(hash);
-    gfFreeCommit(commit);
-    commit->hash = ownHash;
-
     uint8_t result = pdVerifyPath(commitPath);
     if(result == PD_TYPE_FILE)
     {
+        gfFreeCommit(commit);
         readCommitFromFile(commitPath, commit);
-        return;
+        return true;
     }
 
-    PD_WARN("TODO: handle commit '"PRI_SV"' from packfile. ", ARG_SV(ownHash));
+    bool found = false;
+
+    if(!table)
+    {
+        PD_TRACE("table does not exist.");
+        goto notfound;
+    }
+
+    uint8_t firstTwo = twoCharsToByte(hash.data[0], hash.data[1]);
+    if(!table[firstTwo])
+    {
+        PD_TRACE("table[0x%x] has no data.", firstTwo);
+        goto notfound;
+    }
+
+    uint64_t arraySize = pdArrSize(table[firstTwo]);
+    PD_TRACE("looking for commit in table[%c%c]: size %"PRIu64,
+             hash.data[0], hash.data[1], arraySize);
+    for(uint64_t i = 0; i < arraySize; ++i)
+    {
+        PD_TRACE("checking against commit in table[%c%c]: "PRI_SV,
+                 hash.data[0], hash.data[1], ARG_SV(table[firstTwo][i].hash));
+        if(sv_same(hash, table[firstTwo][i].hash))
+        {
+            gfFreeCommit(commit);
+            *commit = table[firstTwo][i];
+            PD_TRACE("found commit!");
+            found = true;
+            break;
+        }
+    }
+
+    if(!found)
+    {
+        goto notfound;
+    }
+
+    return true;
+
+notfound:
+    PD_ERROR("could not find commit with hash '"PRI_SV"' anywhere.", ARG_SV(hash));
+    return false;
 }
 
 f_internal bool readIDXFanout
@@ -335,48 +421,6 @@ f_internal gfObjectOffset *readIDXV1
 closefile:
     fclose(file);
     return objof;
-}
-
-f_internal char valueToHexChar
-(
-    uint8_t value
-){
-    PD_ASSERT(value < 0x10, "cannot express values bigger than 15 in 4 bits.");
-
-    if(value > 9)
-    {
-        return value + 0x57;
-    }
-
-    return value + 0x30;
-}
-
-f_internal uint8_t twoCharsToByte
-(
-    char c1,
-    char c2
-){
-    uint8_t v1 = 0;
-    uint8_t v2 = 0;
-
-    PD_ASSERT((c1 > 0x2F && c1 < 0x3A) || (c1 > 0x60 && c1 < 0x67),
-              "c1 outside of valid range. passed char: '%c' (0x%X)", c1, c1);
-    PD_ASSERT((c2 > 0x2F && c2 < 0x3A) || (c2 > 0x60 && c2 < 0x67),
-              "c2 outside of valid range. passed char: '%c' (0x%X)", c2, c2);
-
-    v1 = (uint8_t)c1 - 0x10;
-    if(c1 > 0x60)
-    {
-        v1 = (uint8_t)c1 - 0x54;
-    }
-
-    v2 = (uint8_t)c2 - 0x10;
-    if(c2 > 0x60)
-    {
-        v2 = (uint8_t)c2 - 0x54;
-    }
-
-    return (uint8_t)(v1 | (v2 << 4));
 }
 
 // PERF: probably do the same thing as I tried to do with the packfile. read the entire
@@ -470,8 +514,8 @@ f_internal gfObjectOffset *readIDXV2
         {
             offset &= 0x7FFFFFFF;
             // TODO: do something with these
-            PD_TRACE("TODO: handle object offset via index into large offset table: %"
-                     PRIu32, offset);
+            PD_WARN("TODO: handle object offset via index into large offset table: %"
+                    PRIu32, offset);
             continue;
         }
 
@@ -489,6 +533,124 @@ f_internal gfObjectOffset *readIDXV2
 closefile:
     fclose(file);
     return objof;
+}
+
+f_internal void readCommitsFromOffsets
+(
+    StringView     path,
+    gfObjectOffset *objof,
+    gfCommitInfo   **commitTable
+){
+    FILE *file = fopen(path.data, "rb");
+    if(!file)
+    {
+        PD_WARN("couldn't open pack file: '"PRI_SV"'", ARG_SV(path));
+        return;
+    }
+    uint8_t *packFile = 0;
+
+    fseek(file, 0, SEEK_END);
+    uint64_t packFileSize = (uint64_t)ftell(file);
+    packFile = malloc(packFileSize);
+
+    fseek(file, 0, SEEK_SET);
+
+    uint64_t elements = fread(packFile, 1, packFileSize, file);
+    if(elements != packFileSize)
+    {
+        PD_WARN("couldn't read pack file into memory. tried to read %"PRIu64", but "
+                "read %"PRIu64" instead.: '"PRI_SV"'",
+                packFileSize, elements, ARG_SV(path));
+        goto closefile;
+    }
+
+    uint64_t arraySize = pdArrSize(objof);
+    PD_TRACE("reading %"PRIu64" commits from offsets into packfile.", arraySize);
+    for(uint32_t i = 0; i < arraySize; ++i)
+    {
+        uint64_t index = objof[i].offset;
+        uint8_t  byte  = packFile[index++];
+
+        bool     readMore = byte >> 7;
+        uint8_t  type     = byte >> 4 & 0x07;
+        uint64_t length   = byte & 0x0F;
+        uint8_t  shift    = 4;
+
+        for(uint8_t j = 0; readMore && j < 10; ++j)
+        {
+            byte = packFile[index++];
+
+            uint64_t chunk = byte & 0x7F;
+
+            PD_ASSERT(shift < 64, "cannot shift more than 64 bits.");
+            PD_ASSERT(chunk < (UINT64_MAX >> shift), "chunk is too large.");
+
+            readMore = byte  >> 7;
+            length  |= chunk << shift;
+            shift   += 7;
+        }
+        PD_TRACE("parsed length from pack object %"PRIu32" (type %"PRIu8"): %"PRIu64"",
+                 i, type, length);
+
+        PD_ASSERT(type > 0 && type < 8, "invalid object type on obj %"PRIu32": %"PRIu32
+                  ". read Byte: 0x%X", i, type, byte);
+
+        PD_ASSERT(index < packFileSize, "pack offset is out of bounds.");
+
+        if(type == GF_OBJ_COMMIT)
+        {
+            gfCommitInfo commit = {0};
+            PD_TRACE("reading commit from offset in packfile.");
+            DeflateInfo  dfInfo = readCommitFromPtr(&packFile[index], &commit);
+
+            PD_ASSERT(dfInfo.bytesWritten == length, "expected to decompress into %"
+                      PRIu64" bytes, actual: %"PRIu64".", length, dfInfo.bytesWritten);
+
+            if(!dfInfo.success)
+            {
+                PD_WARN("could not successfully read commit object %"PRIu32" in pack "
+                        "file '"PRI_SV"'.", i, ARG_SV(path));
+                gfFreeCommit(&commit);
+                goto closefile;
+            }
+            PD_ASSERT(length == dfInfo.bytesWritten, "did not write the expected "
+                      "amount (%"PRIu64") of bytes, but instead %"PRIu64, length,
+                      dfInfo.bytesWritten);
+
+            uint8_t firstTwo = twoCharsToByte(objof[i].hash.data[0],
+                                              objof[i].hash.data[1]);
+
+            PD_TRACE("two chars to byte: %c%c -> 0x%x", objof[i].hash.data[0], objof[i].hash.data[1], firstTwo);
+
+            commit.hash = sv_cpy(objof[i].hash);
+
+            // TESTING:
+            PD_TRACE("hash before pushing to commit table: "PRI_SV, ARG_SV(commit.hash));
+
+            pdArrPush(commitTable[firstTwo], commit);
+        }
+        else if(type == GF_OBJ_OFS_DELTA)
+        {
+            PD_WARN("OBJ_OFS_DELTA unhandled.");
+            goto closefile;
+        }
+        else if(type == GF_OBJ_REF_DELTA)
+        {
+            PD_WARN("OBJ_REF_DELTA unhandled.");
+            goto closefile;
+        }
+        else
+        {
+            continue;
+        }
+    }
+
+closefile:
+    if(packFile)
+    {
+        free(packFile);
+    }
+    fclose(file);
 }
 
 f_internal void readPackedCommits
@@ -561,142 +723,15 @@ f_internal void readPackedCommits
         return;
     }
 
-    for(uint64_t i = 0; i < pdArrSize(objof); ++i)
+    readCommitsFromOffsets(packPath, objof, commitTable);
+
+    // TESTING:
+    uint64_t arraySize = pdArrSize(objof);
+    for(uint64_t i = 0; i < arraySize; ++i)
     {
-        uint8_t firstTwo = twoCharsToByte(objof[i].hash.data[0], objof[i].hash.data[1]);
-
-        gfCommitInfo commit = {0};
-        // ASAN: this leaks
-        commit.hash = sv_cpy(objof[i].hash);
-
-        // ASAN: this leaks
-        pdArrPush(commitTable[firstTwo], commit);
-
-        // read commit from offset into packfile
-
-        PD_TRACE("found object hash:   "PRI_SV, ARG_SV(objof[i].hash));
-        PD_TRACE("found object offset: %"PRIu32, objof[i].offset);
         freeSV(&objof[i].hash);
     }
-
     pdArrFree(objof);
-}
-
-// TODO: best collect all the offset/hash pairs, go through those pairs and read
-// the commit data into a hashed structure that can be accessed just as easily
-// as an actual filepath.
-
-// PERF: instead of loading the entire file into memory, I should load the file from the
-// first commit offset to the end. the other offsets are then offsets of the first
-// offset, maybe?
-f_internal void readCommitsFromPackfile
-(
-    StringView path,
-    uint32_t   amount,
-    uint64_t   *offsets
-){
-    FILE *file = fopen(path.data, "rb");
-    if(!file)
-    {
-        PD_WARN("couldn't open pack file: '"PRI_SV"'", ARG_SV(path));
-        return;
-    }
-    uint8_t *packFile = 0;
-
-    fseek(file, 0, SEEK_END);
-    uint64_t packFileSize = (uint64_t)ftell(file);
-    packFile = malloc(packFileSize);
-
-    fseek(file, 0, SEEK_SET);
-
-    uint64_t elements = fread(packFile, 1, packFileSize, file);
-    if(elements != packFileSize)
-    {
-        PD_WARN("couldn't read pack file into memory. tried to read %"PRIu64", but "
-                "read %"PRIu64" instead.: '"PRI_SV"'",
-                packFileSize, elements, ARG_SV(path));
-        goto closefile;
-    }
-
-    for(uint32_t i = 0; i < amount; ++i)
-    {
-        uint64_t index = offsets[i];
-        uint8_t  byte  = packFile[index++];
-
-        bool     readMore = byte >> 7;
-        uint8_t  type     = byte >> 4 & 0x07;
-        uint64_t length   = byte & 0x0F;
-        uint8_t  shift    = 4;
-
-        for(uint8_t j = 0; readMore && j < 10; ++j)
-        {
-            byte = packFile[index++];
-
-            uint64_t chunk = byte & 0x7F;
-
-            PD_ASSERT(shift < 64, "cannot shift more than 64 bits.");
-            PD_ASSERT(chunk < (UINT64_MAX >> shift), "chunk is too large.");
-
-            readMore = byte  >> 7;
-            length  |= chunk << shift;
-            shift   += 7;
-        }
-        PD_TRACE("parsed length from pack object %"PRIu32" (type %"PRIu8"): %"PRIu64"",
-                 i, type, length);
-
-        PD_ASSERT(type > 0 && type < 8, "invalid object type on obj %"PRIu32": %"PRIu32
-                  ". read Byte: 0x%X", i, type, byte);
-
-        PD_ASSERT(index < packFileSize, "pack offset is out of bounds.");
-
-        if(type == GF_OBJ_COMMIT)
-        {
-            gfCommitInfo commit = {0};
-            DeflateInfo  dfInfo = readCommitFromPtr(&packFile[index], &commit);
-
-            PD_ASSERT(dfInfo.bytesWritten == length, "expected to decompress into %"
-                      PRIu64" bytes, actual: %"PRIu64".", length, dfInfo.bytesWritten);
-
-            if(!dfInfo.success)
-            {
-                PD_WARN("could not successfully read commit object %"PRIu32" in pack "
-                        "file '"PRI_SV"'.", i, ARG_SV(path));
-                gfFreeCommit(&commit);
-                goto closefile;
-            }
-            PD_ASSERT(length == dfInfo.bytesWritten, "did not write the expected "
-                      "amount (%"PRIu64") of bytes, but instead %"PRIu64, length,
-                      dfInfo.bytesWritten);
-
-            // TODO: move commit into buffer of dynamic arrays of commits.
-            // that way, we still access by buffer[firstTwo] and at most have to
-            // validate against one or two hashes.
-
-            index += dfInfo.compressedBytesRead;
-            gfFreeCommit(&commit);
-        }
-        else if(type == GF_OBJ_OFS_DELTA)
-        {
-            PD_WARN("OBJ_OFS_DELTA unhandled.");
-            goto closefile;
-        }
-        else if(type == GF_OBJ_REF_DELTA)
-        {
-            PD_WARN("OBJ_REF_DELTA unhandled.");
-            goto closefile;
-        }
-        else
-        {
-            continue;
-        }
-    }
-
-closefile:
-    if(packFile)
-    {
-        free(packFile);
-    }
-    fclose(file);
 }
 
 void gfInitRepository

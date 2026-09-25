@@ -269,7 +269,7 @@ extern void gfInitRepository
     gfCommitInfo **commitTable
 );
 
-extern void gfGetCommitInfo
+extern bool gfGetCommitInfo
 (
     StringView   repository,
     StringView   hash,
