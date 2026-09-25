@@ -617,8 +617,10 @@ f_internal void readCommitsFromOffsets
 
         if(type == GF_OBJ_COMMIT)
         {
+            PD_TRACE("reading commit from offset %"PRIu32"in packfile.",
+                     objof[i].offset);
+
             gfCommitInfo commit = {0};
-            PD_TRACE("reading commit from offset in packfile.");
             DeflateInfo  dfInfo = readCommitFromPtr(&packFile[index], &commit);
 
             PD_ASSERT(dfInfo.bytesWritten == length, "expected to decompress into %"
@@ -638,25 +640,33 @@ f_internal void readCommitsFromOffsets
             uint8_t firstTwo = twoCharsToByte(objof[i].hash.data[0],
                                               objof[i].hash.data[1]);
 
-            PD_TRACE("two chars to byte: %c%c -> 0x%x", objof[i].hash.data[0], objof[i].hash.data[1], firstTwo);
-
             commit.hash = sv_cpy(objof[i].hash);
 
             pdArrPush(commitTable[firstTwo], commit);
         }
         else if(type == GF_OBJ_OFS_DELTA)
         {
+            // variable-length negative offset
+            // recursively read base object from curr - offset
+            // read delta (inflate)
+            // apply delta patch
+
+            //
             PD_WARN("OBJ_OFS_DELTA unhandled.");
             goto closefile;
+            //
         }
         else if(type == GF_OBJ_REF_DELTA)
         {
+            // object name (find base object by name)
+            // recursively read base object, looking up by object hash
+            // read delta (inflate)
+            // apply delta patch
+
+            //
             PD_WARN("OBJ_REF_DELTA unhandled.");
             goto closefile;
-        }
-        else
-        {
-            continue;
+            //
         }
     }
 
