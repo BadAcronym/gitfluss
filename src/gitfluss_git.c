@@ -652,7 +652,7 @@ f_internal void readCommitsFromOffsets
             // apply delta patch
 
             //
-            PD_WARN("OBJ_OFS_DELTA unhandled.");
+            PD_WARN("TODO: OBJ_OFS_DELTA unhandled.");
             goto closefile;
             //
         }
@@ -664,7 +664,7 @@ f_internal void readCommitsFromOffsets
             // apply delta patch
 
             //
-            PD_WARN("OBJ_REF_DELTA unhandled.");
+            PD_WARN("TODO: OBJ_REF_DELTA unhandled.");
             goto closefile;
             //
         }
@@ -843,7 +843,7 @@ void gfInitRepository
     file = fopen(headBuf, "r");
     if(!file)
     {
-        PD_WARN("TODO: resolve packed ref: '%s'", headBuf);
+        PD_WARN("TODO: packed ref unhandled: '%s'", headBuf);
         return;
     }
 

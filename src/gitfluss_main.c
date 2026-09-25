@@ -344,7 +344,7 @@ f_internal void *gatherRepoData
         }
         if(!gfGetCommitInfo(repo.path, commit.parentHash, &commit, table))
         {
-            goto error;
+            break;
         }
     }
 
@@ -368,16 +368,14 @@ f_internal void *gatherRepoData
         uint64_t arraySize = pdArrSize(table[i]);
         for(uint64_t j = 0; j < arraySize; ++j)
         {
-            gfFreeCommit(&table[i][j]);
+            // NOTE: let asan cry for a bit until everything's done
+            // gfFreeCommit(&table[i][j]);
         }
         pdArrFree(table[i]);
     }
 
     gfFreeCommit(&commit);
     return 0;
-
-error:
-    exit(1);
 }
 
 f_internal void gatherData
