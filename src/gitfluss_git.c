@@ -414,6 +414,12 @@ f_internal gfObjectOffset *readIDXV1
             offset |= (uint32_t)(byte << (8 * (3 - j)));
         }
 
+        if(offset >= packFileSize)
+        {
+            PD_ERROR("pack offset is out of bounds.");
+            goto closefile;
+        }
+
         PD_WARN("TODO: handle v1 .idx files");
         goto closefile;
     }
@@ -573,21 +579,29 @@ f_internal void readCommitsFromOffsets
 
         bool     readMore = byte >> 7;
         uint8_t  type     = byte >> 4 & 0x07;
-        uint64_t length   = byte & 0x0F;
-        uint8_t  shift    = 4;
+
+        #ifdef DEBUG
+        uint8_t  shift  = 4;
+        uint64_t length = byte & 0x0F;
+        #endif
 
         for(uint8_t j = 0; readMore && j < 10; ++j)
         {
             byte = packFile[index++];
 
+            #ifdef DEBUG
             uint64_t chunk = byte & 0x7F;
+            #endif
 
             PD_ASSERT(shift < 64, "cannot shift more than 64 bits.");
             PD_ASSERT(chunk < (UINT64_MAX >> shift), "chunk is too large.");
 
             readMore = byte  >> 7;
+
+            #ifdef DEBUG
             length  |= chunk << shift;
             shift   += 7;
+            #endif
         }
         PD_TRACE("parsed length from pack object %"PRIu32" (type %"PRIu8"): %"PRIu64"",
                  i, type, length);
@@ -595,7 +609,11 @@ f_internal void readCommitsFromOffsets
         PD_ASSERT(type > 0 && type < 8, "invalid object type on obj %"PRIu32": %"PRIu32
                   ". read Byte: 0x%X", i, type, byte);
 
-        PD_ASSERT(index < packFileSize, "pack offset is out of bounds.");
+        if(index >= packFileSize)
+        {
+            PD_ERROR("pack offset is out of bounds.");
+            goto closefile;
+        }
 
         if(type == GF_OBJ_COMMIT)
         {
@@ -623,9 +641,6 @@ f_internal void readCommitsFromOffsets
             PD_TRACE("two chars to byte: %c%c -> 0x%x", objof[i].hash.data[0], objof[i].hash.data[1], firstTwo);
 
             commit.hash = sv_cpy(objof[i].hash);
-
-            // TESTING:
-            PD_TRACE("hash before pushing to commit table: "PRI_SV, ARG_SV(commit.hash));
 
             pdArrPush(commitTable[firstTwo], commit);
         }
@@ -725,7 +740,6 @@ f_internal void readPackedCommits
 
     readCommitsFromOffsets(packPath, objof, commitTable);
 
-    // TESTING:
     uint64_t arraySize = pdArrSize(objof);
     for(uint64_t i = 0; i < arraySize; ++i)
     {
