@@ -14,7 +14,9 @@ s_global const StringView refIdent        = { .size = 4,  .data = "ref:"        
 s_global const StringView idxV2Magic      = { .size = 4,  .data = "\377tOc"        };
 s_global const StringView authorIdent     = { .size = 6,  .data = "author"         };
 s_global const StringView parentIdent     = { .size = 6,  .data = "parent"         };
+s_global const StringView sha256Ident     = { .size = 6,  .data = "sha256"         };
 s_global const StringView commiterIdent   = { .size = 8,  .data = "commiter"       };
+s_global const StringView objFormatIdent  = { .size = 14, .data = "objectFormat =" };
 s_global const StringView gitObjectFolder = { .size = 14, .data = "/.git/objects/" };
 
 f_internal void freeSV
@@ -388,6 +390,7 @@ f_internal bool readIDXFanout
 f_internal gfObjectOffset *readIDXV1
 (
     FILE     *file,
+    uint8_t  oidSize,
     uint64_t packFileSize
 ){
     uint32_t       fanout[256] = {0};
@@ -434,6 +437,7 @@ closefile:
 f_internal gfObjectOffset *readIDXV2
 (
     FILE     *file,
+    uint8_t  oidSize,
     uint64_t packFileSize
 ){
     gfObjectOffset *objof = 0;
@@ -463,9 +467,6 @@ f_internal gfObjectOffset *readIDXV2
         PD_ERROR("could not read fanouts of v2 IDX file.");
         goto closefile;
     }
-
-    // TODO: figure out object ID size (20 or 32 bytes, SHA-1 or 256.)
-    uint8_t oidSize = 20;
 
     pdArrReserve(objof, fanout[255]);
 
@@ -681,7 +682,8 @@ closefile:
 f_internal void readPackedCommits
 (
     StringView   idxPath,
-    gfCommitInfo **commitTable
+    gfCommitInfo **table,
+    uint8_t      oidSize
 ){
     FILE *file = fopen(idxPath.data, "rb");
     if(!file)
@@ -733,13 +735,13 @@ f_internal void readPackedCommits
     if(v2)
     {
         PD_TRACE("reading .idx v2 file: '"PRI_SV"'", ARG_SV(idxPath));
-        objof = readIDXV2(file, packFileSize);
+        objof = readIDXV2(file, oidSize, packFileSize);
     }
     else
     {
         PD_TRACE("reading .idx v1 file: '"PRI_SV"'", ARG_SV(idxPath));
         fseek(file, 0, SEEK_SET);
-        objof = readIDXV1(file, packFileSize);
+        objof = readIDXV1(file, oidSize, packFileSize);
     }
 
     if(!objof)
@@ -748,7 +750,7 @@ f_internal void readPackedCommits
         return;
     }
 
-    readCommitsFromOffsets(packPath, objof, commitTable);
+    readCommitsFromOffsets(packPath, objof, table);
 
     uint64_t arraySize = pdArrSize(objof);
     for(uint64_t i = 0; i < arraySize; ++i)
@@ -765,13 +767,16 @@ void gfInitRepository
     gfCommitInfo **commitTable
 ){
     char packBuf[4096]     = {0};
+    char confBuf[4096]     = {0};
     char absoluteBuf[4096] = {0};
     StringView absolute = pdExpandPath(repo->path, absoluteBuf);
     StringView gitPACK  = cstr_sv("/.git/objects/pack/");
     StringView gitHEAD  = cstr_sv("/.git/HEAD");
+    StringView gitCONF  = cstr_sv("/.git/config");
 
     gitPACK = sv_concat(absolute, gitPACK, packBuf);
     gitHEAD = sv_concat(absolute, gitHEAD, absoluteBuf);
+    gitCONF = sv_concat(absolute, gitCONF, confBuf);
 
     PD_TRACE("resolved head of '"PRI_SV"' to '"PRI_SV"'",
              ARG_SV(repo->path), ARG_SV(gitHEAD));
@@ -792,6 +797,37 @@ void gfInitRepository
         fileBuf[i].size = 0;
     }
 
+    uint8_t oidSize = 20;
+
+    FILE *configFile = fopen(confBuf, "r");
+    if(!configFile)
+    {
+        PD_WARN("could not read git config from '%s' to determine object ID size. "
+                "Assuming 20 bytes.", confBuf);
+    }
+    else
+    {
+        char line[8192] = {0};
+        while(fgets(line, 8192, configFile))
+        {
+            StringView lineSV = {0};
+            lineSV.data = line;
+            lineSV.size = 8192;
+
+            const char *objFormLoc = sv_find(objFormatIdent, lineSV);
+            if(objFormLoc)
+            {
+                lineSV = cstr_sv(objFormLoc + objFormatIdent.size);
+                if(sv_find(sha256Ident, lineSV))
+                {
+                    oidSize = 32;
+                }
+            }
+        }
+
+        fclose(configFile);
+    }
+
     sv_separate_by_delim(list, fileBuf, ';', fileCount);
     for(uint64_t i = 0; i < fileCount; ++i)
     {
@@ -799,7 +835,7 @@ void gfInitRepository
         {
             char tmpBuf[4096] = {0};
             StringView idxPath = sv_concat(gitPACK, fileBuf[i], tmpBuf);
-            readPackedCommits(idxPath, commitTable);
+            readPackedCommits(idxPath, commitTable, oidSize);
         }
     }
 
