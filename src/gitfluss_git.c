@@ -6,18 +6,20 @@
 #include "pd_dyn_arr.h"
 #include "pd_print_macros.h"
 
-s_global const StringView sep             = { .size = 1,  .data = "/"              };
-s_global const StringView spaceKarat      = { .size = 2,  .data = " <"             };
-s_global const StringView karatSpace      = { .size = 2,  .data = "> "             };
-s_global const StringView idxIdent        = { .size = 4,  .data = ".idx"           };
-s_global const StringView refIdent        = { .size = 4,  .data = "ref:"           };
-s_global const StringView idxV2Magic      = { .size = 4,  .data = "\377tOc"        };
-s_global const StringView authorIdent     = { .size = 6,  .data = "author"         };
-s_global const StringView parentIdent     = { .size = 6,  .data = "parent"         };
-s_global const StringView sha256Ident     = { .size = 6,  .data = "sha256"         };
-s_global const StringView commiterIdent   = { .size = 8,  .data = "commiter"       };
-s_global const StringView objFormatIdent  = { .size = 14, .data = "objectFormat =" };
-s_global const StringView gitObjectFolder = { .size = 14, .data = "/.git/objects/" };
+s_global const StringView sep             = { .size = 1,  .data = "/"                 };
+s_global const StringView spaceKarat      = { .size = 2,  .data = " <"                };
+s_global const StringView karatSpace      = { .size = 2,  .data = "> "                };
+s_global const StringView idxIdent        = { .size = 4,  .data = ".idx"              };
+s_global const StringView refIdent        = { .size = 4,  .data = "ref:"              };
+s_global const StringView idxV2Magic      = { .size = 4,  .data = "\377tOc"           };
+s_global const StringView authorIdent     = { .size = 6,  .data = "author"            };
+s_global const StringView parentIdent     = { .size = 6,  .data = "parent"            };
+s_global const StringView sha256Ident     = { .size = 6,  .data = "sha256"            };
+s_global const StringView commiterIdent   = { .size = 8,  .data = "commiter"          };
+s_global const StringView objFormatIdent  = { .size = 14, .data = "objectFormat ="    };
+s_global const StringView gitObjectFolder = { .size = 14, .data = "/.git/objects/"    };
+s_global const StringView headPackedIdent = { .size = 15, .data = "refs/heads/main"   };
+s_global const StringView packedHeadIdent = { .size = 17, .data = "/.git/packed-refs" };
 
 f_internal void freeSV
 (
@@ -667,8 +669,8 @@ f_internal void readCommitsFromOffsets
                 offset |= chunk << shift;
                 shift  += 7;
             }
-            PD_ASSERT(offset < ftell(file), "negative offset %"PRIu64" is larger than "
-                      "current position of file %"PRIu64".", offset, ftell(file));
+            PD_ASSERT(offset < index, "negative offset %"PRIu64" is larger than "
+                      "current position of file %"PRIu64".", offset, index);
 
             PD_TRACE("read OFS_DELTA object with offset -%"PRIu64, offset);
 
@@ -896,8 +898,9 @@ void gfInitRepository
     }
 
     StringView readHead = cstr_sv(headBuf);
+    const char *refLoc  = sv_find(refIdent, readHead);
 
-    if(!(sv_find(refIdent, readHead) == readHead.data))
+    if(refLoc && !(refLoc == readHead.data))
     {
         PD_TRACE("identified HEAD: '"PRI_SV"'", ARG_SV(readHead));
         gfGetCommitInfo(absolute, readHead, head, 0);
@@ -918,21 +921,53 @@ void gfInitRepository
 
     PD_TRACE("opening ref under '%s'...", headBuf);
 
+    char hashBuf[64]   = {0};
+
+    StringView hash = {0};
+
     file = fopen(headBuf, "r");
-    if(!file)
+    if(file)
     {
-        PD_WARN("TODO: packed ref unhandled: '%s'", headBuf);
-        return;
+        for(uint8_t i = 0; i < oidSize * 2; ++i)
+        {
+            if(fread(&hashBuf[i], 1, 1, file) != 1)
+            {
+                PD_ERROR("could not read HEAD commit from '"PRI_SV"'.",
+                         ARG_SV(readHead));
+            }
+        }
+    }
+    else
+    {
+        char lineBuf[4096]       = {0};
+        char packedHeadBuf[4096] = {0};
+
+        StringView packedHead = sv_concat(repo->path, packedHeadIdent, packedHeadBuf);
+        file = fopen(packedHeadBuf, "r");
+        if(!file)
+        {
+            PD_ERROR("found ref neither under '"PRI_SV"' nor in '"PRI_SV"'.",
+                     ARG_SV(readHead), ARG_SV(packedHead));
+            return;
+        }
+
+        while(fgets(lineBuf, 4096, file))
+        {
+            StringView path = cstr_sv(lineBuf + oidSize * 2 + 1);
+
+            if(sv_same(path, headPackedIdent))
+            {
+                for(uint8_t i = 0; i < oidSize * 2; ++i)
+                {
+                    hashBuf[i] = lineBuf[i];
+                }
+                break;
+            }
+        }
     }
 
-    char hashBuf[128] = {0};
-    elements = 1;
-    for(uint8_t i = 0; i < 127 && elements == 1; ++i)
-    {
-        elements = fread(&hashBuf[i], 1, 1, file);
-    }
-
-    StringView hash = cstr_sv(hashBuf);
+    hash.data = hashBuf;
+    hash.size = oidSize * 2;
 
     PD_TRACE("identified HEAD: '"PRI_SV"'", ARG_SV(hash));
     gfGetCommitInfo(repo->path, hash, head, 0);
