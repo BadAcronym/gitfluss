@@ -490,18 +490,16 @@ f_internal void calculateHeatmap
         return;
     }
 
-    #ifdef DEBUG
-        printf("\n");
-        printf("full days since epoch: %lu\n", days_epoch);
-        printf("full years since epoch: %u\n", set->yearsEpoch);
-        printf("now, unix time: %lu\n", set->now);
-        printf("current year start: %lu\n", currYearStart);
-        printf("current month: %u\n", currentMonth);
-        printf("current month start: %lu\n", currMonthStart);
-        printf("weekday 365 days ago: %s\n", days[weekday365]);
-        printf("day of the month, today: %u\n", day_of_month);
-        printf("\n");
-    #endif
+    PD_DEBUG("\n");
+    PD_DEBUG("full days since epoch:   %"PRIu64, days_epoch);
+    PD_DEBUG("full years since epoch:  %"PRIu32, set->yearsEpoch);
+    PD_DEBUG("now, unix time:          %"PRIu64, set->now);
+    PD_DEBUG("current year start:      %"PRIu64, currYearStart);
+    PD_DEBUG("current month:           %"PRIu32, currentMonth);
+    PD_DEBUG("current month start:     %"PRIu64, currMonthStart);
+    PD_DEBUG("weekday 365 days ago:    %s",      days[weekday365]);
+    PD_DEBUG("day of the month, today: %"PRIu8,  day_of_month);
+    PD_DEBUG("\n");
 }
 
 f_internal void displayData
@@ -550,19 +548,17 @@ f_internal void displayData
     percentiles.d70 = set->sorted[zerocount + d70_sep];
     percentiles.d90 = set->sorted[zerocount + d90_sep];
 
-    #ifdef DEBUG
-        printf("\n");
-        printf("found 0-days: %u\n", zerocount);
-        printf("found d20_sep: %u\n", d20_sep);
-        printf("found d50_sep: %u\n", d50_sep);
-        printf("found d70_sep: %u\n", d70_sep);
-        printf("found d90_sep: %u\n", d90_sep);
-        printf("found d20: %u\n", percentiles.d20);
-        printf("found d50: %u\n", percentiles.d50);
-        printf("found d70: %u\n", percentiles.d70);
-        printf("found d90: %u\n", percentiles.d90);
-        printf("\n");
-    #endif
+    PD_DEBUG("\n");
+    PD_DEBUG("found 0-days:  %"PRIu32, zerocount);
+    PD_DEBUG("found d20_sep: %"PRIu32, d20_sep);
+    PD_DEBUG("found d50_sep: %"PRIu32, d50_sep);
+    PD_DEBUG("found d70_sep: %"PRIu32, d70_sep);
+    PD_DEBUG("found d90_sep: %"PRIu32, d90_sep);
+    PD_DEBUG("found d20: %"PRIu32, percentiles.d20);
+    PD_DEBUG("found d50: %"PRIu32, percentiles.d50);
+    PD_DEBUG("found d70: %"PRIu32, percentiles.d70);
+    PD_DEBUG("found d90: %"PRIu32, percentiles.d90);
+    PD_DEBUG("\n");
 
     int64_t yearStart   = set->heatSet->now;
     int64_t currentYear = 0;
