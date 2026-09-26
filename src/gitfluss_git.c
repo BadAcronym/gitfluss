@@ -433,7 +433,7 @@ closefile:
 }
 
 // PERF: probably do the same thing as I tried to do with the packfile. read the entire
-// thing into memory first, then iterate byte-by-byte instead of reading byte-by-byte.
+// thing into memory first, then iterate byte-by-byte instead of using fread byte-by-byte.
 f_internal gfObjectOffset *readIDXV2
 (
     FILE     *file,
@@ -546,7 +546,8 @@ f_internal void readCommitsFromOffsets
 (
     StringView     path,
     gfObjectOffset *objof,
-    gfCommitInfo   **commitTable
+    gfCommitInfo   **table,
+    uint8_t        oidSize
 ){
     FILE *file = fopen(path.data, "rb");
     if(!file)
@@ -578,7 +579,7 @@ f_internal void readCommitsFromOffsets
         uint64_t index = objof[i].offset;
         uint8_t  byte  = packFile[index++];
 
-        bool     readMore = byte >> 7;
+        bool     readMore = byte & 0x80;
         uint8_t  type     = byte >> 4 & 0x07;
 
         #ifdef DEBUG
@@ -597,7 +598,7 @@ f_internal void readCommitsFromOffsets
             PD_ASSERT(shift < 64, "cannot shift more than 64 bits.");
             PD_ASSERT(chunk < (UINT64_MAX >> shift), "chunk is too large.");
 
-            readMore = byte  >> 7;
+            readMore = byte & 0x80;
 
             #ifdef DEBUG
             length  |= chunk << shift;
@@ -643,12 +644,34 @@ f_internal void readCommitsFromOffsets
 
             commit.hash = sv_cpy(objof[i].hash);
 
-            pdArrPush(commitTable[firstTwo], commit);
+            pdArrPush(table[firstTwo], commit);
         }
         else if(type == GF_OBJ_OFS_DELTA)
         {
-            // variable-length negative offset
-            // recursively read base object from curr - offset
+            uint64_t offset = 0;
+            uint8_t  shift  = 0;
+
+            readMore = true;
+
+            for(uint8_t j = 0; readMore && j < 11; ++j)
+            {
+                byte = packFile[index++];
+
+                uint64_t chunk = byte & 0x7F;
+
+                PD_ASSERT(shift < 64, "cannot shift more than 64 bits.");
+                PD_ASSERT(chunk < (UINT64_MAX >> shift), "chunk is too large.");
+
+                readMore = byte & 0x80;
+
+                offset |= chunk << shift;
+                shift  += 7;
+            }
+            PD_ASSERT(offset < ftell(file), "negative offset %"PRIu64" is larger than "
+                      "current position of file %"PRIu64".", offset, ftell(file));
+
+            PD_TRACE("read OFS_DELTA object with offset -%"PRIu64, offset);
+
             // read delta (inflate)
             // apply delta patch
 
@@ -659,7 +682,26 @@ f_internal void readCommitsFromOffsets
         }
         else if(type == GF_OBJ_REF_DELTA)
         {
-            // object name (find base object by name)
+            char nameBuf[64] = {0};
+
+            for(uint8_t j = 0; j < oidSize * 2; j += 2)
+            {
+                if(fread(&byte, 1, 1, file) != 1)
+                {
+                    PD_ERROR("could not read name of object from offset %"PRIu32".",
+                             objof[i].offset);
+                    goto closefile;
+                }
+                nameBuf[j]     = valueToHexChar(byte >> 4);
+                nameBuf[j + 1] = valueToHexChar(byte & 0x0F);
+            }
+
+            StringView name = {0};
+            name.data = nameBuf;
+            name.size = oidSize * 2;
+
+            PD_TRACE("read REF_DELTA object '"PRI_SV"'", ARG_SV(name));
+
             // recursively read base object, looking up by object hash
             // read delta (inflate)
             // apply delta patch
@@ -750,7 +792,7 @@ f_internal void readPackedCommits
         return;
     }
 
-    readCommitsFromOffsets(packPath, objof, table);
+    readCommitsFromOffsets(packPath, objof, table, oidSize);
 
     uint64_t arraySize = pdArrSize(objof);
     for(uint64_t i = 0; i < arraySize; ++i)
