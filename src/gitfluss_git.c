@@ -650,24 +650,15 @@ f_internal void readCommitsFromOffsets
         }
         else if(type == GF_OBJ_OFS_DELTA)
         {
-            uint64_t offset = 0;
-            uint8_t  shift  = 0;
+            byte = packFile[index++];
+            uint64_t offset = byte & 0x7F;
 
             readMore = true;
-
             for(uint8_t j = 0; readMore && j < 11; ++j)
             {
-                byte = packFile[index++];
-
-                uint64_t chunk = byte & 0x7F;
-
-                PD_ASSERT(shift < 64, "cannot shift more than 64 bits.");
-                PD_ASSERT(chunk < (UINT64_MAX >> shift), "chunk is too large.");
-
+                byte     = packFile[index++];
                 readMore = byte & 0x80;
-
-                offset |= chunk << shift;
-                shift  += 7;
+                offset   = ((offset + 1) << 7) | (byte & 0x7F);
             }
             PD_ASSERT(offset < index, "negative offset %"PRIu64" is larger than "
                       "current position of file %"PRIu64".", offset, index);
