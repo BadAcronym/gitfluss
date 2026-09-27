@@ -61,44 +61,44 @@ f_internal void setColour
     gfConf     *config,
     StringView colour
 ){
-    StringView red_sv    = cstr_sv("red");
-    StringView green_sv  = cstr_sv("green");
-    StringView blue_sv   = cstr_sv("blue");
-    StringView cyan_sv   = cstr_sv("cyan");
-    StringView purple_sv = cstr_sv("purple");
-    StringView pink_sv   = cstr_sv("pink");
-    StringView yellow_sv = cstr_sv("yellow");
-    StringView white_sv  = cstr_sv("white");
+    StringView red_sv    = pdCstrSV("red");
+    StringView green_sv  = pdCstrSV("green");
+    StringView blue_sv   = pdCstrSV("blue");
+    StringView cyan_sv   = pdCstrSV("cyan");
+    StringView purple_sv = pdCstrSV("purple");
+    StringView pink_sv   = pdCstrSV("pink");
+    StringView yellow_sv = pdCstrSV("yellow");
+    StringView white_sv  = pdCstrSV("white");
 
-    if(sv_same(colour, red_sv))
+    if(pdSVSame(colour, red_sv))
     {
         config->colour = RED;
     }
-    else if(sv_same(colour, green_sv))
+    else if(pdSVSame(colour, green_sv))
     {
         config->colour = GREEN;
     }
-    else if(sv_same(colour, blue_sv))
+    else if(pdSVSame(colour, blue_sv))
     {
         config->colour = BLUE;
     }
-    else if(sv_same(colour, cyan_sv))
+    else if(pdSVSame(colour, cyan_sv))
     {
         config->colour = CYAN;
     }
-    else if(sv_same(colour, purple_sv))
+    else if(pdSVSame(colour, purple_sv))
     {
         config->colour = PURPLE;
     }
-    else if(sv_same(colour, pink_sv))
+    else if(pdSVSame(colour, pink_sv))
     {
         config->colour = PINK;
     }
-    else if(sv_same(colour, yellow_sv))
+    else if(pdSVSame(colour, yellow_sv))
     {
         config->colour = YELLOW;
     }
-    else if(sv_same(colour, white_sv))
+    else if(pdSVSame(colour, white_sv))
     {
         config->colour = WHITE;
     }
@@ -116,24 +116,24 @@ void gfAddAuthor
         return;
     }
 
-    StringView sep = cstr_sv(";");
+    StringView sep = pdCstrSV(";");
 
     if(config->authors.data && config->authors.size)
     {
         char *authors_cstr = malloc(config->authors.size + author.size + 2);
-        sv_concat(config->authors, sep, authors_cstr);
+        pdSVConcat(config->authors, sep, authors_cstr);
         free((void*)config->authors.data);
-        config->authors = cstr_sv(authors_cstr);
+        config->authors = pdCstrSV(authors_cstr);
 
-        sv_concat(config->authors, author, authors_cstr);
-        config->authors = cstr_sv(authors_cstr);
+        pdSVConcat(config->authors, author, authors_cstr);
+        config->authors = pdCstrSV(authors_cstr);
     }
     else
     {
-        char *new_buf = malloc(bufsize);
+        char *new_buf = malloc(GF_BUFSIZE);
         char author_cstr[512];
-        sv_cstr(author, author_cstr);
-        config->authors = cstr_sv_cpy(author_cstr, new_buf);
+        pdSVCstr(author, author_cstr);
+        config->authors = pdCstrSVCpy(author_cstr, new_buf);
     }
 
     PD_TRACE("author list: "PRI_SV"", ARG_SV(config->authors));
@@ -144,13 +144,13 @@ void gfAddAuthorlist
     gfConf     *config,
     StringView path
 ){
-    char path_cstr[4096];
-    sv_cstr(path, path_cstr);
+    char path_cstr[MAX_PATH];
+    pdSVCstr(path, path_cstr);
 
     char path_expanded_cstr[4096];
     pdExpandPath(path, path_expanded_cstr);
 
-    StringView path_expanded = cstr_sv(path_expanded_cstr);
+    StringView path_expanded = pdCstrSV(path_expanded_cstr);
 
     if(pdVerifyPath(path_expanded) != PD_TYPE_FILE)
     {
@@ -167,13 +167,13 @@ void gfAddAuthorlist
         return;
     }
 
-    char buf[bufsize];
-    while(fgets(buf, bufsize, file))
+    char buf[GF_BUFSIZE];
+    while(fgets(buf, GF_BUFSIZE, file))
     {
-        StringView buffer = cstr_sv(buf);
+        StringView buffer = pdCstrSV(buf);
 
-        StringView comment_sv  = cstr_sv("//");
-        const char *commentloc = sv_find(comment_sv, buffer);
+        StringView comment_sv  = pdCstrSV("//");
+        const char *commentloc = pdSVFind(comment_sv, buffer);
         if(commentloc == buf)
         {
             continue;
@@ -197,8 +197,8 @@ f_internal void verifyDirectory
     }
     else if(result == PD_TYPE_ERROR || result == PD_TYPE_OTHER)
     {
-        StringView dashes = cstr_sv("--");
-        if(sv_find(dashes, resolved) == resolved.data)
+        StringView dashes = pdCstrSV("--");
+        if(pdSVFind(dashes, resolved) == resolved.data)
         {
             return;
         }
@@ -218,26 +218,26 @@ void gfAddPath
     }
 
     char path_cstr[path.size + 1];
-    sv_cstr(path, path_cstr);
+    pdSVCstr(path, path_cstr);
 
-    StringView sep = cstr_sv(";");
+    StringView sep = pdCstrSV(";");
 
     if(config->repositories.data && config->repositories.size)
     {
         char *repositories_cstr = malloc(config->repositories.size + MAX_PATH + 2);
-        sv_concat(config->repositories, sep, repositories_cstr);
+        pdSVConcat(config->repositories, sep, repositories_cstr);
         free((void*)config->repositories.data);
-        config->repositories = cstr_sv(repositories_cstr);
+        config->repositories = pdCstrSV(repositories_cstr);
 
         char resolved_cstr[MAX_PATH];
         pdExpandPath(path, resolved_cstr);
-        StringView resolved = cstr_sv(resolved_cstr);
+        StringView resolved = pdCstrSV(resolved_cstr);
 
         char pathSep[resolved.size + 2];
-        StringView pathComp = cstr_sv(resolved_cstr);
+        StringView pathComp = pdCstrSV(resolved_cstr);
         pathSep[resolved.size] = ';';
         pathSep[resolved.size + 1] = '\0';
-        if(sv_find(pathComp, config->repositories))
+        if(pdSVFind(pathComp, config->repositories))
         {
             PD_DEBUG("path '"PRI_SV"' already in repository list. Ignoring "
                      "duplicate...", ARG_SV(resolved));
@@ -246,14 +246,14 @@ void gfAddPath
 
         verifyDirectory(resolved);
 
-        sv_concat(config->repositories, resolved, repositories_cstr);
-        config->repositories = cstr_sv(repositories_cstr);
+        pdSVConcat(config->repositories, resolved, repositories_cstr);
+        config->repositories = pdCstrSV(repositories_cstr);
     }
     else
     {
         char *resolved_cstr = calloc(MAX_PATH, 1);
         pdExpandPath(path, resolved_cstr);
-        StringView resolved = cstr_sv(resolved_cstr);
+        StringView resolved = pdCstrSV(resolved_cstr);
         config->repositories = resolved;
 
         verifyDirectory(resolved);
@@ -270,7 +270,7 @@ void gfAddPathlist
     char path_expanded_cstr[4096];
     pdExpandPath(path, path_expanded_cstr);
 
-    StringView path_expanded = cstr_sv(path_expanded_cstr);
+    StringView path_expanded = pdCstrSV(path_expanded_cstr);
 
     if(pdVerifyPath(path_expanded) != PD_TYPE_FILE)
     {
@@ -287,13 +287,13 @@ void gfAddPathlist
         return;
     }
 
-    char buf[bufsize];
-    while(fgets(buf, bufsize, file))
+    char buf[GF_BUFSIZE];
+    while(fgets(buf, GF_BUFSIZE, file))
     {
-        StringView buffer = cstr_sv(buf);
+        StringView buffer = pdCstrSV(buf);
 
-        StringView comment_sv  = cstr_sv("//");
-        const char *commentloc = sv_find(comment_sv, buffer);
+        StringView comment_sv  = pdCstrSV("//");
+        const char *commentloc = pdSVFind(comment_sv, buffer);
         if(commentloc == buf)
         {
             continue;
@@ -336,32 +336,32 @@ void gfReadConfig
 (
     gfConf *config
 ){
-    StringView conf     = cstr_sv(CONF_PATH);
-    StringView fallback = cstr_sv(CONF_FALLBACK);
+    StringView conf     = pdCstrSV(CONF_PATH);
+    StringView fallback = pdCstrSV(CONF_FALLBACK);
 
     char path_expanded[MAX_PATH];
     char fallback_expanded[MAX_PATH];
     pdExpandPath(conf, path_expanded);
     pdExpandPath(fallback, fallback_expanded);
 
-    StringView authorlist_sv = cstr_sv("authorlist:");
-    StringView repolist_sv   = cstr_sv("repolist:");
+    StringView authorlist_sv = pdCstrSV("authorlist:");
+    StringView repolist_sv   = pdCstrSV("repolist:");
 
-    StringView author_sv  = cstr_sv("author:");
-    StringView colour_sv  = cstr_sv("colour:");
-    StringView info_sv    = cstr_sv("info:");
-    StringView mono_sv    = cstr_sv("mono:");
-    StringView profile_sv = cstr_sv("profile:");
-    StringView heat0_sv   = cstr_sv("heat0:");
-    StringView heat1_sv   = cstr_sv("heat1:");
-    StringView heat2_sv   = cstr_sv("heat2:");
-    StringView heat3_sv   = cstr_sv("heat3:");
-    StringView heat4_sv   = cstr_sv("heat4:");
-    StringView char_sv    = cstr_sv("character:");
-    StringView years_sv   = cstr_sv("years:");
-    StringView summary_sv = cstr_sv("summary:");
-    StringView streak_sv  = cstr_sv("streak:");
-    StringView true_sv    = cstr_sv("true");
+    StringView author_sv  = pdCstrSV("author:");
+    StringView colour_sv  = pdCstrSV("colour:");
+    StringView info_sv    = pdCstrSV("info:");
+    StringView mono_sv    = pdCstrSV("mono:");
+    StringView profile_sv = pdCstrSV("profile:");
+    StringView heat0_sv   = pdCstrSV("heat0:");
+    StringView heat1_sv   = pdCstrSV("heat1:");
+    StringView heat2_sv   = pdCstrSV("heat2:");
+    StringView heat3_sv   = pdCstrSV("heat3:");
+    StringView heat4_sv   = pdCstrSV("heat4:");
+    StringView char_sv    = pdCstrSV("character:");
+    StringView years_sv   = pdCstrSV("years:");
+    StringView summary_sv = pdCstrSV("summary:");
+    StringView streak_sv  = pdCstrSV("streak:");
+    StringView true_sv    = pdCstrSV("true");
 
     FILE *file = fopen(path_expanded, "r");
     if(!file)
@@ -373,189 +373,189 @@ void gfReadConfig
         }
     }
 
-    char buf[bufsize];
-    while(fgets(buf, bufsize, file))
+    char buf[GF_BUFSIZE];
+    while(fgets(buf, GF_BUFSIZE, file))
     {
         StringView buffer;
         buffer.data = buf;
-        buffer.size = bufsize;
+        buffer.size = GF_BUFSIZE;
 
-        StringView comment_sv  = cstr_sv("//");
-        const char *commentloc = sv_find(comment_sv, buffer);
+        StringView comment_sv  = pdCstrSV("//");
+        const char *commentloc = pdSVFind(comment_sv, buffer);
         if(commentloc == buf)
         {
             continue;
         }
 
-        const char* authorlistloc = sv_find(authorlist_sv, buffer);
+        const char* authorlistloc = pdSVFind(authorlist_sv, buffer);
         if(authorlistloc)
         {
-            StringView authorlist = cstr_sv(buffer.data + authorlist_sv.size + 1);
+            StringView authorlist = pdCstrSV(buffer.data + authorlist_sv.size + 1);
 
             gfAddAuthorlist(config, authorlist);
             continue;
         }
 
-        const char* repolistloc = sv_find(repolist_sv, buffer);
+        const char* repolistloc = pdSVFind(repolist_sv, buffer);
         if(repolistloc)
         {
-            StringView repolist = cstr_sv(buffer.data + repolist_sv.size + 1);
+            StringView repolist = pdCstrSV(buffer.data + repolist_sv.size + 1);
 
             gfAddPathlist(config, repolist);
             continue;
         }
 
-        const char* authorloc = sv_find(author_sv, buffer);
+        const char* authorloc = pdSVFind(author_sv, buffer);
         if(authorloc)
         {
-            StringView author = cstr_sv(buffer.data + author_sv.size + 1);
+            StringView author = pdCstrSV(buffer.data + author_sv.size + 1);
 
             gfAddAuthor(config, author);
             continue;
         }
 
-        const char* colourloc = sv_find(colour_sv, buffer);
+        const char* colourloc = pdSVFind(colour_sv, buffer);
         if(colourloc)
         {
-            StringView chosen_sv = cstr_sv(buffer.data + colour_sv.size + 1);
+            StringView chosen_sv = pdCstrSV(buffer.data + colour_sv.size + 1);
             setColour(config, chosen_sv);
             continue;
         }
 
-        const char* infoloc = sv_find(info_sv, buffer);
+        const char* infoloc = pdSVFind(info_sv, buffer);
         if(infoloc)
         {
-            StringView set_sv = cstr_sv(buffer.data + info_sv.size + 1);
+            StringView set_sv = pdCstrSV(buffer.data + info_sv.size + 1);
 
-            if(sv_same(set_sv, true_sv))
+            if(pdSVSame(set_sv, true_sv))
             {
                 config->flags |= GF_FLAG_INFO;
             }
             continue;
         }
 
-        const char* monoloc = sv_find(mono_sv, buffer);
+        const char* monoloc = pdSVFind(mono_sv, buffer);
         if(monoloc)
         {
-            StringView set_sv = cstr_sv(buffer.data + mono_sv.size + 1);
+            StringView set_sv = pdCstrSV(buffer.data + mono_sv.size + 1);
 
-            if(sv_same(set_sv, true_sv))
+            if(pdSVSame(set_sv, true_sv))
             {
                 config->flags |= GF_FLAG_MONO;
             }
             continue;
         }
 
-        const char* profileloc = sv_find(profile_sv, buffer);
+        const char* profileloc = pdSVFind(profile_sv, buffer);
         if(profileloc)
         {
-            StringView set_sv = cstr_sv(buffer.data + profile_sv.size + 1);
+            StringView set_sv = pdCstrSV(buffer.data + profile_sv.size + 1);
 
-            if(sv_same(set_sv, true_sv))
+            if(pdSVSame(set_sv, true_sv))
             {
                 config->flags |= GF_FLAG_PROFILE;
             }
             continue;
         }
 
-        const char* heat0loc = sv_find(heat0_sv, buffer);
+        const char* heat0loc = pdSVFind(heat0_sv, buffer);
         if(heat0loc)
         {
-            StringView set_sv = cstr_sv(buffer.data + heat0_sv.size + 1);
+            StringView set_sv = pdCstrSV(buffer.data + heat0_sv.size + 1);
 
             char *small_buf = malloc(8);
-            sv_cstr(set_sv, small_buf);
+            pdSVCstr(set_sv, small_buf);
             config->mono0 = small_buf;
             continue;
         }
 
-        const char* heat1loc = sv_find(heat1_sv, buffer);
+        const char* heat1loc = pdSVFind(heat1_sv, buffer);
         if(heat1loc)
         {
-            StringView set_sv = cstr_sv(buffer.data + heat1_sv.size + 1);
+            StringView set_sv = pdCstrSV(buffer.data + heat1_sv.size + 1);
 
             char *small_buf = malloc(8);
-            sv_cstr(set_sv, small_buf);
+            pdSVCstr(set_sv, small_buf);
             config->mono1 = small_buf;
             continue;
         }
 
-        const char* heat2loc = sv_find(heat2_sv, buffer);
+        const char* heat2loc = pdSVFind(heat2_sv, buffer);
         if(heat2loc)
         {
-            StringView set_sv = cstr_sv(buffer.data + heat2_sv.size + 1);
+            StringView set_sv = pdCstrSV(buffer.data + heat2_sv.size + 1);
 
             char *small_buf = malloc(8);
-            sv_cstr(set_sv, small_buf);
+            pdSVCstr(set_sv, small_buf);
             config->mono2 = small_buf;
             continue;
         }
 
-        const char* heat3loc = sv_find(heat3_sv, buffer);
+        const char* heat3loc = pdSVFind(heat3_sv, buffer);
         if(heat3loc)
         {
-            StringView set_sv = cstr_sv(buffer.data + heat3_sv.size + 1);
+            StringView set_sv = pdCstrSV(buffer.data + heat3_sv.size + 1);
 
             char *small_buf = malloc(8);
-            sv_cstr(set_sv, small_buf);
+            pdSVCstr(set_sv, small_buf);
             config->mono3 = small_buf;
             continue;
         }
 
-        const char* heat4loc = sv_find(heat4_sv, buffer);
+        const char* heat4loc = pdSVFind(heat4_sv, buffer);
         if(heat4loc)
         {
-            StringView set_sv = cstr_sv(buffer.data + heat4_sv.size + 1);
+            StringView set_sv = pdCstrSV(buffer.data + heat4_sv.size + 1);
 
             char *small_buf = malloc(8);
-            sv_cstr(set_sv, small_buf);
+            pdSVCstr(set_sv, small_buf);
             config->mono4 = small_buf;
             continue;
         }
 
-        const char* charloc = sv_find(char_sv, buffer);
+        const char* charloc = pdSVFind(char_sv, buffer);
         if(charloc)
         {
-            StringView set_sv = cstr_sv(buffer.data + char_sv.size + 1);
+            StringView set_sv = pdCstrSV(buffer.data + char_sv.size + 1);
 
             char *small_buf = malloc(8);
-            sv_cstr(set_sv, small_buf);
+            pdSVCstr(set_sv, small_buf);
             config->character = small_buf;
             continue;
         }
 
-        const char* yearloc = sv_find(years_sv, buffer);
+        const char* yearloc = pdSVFind(years_sv, buffer);
         if(yearloc)
         {
             config->years = parseYear(buffer.data + years_sv.size + 1);
             continue;
         }
 
-        const char* summaryloc = sv_find(summary_sv, buffer);
+        const char* summaryloc = pdSVFind(summary_sv, buffer);
         if(summaryloc)
         {
-            StringView set_sv = cstr_sv(buffer.data + summary_sv.size + 1);
+            StringView set_sv = pdCstrSV(buffer.data + summary_sv.size + 1);
 
-            if(sv_same(set_sv, true_sv))
+            if(pdSVSame(set_sv, true_sv))
             {
                 config->flags |= GF_FLAG_SUMMARY;
             }
             continue;
         }
 
-        const char* streakloc = sv_find(streak_sv, buffer);
+        const char* streakloc = pdSVFind(streak_sv, buffer);
         if(streakloc)
         {
-            StringView set_sv = cstr_sv(buffer.data + streak_sv.size + 1);
+            StringView set_sv = pdCstrSV(buffer.data + streak_sv.size + 1);
 
-            if(sv_same(set_sv, true_sv))
+            if(pdSVSame(set_sv, true_sv))
             {
                 config->flags |= GF_FLAG_STREAK;
             }
             continue;
         }
 
-        StringView path = cstr_sv(buffer.data);
+        StringView path = pdCstrSV(buffer.data);
         gfAddPath(config, path);
     }
 
@@ -605,41 +605,41 @@ void gfReadArgs
 
     for(uint16_t i = 1; i < argc; ++i)
     {
-        StringView arg = cstr_sv(argv[i]);
+        StringView arg = pdCstrSV(argv[i]);
 
         if(arg.size < 2 || arg.data[0] != '-' || arg.data[1] != '-')
         {
             goto isPath;
         }
 
-        StringView authorlist_ident = cstr_sv("authorlist");
-        StringView repolist_ident   = cstr_sv("repolist");
-        StringView author_ident     = cstr_sv("author");
-        StringView colour_ident     = cstr_sv("colour");
-        StringView info_ident       = cstr_sv("info");
-        StringView noinfo_ident     = cstr_sv("noinfo");
-        StringView mono_ident       = cstr_sv("mono");
-        StringView profile_ident    = cstr_sv("profile");
-        StringView noprofile_ident  = cstr_sv("noprofile");
-        StringView heat0_ident      = cstr_sv("heat0");
-        StringView heat1_ident      = cstr_sv("heat1");
-        StringView heat2_ident      = cstr_sv("heat2");
-        StringView heat3_ident      = cstr_sv("heat3");
-        StringView heat4_ident      = cstr_sv("heat4");
-        StringView char_ident       = cstr_sv("char");
-        StringView years_ident      = cstr_sv("years");
-        StringView version_ident    = cstr_sv("version");
-        StringView nomatch_ident    = cstr_sv("nomatch");
-        StringView summary_ident    = cstr_sv("summary");
-        StringView nosummary_ident  = cstr_sv("nosummary");
-        StringView streak_ident     = cstr_sv("streak");
-        StringView nostreak_ident   = cstr_sv("nostreak");
-        StringView help_ident       = cstr_sv("help");
+        StringView authorlist_ident = pdCstrSV("authorlist");
+        StringView repolist_ident   = pdCstrSV("repolist");
+        StringView author_ident     = pdCstrSV("author");
+        StringView colour_ident     = pdCstrSV("colour");
+        StringView info_ident       = pdCstrSV("info");
+        StringView noinfo_ident     = pdCstrSV("noinfo");
+        StringView mono_ident       = pdCstrSV("mono");
+        StringView profile_ident    = pdCstrSV("profile");
+        StringView noprofile_ident  = pdCstrSV("noprofile");
+        StringView heat0_ident      = pdCstrSV("heat0");
+        StringView heat1_ident      = pdCstrSV("heat1");
+        StringView heat2_ident      = pdCstrSV("heat2");
+        StringView heat3_ident      = pdCstrSV("heat3");
+        StringView heat4_ident      = pdCstrSV("heat4");
+        StringView char_ident       = pdCstrSV("char");
+        StringView years_ident      = pdCstrSV("years");
+        StringView version_ident    = pdCstrSV("version");
+        StringView nomatch_ident    = pdCstrSV("nomatch");
+        StringView summary_ident    = pdCstrSV("summary");
+        StringView nosummary_ident  = pdCstrSV("nosummary");
+        StringView streak_ident     = pdCstrSV("streak");
+        StringView nostreak_ident   = pdCstrSV("nostreak");
+        StringView help_ident       = pdCstrSV("help");
 
         arg.size -= 2;
         arg.data += 2;
 
-        if(sv_same(arg, authorlist_ident))
+        if(pdSVSame(arg, authorlist_ident))
         {
             if(checkIdentMissing(i, argc, argv))
             {
@@ -653,11 +653,11 @@ void gfReadArgs
                 config->authors.size = 0;
             }
 
-            gfAddAuthorlist(config, cstr_sv(argv[i + 1]));
+            gfAddAuthorlist(config, pdCstrSV(argv[i + 1]));
             ++i;
             continue;
         }
-        else if(sv_same(arg, repolist_ident))
+        else if(pdSVSame(arg, repolist_ident))
         {
             if(checkIdentMissing(i, argc, argv))
             {
@@ -671,11 +671,11 @@ void gfReadArgs
                 config->repositories.size = 0;
             }
 
-            gfAddPathlist(config, cstr_sv(argv[i + 1]));
+            gfAddPathlist(config, pdCstrSV(argv[i + 1]));
             ++i;
             continue;
         }
-        else if(sv_same(arg, author_ident))
+        else if(pdSVSame(arg, author_ident))
         {
             if(checkIdentMissing(i, argc, argv))
             {
@@ -689,135 +689,135 @@ void gfReadArgs
                 config->authors.size = 0;
             }
 
-            StringView author = cstr_sv(argv[i + 1]);
+            StringView author = pdCstrSV(argv[i + 1]);
             gfAddAuthor(config, author);
 
             ++i;
             continue;
         }
-        else if(sv_same(arg, colour_ident))
+        else if(pdSVSame(arg, colour_ident))
         {
             if(checkIdentMissing(i, argc, argv))
             {
                 continue;
             }
 
-            StringView colour = cstr_sv(argv[i + 1]);
+            StringView colour = pdCstrSV(argv[i + 1]);
             setColour(config, colour);
 
             ++i;
             continue;
         }
-        else if(sv_same(arg, info_ident))
+        else if(pdSVSame(arg, info_ident))
         {
             config->flags |= GF_FLAG_INFO;
             continue;
         }
-        else if(sv_same(arg, noinfo_ident))
+        else if(pdSVSame(arg, noinfo_ident))
         {
             config->flags &= ~GF_FLAG_INFO;
             continue;
         }
-        else if(sv_same(arg, mono_ident))
+        else if(pdSVSame(arg, mono_ident))
         {
             config->flags |= GF_FLAG_MONO;
             continue;
         }
-        else if(sv_same(arg, profile_ident))
+        else if(pdSVSame(arg, profile_ident))
         {
             config->flags |= GF_FLAG_PROFILE;
             continue;
         }
-        else if(sv_same(arg, noprofile_ident))
+        else if(pdSVSame(arg, noprofile_ident))
         {
             config->flags &= ~GF_FLAG_PROFILE;
             continue;
         }
-        else if(sv_same(arg, heat0_ident))
+        else if(pdSVSame(arg, heat0_ident))
         {
             if(checkIdentMissing(i, argc, argv))
             {
                 continue;
             }
 
-            StringView chosen_sv  = cstr_sv(argv[i + 1]);
+            StringView chosen_sv  = pdCstrSV(argv[i + 1]);
             char       *small_buf = malloc(8);
-            sv_cstr(chosen_sv, small_buf);
+            pdSVCstr(chosen_sv, small_buf);
             config->mono0 = small_buf;
             ++i;
             continue;
         }
-        else if(sv_same(arg, heat1_ident))
+        else if(pdSVSame(arg, heat1_ident))
         {
             if(checkIdentMissing(i, argc, argv))
             {
                 continue;
             }
 
-            StringView chosen_sv  = cstr_sv(argv[i + 1]);
+            StringView chosen_sv  = pdCstrSV(argv[i + 1]);
             char       *small_buf = malloc(8);
-            sv_cstr(chosen_sv, small_buf);
+            pdSVCstr(chosen_sv, small_buf);
             config->mono1 = small_buf;
             ++i;
             continue;
         }
-        else if(sv_same(arg, heat2_ident))
+        else if(pdSVSame(arg, heat2_ident))
         {
             if(checkIdentMissing(i, argc, argv))
             {
                 continue;
             }
 
-            StringView chosen_sv  = cstr_sv(argv[i + 1]);
+            StringView chosen_sv  = pdCstrSV(argv[i + 1]);
             char       *small_buf = malloc(8);
-            sv_cstr(chosen_sv, small_buf);
+            pdSVCstr(chosen_sv, small_buf);
             config->mono2 = small_buf;
             ++i;
             continue;
         }
-        else if(sv_same(arg, heat3_ident))
+        else if(pdSVSame(arg, heat3_ident))
         {
             if(checkIdentMissing(i, argc, argv))
             {
                 continue;
             }
 
-            StringView chosen_sv  = cstr_sv(argv[i + 1]);
+            StringView chosen_sv  = pdCstrSV(argv[i + 1]);
             char       *small_buf = malloc(8);
-            sv_cstr(chosen_sv, small_buf);
+            pdSVCstr(chosen_sv, small_buf);
             config->mono3 = small_buf;
             ++i;
             continue;
         }
-        else if(sv_same(arg, heat4_ident))
+        else if(pdSVSame(arg, heat4_ident))
         {
             if(checkIdentMissing(i, argc, argv))
             {
                 continue;
             }
 
-            StringView chosen_sv  = cstr_sv(argv[i + 1]);
+            StringView chosen_sv  = pdCstrSV(argv[i + 1]);
             char       *small_buf = malloc(8);
-            sv_cstr(chosen_sv, small_buf);
+            pdSVCstr(chosen_sv, small_buf);
             config->mono4 = small_buf;
             ++i;
             continue;
         }
-        else if(sv_same(arg, char_ident))
+        else if(pdSVSame(arg, char_ident))
         {
             if(checkIdentMissing(i, argc, argv))
             {
                 continue;
             }
 
-            StringView chosen_sv  = cstr_sv(argv[i + 1]);
+            StringView chosen_sv  = pdCstrSV(argv[i + 1]);
             char       *small_buf = malloc(8);
-            sv_cstr(chosen_sv, small_buf);
+            pdSVCstr(chosen_sv, small_buf);
             config->character = small_buf;
             ++i;
             continue;
         }
-        else if(sv_same(arg, years_ident))
+        else if(pdSVSame(arg, years_ident))
         {
             if(checkIdentMissing(i, argc, argv))
             {
@@ -828,37 +828,37 @@ void gfReadArgs
             ++i;
             continue;
         }
-        else if(sv_same(arg, version_ident))
+        else if(pdSVSame(arg, version_ident))
         {
             printVersion();
             exit(0);
         }
-        else if(sv_same(arg, nomatch_ident))
+        else if(pdSVSame(arg, nomatch_ident))
         {
             config->flags |= GF_FLAG_NOMATCH;
             continue;
         }
-        else if(sv_same(arg, summary_ident))
+        else if(pdSVSame(arg, summary_ident))
         {
             config->flags |= GF_FLAG_SUMMARY;
             continue;
         }
-        else if(sv_same(arg, nosummary_ident))
+        else if(pdSVSame(arg, nosummary_ident))
         {
             config->flags &= ~GF_FLAG_SUMMARY;
             continue;
         }
-        else if(sv_same(arg, streak_ident))
+        else if(pdSVSame(arg, streak_ident))
         {
             config->flags |= GF_FLAG_STREAK;
             continue;
         }
-        else if(sv_same(arg, nostreak_ident))
+        else if(pdSVSame(arg, nostreak_ident))
         {
             config->flags &= ~GF_FLAG_STREAK;
             continue;
         }
-        else if(sv_same(arg, help_ident))
+        else if(pdSVSame(arg, help_ident))
         {
             printHelp();
             exit(0);
@@ -878,7 +878,7 @@ void gfReadArgs
             config->repositories.size = 0;
         }
 
-        StringView path = cstr_sv(argv[i]);
+        StringView path = pdCstrSV(argv[i]);
         gfAddPath(config, path);
     }
 }

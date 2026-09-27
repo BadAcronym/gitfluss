@@ -48,9 +48,9 @@
 
 #define ANSI_END "\033[0m"
 
-#define bufsize  8192
-#define MAX_DAYS 32768
-#define MAX_PATH 4096
+#define GF_BUFSIZE 8192
+#define MAX_DAYS   32768
+#define MAX_PATH   4096
 
 #define RED    0
 #define GREEN  1
@@ -72,6 +72,10 @@
 #define GF_OBJ_ID_SHA256 2
 
 #define GF_OBJ_COMMIT    1
+#define GF_OBJ_TREE      2
+#define GF_OBJ_BLOB      3
+#define GF_OBJ_TAG       4
+#define GF_OBJ_RESERVED  5
 #define GF_OBJ_OFS_DELTA 6
 #define GF_OBJ_REF_DELTA 7
 
@@ -160,6 +164,15 @@ typedef struct gfThreadData
     gfDisplaySettings *set;
 }
 gfThreadData;
+
+typedef struct gfPackInfo
+{
+    uint8_t  *data;
+    uint8_t  type;
+    uint64_t size;
+    uint64_t compressedSize;
+}
+gfPackInfo;
 
 typedef struct gfCommitInfo
 {

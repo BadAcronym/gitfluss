@@ -267,7 +267,7 @@ f_internal void *gatherRepoData
     repo.path            = data->repository;
     gfInitRepository(&repo, &commit, table);
 
-    while(commit.parentHash.data && commit.parentHash.size)
+    while(commit.parentHash.size)
     {
         StringView author = commit.authorMail;
         bool       counts = anyAuthor;
@@ -282,11 +282,11 @@ f_internal void *gatherRepoData
 
         for(uint16_t j = 0; !counts && j < authorcount; ++j)
         {
-            if(sv_same(authorlist[j], author))
+            if(pdSVSame(authorlist[j], author))
             {
                 counts = true;
             }
-            else if(sv_same(authorlist[j], cstr_sv("any")))
+            else if(pdSVSame(authorlist[j], pdCstrSV("any")))
             {
                 counts    = true;
                 anyAuthor = true;
@@ -342,18 +342,24 @@ f_internal void *gatherRepoData
         {
             break;
         }
-        if(!gfGetCommitInfo(repo.path, commit.parentHash, &commit, table))
+
+        StringView parentHash = pdSVCpy(commit.parentHash);
+
+        if(!gfGetCommitInfo(repo.path, parentHash, &commit, table))
         {
+            pdSVFree(&parentHash);
             break;
         }
+
+        pdSVFree(&parentHash);
     }
 
     if(repoCommitCount > set->repoMax)
     {
         gfLock(set);
         char currentRepo[repo.path.size + 1];
-        sv_cstr(repo.path, currentRepo);
-        set->biggestRepo = cstr_sv_cpy(currentRepo, set->biggestRepoBuf);
+        pdSVCstr(repo.path, currentRepo);
+        set->biggestRepo = pdCstrSVCpy(currentRepo, set->biggestRepoBuf);
         set->repoMax     = repoCommitCount;
         gfUnlock(set);
     }
@@ -383,10 +389,10 @@ f_internal void gatherData
     gfConf            *config,
     gfDisplaySettings *set
 ){
-    uint32_t   authorcount = sv_count_by_delim(config->authors, ';');
+    uint32_t   authorcount = pdSVCountByDelim(config->authors, ';');
     StringView authorlist[authorcount];
 
-    sv_separate_by_delim(config->authors, authorlist, ';', authorcount);
+    pdSVSeparateByDelim(config->authors, authorlist, ';', authorcount);
 
     gfThread     threads[set->repositoryCount];
     gfThreadData threadData[set->repositoryCount];
@@ -396,7 +402,7 @@ f_internal void gatherData
     for(uint32_t i = 0; i < set->repositoryCount; ++i)
     {
         threadData[i].id          = i;
-        threadData[i].repository  = sv_find_by_delim(config->repositories, ';', i);
+        threadData[i].repository  = pdSVFindByDelim(config->repositories, ';', i);
         threadData[i].authorcount = authorcount;
         threadData[i].authorlist  = authorlist;
         threadData[i].set         = set;
@@ -566,7 +572,7 @@ f_internal void displayData
     {
         currentYear = 1970 + (yearStart / (365 * 24 * 3600));
         yearStart -= 365 * 24 * 3600;
-        PD_DEBUG("calculating year frame [%li-%li] @ start %li",
+        PD_DEBUG("calculating year frame [%"PRIi64"-%"PRIi64"] @ start %"PRIi64"",
                  currentYear - 1, currentYear, yearStart);
 
         if((currentYear + 1) % 4 == 2)
@@ -635,14 +641,14 @@ f_internal void displayData
         float percentage = 100.0f * (float)set->personalCommitCount /
                            (float)set->totalCommitCount;
 
-        printf("\n%lu commits analyzed across %u repositories.\n",
+        printf("\n%"PRIu64" commits analyzed across %"PRIu32" repositories.\n",
                set->totalCommitCount, set->repositoryCount);
-        printf("%lu were matched with a provided author (%.2f%%).\n",
+        printf("%"PRIu64" were matched with a provided author (%.2f%%).\n",
                set->personalCommitCount, percentage);
 
-        printf("most commits in the last 365 days (%u) made %u days ago.\n",
+        printf("most commits in the last 365 days (%"PRIu32") made %"PRIu32" days ago.\n",
                max, maxday);
-        printf("most commits in single repository (%u) in '"PRI_SV"'.\n\n",
+        printf("most commits in single repository (%"PRIu32") in '"PRI_SV"'.\n\n",
                set->repoMax, ARG_SV(set->biggestRepo));
 
         printf("time since first commit: %lu days\n\n", daysCommit);
@@ -650,9 +656,9 @@ f_internal void displayData
 
     if(config->flags & GF_FLAG_STREAK)
     {
-        printf("longest streak: %u days\n", longestStreak);
-        printf("current streak: %u days\n", currentStreak);
-        printf("commits today:  %u ", set->commitsToday);
+        printf("longest streak: %"PRIu32" days\n", longestStreak);
+        printf("current streak: %"PRIu32" days\n", currentStreak);
+        printf("commits today:  %"PRIu32" ", set->commitsToday);
         printCorrespondingHeat(config, &percentiles, set->commitsToday);
         printf("\n\n");
     }
@@ -691,19 +697,19 @@ void sortStrings
 (
     gfConf *config
 ){
-    sv_sort_by_delim(config->authors, ';', config->sortedAuthors);
+    pdSVSortByDelim(config->authors, ';', config->sortedAuthors);
     if(config->authors.data)
     {
         free((void*)config->authors.data);
     }
-    config->authors = cstr_sv(config->sortedAuthors);
+    config->authors = pdCstrSV(config->sortedAuthors);
 
-    sv_sort_by_delim(config->repositories, ';', config->sortedRepos);
+    pdSVSortByDelim(config->repositories, ';', config->sortedRepos);
     if(config->repositories.data)
     {
         free((void*)config->repositories.data);
     }
-    config->repositories = cstr_sv(config->sortedRepos);
+    config->repositories = pdCstrSV(config->sortedRepos);
 
     PD_DEBUG("\nfinal, sorted author list:\n"PRI_SV"", ARG_SV(config->authors));
     PD_DEBUG("\nfinal, sorted paths:\n"PRI_SV"\n", ARG_SV(config->repositories));
@@ -748,15 +754,15 @@ int main
 
     sortStrings(&config);
 
-    if(!config.authors.data || sv_same(config.authors, cstr_sv("")))
+    if(!config.authors.data || pdSVSame(config.authors, pdCstrSV("")))
     {
-        StringView anyIdent = cstr_sv("any");
+        StringView anyIdent = pdCstrSV("any");
         gfAddAuthor(&config, anyIdent);
     }
 
-    if(!config.repositories.data || sv_same(config.repositories, cstr_sv("")))
+    if(!config.repositories.data || pdSVSame(config.repositories, pdCstrSV("")))
     {
-        StringView fallback = cstr_sv(".");
+        StringView fallback = pdCstrSV(".");
         gfAddPath(&config, fallback);
     }
 
@@ -774,7 +780,7 @@ int main
     set.sorted            = sorted;
     set.biggestRepoBuf    = biggestRepoBuf;
     set.oldestCommitTime  = INT64_MAX;
-    set.repositoryCount   = sv_count_by_delim(config.repositories, ';');
+    set.repositoryCount   = pdSVCountByDelim(config.repositories, ';');
     set.currDayEnd        = (heatSet.now - nowAdjusted % (24 * 3600) + 24 * 3600);
 
     PD_DEBUG("currDayEnd: %"PRIi64, set.currDayEnd);
