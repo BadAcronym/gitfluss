@@ -15,7 +15,7 @@ s_global const StringView idxV2Magic      = { .size = 4,  .data = "\377tOc"     
 s_global const StringView authorIdent     = { .size = 6,  .data = "author"            };
 s_global const StringView parentIdent     = { .size = 6,  .data = "parent"            };
 s_global const StringView sha256Ident     = { .size = 6,  .data = "sha256"            };
-s_global const StringView commiterIdent   = { .size = 8,  .data = "commiter"          };
+s_global const StringView committerIdent  = { .size = 9,  .data = "committer"         };
 s_global const StringView objFormatIdent  = { .size = 14, .data = "objectFormat ="    };
 s_global const StringView gitObjectFolder = { .size = 14, .data = "/.git/objects/"    };
 s_global const StringView headPackedIdent = { .size = 15, .data = "refs/heads/main"   };
@@ -26,15 +26,15 @@ void gfFreeCommit
     gfCommitInfo *commit
 ){
     commit->authorTime   = 0;
-    commit->commiterTime = 0;
+    commit->committerTime = 0;
 
     pdSVFree(&commit->hash);
     pdSVFree(&commit->summary);
     pdSVFree(&commit->parentHash);
     pdSVFree(&commit->authorName);
     pdSVFree(&commit->authorMail);
-    pdSVFree(&commit->commiterName);
-    pdSVFree(&commit->commiterMail);
+    pdSVFree(&commit->committerName);
+    pdSVFree(&commit->committerMail);
 }
 
 f_internal char valueToHexChar
@@ -98,6 +98,70 @@ f_internal int64_t readTimeFromSV
     return time;
 }
 
+#ifdef DEBUG
+f_internal bool verifyCommit
+(
+    gfCommitInfo *commit
+){
+    char c = 0;
+
+    for(uint8_t i = 0; i < commit->hash.size; ++i)
+    {
+        c = commit->hash.data[i];
+        if(!(c > 0x2F && c < 0x3A) && !(c > 0x60 && c < 0x67))
+        {
+            PD_ERROR("commit->hash.data[%"PRIu8"] is outside of valid range: '%c' "
+                     "(0x%X)", i, c, c);
+            return false;
+        }
+    }
+
+    for(uint8_t i = 0; i < commit->parentHash.size; ++i)
+    {
+        c = commit->parentHash.data[i];
+        if(!(c > 0x2F && c < 0x3A) && !(c > 0x60 && c < 0x67))
+        {
+            PD_ERROR("commit->parentHash.data[%"PRIu8"] is outside of valid range: '%c'"
+                     " (0x%X)", i, c, c);
+            return false;
+        }
+    }
+
+    return true;
+}
+#endif
+
+// FIXME: are we reading a newline or null char at start of line?
+f_internal bool readLine
+(
+    uint8_t  *buffer,
+    uint64_t bufsize,
+    uint64_t *index,
+    String   *line
+){
+    line->size = 0;
+
+    if(*index >= bufsize)
+    {
+        return 0;
+    }
+
+    for(uint64_t i = 0; *index < bufsize; ++i)
+    {
+        line->data[i] = (char)buffer[*index];
+        ++line->size;
+        ++(*index);
+
+        if(line->data[i] == '\0' || line->data[i] == '\n')
+        {
+            line->size -= 1;
+            break;
+        }
+    }
+
+    return line->size;
+}
+
 f_internal bool readCommitFromPtr
 (
     uint8_t      *commitBuf,
@@ -111,129 +175,160 @@ f_internal bool readCommitFromPtr
 
     commit->hash = hash;
 
-    StringView commitSV = {0};
-    commitSV.data = (char*)commitBuf;
-    commitSV.size = bufsize;
+    // StringView summary      = {0};
+    // StringView authorName   = {0};
+    // StringView authorMail   = {0};
+    // StringView commiterName = {0};
+    // StringView commiterMail = {0};
+    // StringView parent       = {0};
+    // int64_t    authorTime   = 0;
+    // int64_t    commiterTime = 0;
 
-    StringView summary      = {0};
-    StringView authorName   = {0};
-    StringView authorMail   = {0};
-    StringView commiterName = {0};
-    StringView commiterMail = {0};
-    StringView parent       = {0};
-    int64_t    authorTime   = 0;
-    int64_t    commiterTime = 0;
+    char lineBuf[1024] = {0};
+    String line = {0};
+    line.data = lineBuf;
 
-    const char *parentLoc = pdSVFind(parentIdent, commitSV);
-    if(parentLoc)
+    // TODO: use the commented code and transfer functionality into while loop here.
+
+    uint64_t index = 0;
+    while(readLine(commitBuf, bufsize, &index, &line))
     {
-        parent.data = parentLoc + 7;
-        parent.size = 40;
-        if(parent.data[40] != 0x0A)
+        if(pdSVFind(parentIdent, *((StringView*)&line)) == line.data)
         {
-            parent.size = 64;
+            PD_TRACE("FOUND LINE WITH PARENT: '"PRI_SV"'", ARG_SV(line));
+        }
+        else if(pdSVFind(authorIdent, *((StringView*)&line)) == line.data)
+        {
+            PD_TRACE("FOUND LINE WITH AUTHOR: '"PRI_SV"'", ARG_SV(line));
+        }
+        else if(pdSVFind(committerIdent, *((StringView*)&line)) == line.data)
+        {
+            PD_TRACE("FOUND LINE WITH COMMITTER: '"PRI_SV"'", ARG_SV(line));
         }
     }
 
-    const char *authorLoc = pdSVFind(authorIdent, commitSV);
-    if(authorLoc)
+    if(readLine(commitBuf, bufsize, &index, &line))
     {
-        authorName.data = authorLoc + 7;
-        authorName.size = 4096;
-
-        summary = pdSVFindByDelim(authorName, '\n', 2);
-
-        const char *startKaratLoc = pdSVFind(spaceKarat, authorName);
-        const char *endKaratLoc   = pdSVFind(karatSpace, authorName);
-
-        authorName.size = (uint64_t)(startKaratLoc - authorName.data);
-
-        authorMail.data = startKaratLoc + 2;
-        authorMail.size = (uint64_t)(endKaratLoc - authorMail.data);
-
-        StringView authorTimeSV = {0};
-        authorTimeSV.data = authorMail.data + authorMail.size + 2;
-        for(uint32_t j = 0; j < 20; ++j)
-        {
-            if(authorTimeSV.data[j] == 0x20 || !authorTimeSV.data[j])
-            {
-                break;
-            }
-            ++authorTimeSV.size;
-        }
-
-        authorTime = readTimeFromSV(authorTimeSV);
-
-        PD_TRACE("parsed authorName:   "PRI_SV, ARG_SV(authorName));
-        PD_TRACE("parsed authorMail:   "PRI_SV, ARG_SV(authorMail));
-        PD_TRACE("parsed authorTime:   "PRI_SV, ARG_SV(authorTimeSV));
+        PD_TRACE("FOUND LINE WITH SUMMARY: '"PRI_SV"'", ARG_SV(line));
+        commit->summary = pdSVCpy(*((StringView*)&line));
     }
 
-    const char *commiterLoc = pdSVFind(commiterIdent, commitSV);
-    if(commiterLoc)
-    {
-        commiterName.data = commiterLoc + 9;
-        commiterName.size = 4096;
-
-        summary = pdSVFindByDelim(authorName, '\n', 2);
-
-        const char *startKaratLoc = pdSVFind(spaceKarat, commiterName);
-        const char *endKaratLoc   = pdSVFind(karatSpace, commiterName);
-
-        commiterName.size = (uint64_t)(startKaratLoc - commiterName.data);
-
-        commiterMail.data = startKaratLoc + 2;
-        commiterMail.size = (uint64_t)(endKaratLoc - commiterMail.data);
-
-        StringView commiterTimeSV = {0};
-        commiterTimeSV.data = commiterMail.data + commiterMail.size + 2;
-        for(uint32_t j = 0; j < 20; ++j)
-        {
-            if(commiterTimeSV.data[j] == 0x20 || !commiterTimeSV.data[j])
-            {
-                break;
-            }
-            ++commiterTimeSV.size;
-        }
-
-        commiterTime = readTimeFromSV(commiterTimeSV);
-
-        PD_TRACE("parsed commiterName:   "PRI_SV, ARG_SV(commiterName));
-        PD_TRACE("parsed commiterMail:   "PRI_SV, ARG_SV(commiterMail));
-        PD_TRACE("parsed commiterTime:   "PRI_SV, ARG_SV(commiterTimeSV));
-    }
-
-    PD_TRACE("parsed summary: '"PRI_SV"'", ARG_SV(summary));
-
-    commit->authorTime   = authorTime;
-    commit->commiterTime = commiterTime;
-
-    if(summary.size)
-    {
-        commit->summary = pdSVCpy(summary);
-    }
-    if(authorName.size)
-    {
-        commit->authorName = pdSVCpy(authorName);
-    }
-    if(authorMail.size)
-    {
-        commit->authorMail = pdSVCpy(authorMail);
-    }
-    if(commiterName.size)
-    {
-        commit->commiterName = pdSVCpy(commiterName);
-    }
-    if(commiterMail.size)
-    {
-        commit->commiterMail = pdSVCpy(commiterMail);
-    }
-    if(parent.size)
-    {
-        PD_TRACE("parsed parent: "PRI_SV, ARG_SV(parent));
-        commit->parentHash = pdSVCpy(parent);
-    }
-
+    // const char *parentLoc = pdSVFind(parentIdent, commitSV);
+    // if(parentLoc)
+    // {
+    //     parent.data = parentLoc + 7;
+    //     parent.size = 40;
+    //     if(parent.data[40] != 0x0A)
+    //     {
+    //         parent.size = 64;
+    //     }
+    // }
+    //
+    // const char *authorLoc = pdSVFind(authorIdent, commitSV);
+    // if(authorLoc)
+    // {
+    //     authorName.data = authorLoc + 7;
+    //     authorName.size = bufsize - (uint64_t)(((uint8_t*)authorLoc - commitBuf) - 7);
+    //
+    //     // ASAN: heap-buffer-overflow, once again
+    //     // summary = pdSVFindByDelim(authorName, '\n', 2);
+    //
+    //     const char *startKaratLoc = pdSVFind(spaceKarat, authorName);
+    //     const char *endKaratLoc   = pdSVFind(karatSpace, authorName);
+    //
+    //     authorName.size = (uint64_t)(startKaratLoc - authorName.data);
+    //
+    //     authorMail.data = startKaratLoc + 2;
+    //     authorMail.size = (uint64_t)(endKaratLoc - authorMail.data);
+    //
+    //     StringView authorTimeSV = {0};
+    //     authorTimeSV.data = authorMail.data + authorMail.size + 2;
+    //     for(uint32_t j = 0; j < 20; ++j)
+    //     {
+    //         if(authorTimeSV.data[j] == 0x20 || !authorTimeSV.data[j])
+    //         {
+    //             break;
+    //         }
+    //         ++authorTimeSV.size;
+    //     }
+    //
+    //     authorTime = readTimeFromSV(authorTimeSV);
+    //
+    //     PD_TRACE("parsed authorName:   "PRI_SV, ARG_SV(authorName));
+    //     PD_TRACE("parsed authorMail:   "PRI_SV, ARG_SV(authorMail));
+    //     PD_TRACE("parsed authorTime:   "PRI_SV, ARG_SV(authorTimeSV));
+    // }
+    //
+    // // ASAN: heap-buffer-overflow here
+    // PD_DEBUG("trying to find commit inside String: '"PRI_SV"' of size %"PRIu64,
+    //          ARG_SV(commitSV), commitSV.size);
+    // const char *commiterLoc = pdSVFind(commiterIdent, commitSV);
+    // if(commiterLoc)
+    // {
+    //     commiterName.data = commiterLoc + 9;
+    //     commiterName.size = bufsize - (uint64_t)(((uint8_t*)commiterLoc - commitBuf)
+    //                         - 9);
+    //
+    //     summary = pdSVFindByDelim(authorName, '\n', 2);
+    //
+    //     const char *startKaratLoc = pdSVFind(spaceKarat, commiterName);
+    //     const char *endKaratLoc   = pdSVFind(karatSpace, commiterName);
+    //
+    //     commiterName.size = (uint64_t)(startKaratLoc - commiterName.data);
+    //
+    //     commiterMail.data = startKaratLoc + 2;
+    //     commiterMail.size = (uint64_t)(endKaratLoc - commiterMail.data);
+    //
+    //     StringView commiterTimeSV = {0};
+    //     commiterTimeSV.data = commiterMail.data + commiterMail.size + 2;
+    //     for(uint32_t j = 0; j < 20; ++j)
+    //     {
+    //         if(commiterTimeSV.data[j] == 0x20 || !commiterTimeSV.data[j])
+    //         {
+    //             break;
+    //         }
+    //         ++commiterTimeSV.size;
+    //     }
+    //
+    //     commiterTime = readTimeFromSV(commiterTimeSV);
+    //
+    //     PD_TRACE("parsed commiterName:   "PRI_SV, ARG_SV(commiterName));
+    //     PD_TRACE("parsed commiterMail:   "PRI_SV, ARG_SV(commiterMail));
+    //     PD_TRACE("parsed commiterTime:   "PRI_SV, ARG_SV(commiterTimeSV));
+    // }
+    //
+    // PD_TRACE("parsed summary: '"PRI_SV"'", ARG_SV(summary));
+    //
+    // commit->authorTime   = authorTime;
+    // commit->commiterTime = commiterTime;
+    //
+    // if(summary.size)
+    // {
+    //     commit->summary = pdSVCpy(summary);
+    // }
+    // if(authorName.size)
+    // {
+    //     commit->authorName = pdSVCpy(authorName);
+    // }
+    // if(authorMail.size)
+    // {
+    //     commit->authorMail = pdSVCpy(authorMail);
+    // }
+    // if(commiterName.size)
+    // {
+    //     commit->commiterName = pdSVCpy(commiterName);
+    // }
+    // if(commiterMail.size)
+    // {
+    //     commit->commiterMail = pdSVCpy(commiterMail);
+    // }
+    // if(parent.size)
+    // {
+    //     PD_TRACE("parsed parent: "PRI_SV, ARG_SV(parent));
+    //     commit->parentHash = pdSVCpy(parent);
+    // }
+    //
+    // PD_ASSERT(verifyCommit(commit), "returned bogus commit from readCommitFromFile.");
     return true;
 }
 
@@ -319,6 +414,7 @@ f_internal void readCommitFromFile
 
 closefile:
     fclose(file);
+    PD_ASSERT(verifyCommit(commit), "returned bogus commit from readCommitFromFile.");
 }
 
 bool gfGetCommitInfo
@@ -386,9 +482,9 @@ bool gfGetCommitInfo
     {
         PD_TRACE("checking against commit in table[%c%c]: "PRI_SV,
                  hash.data[0], hash.data[1], ARG_SV(table[firstTwo][i].hash));
+
         if(pdSVSame(hash, table[firstTwo][i].hash))
         {
-            gfFreeCommit(commit);
             *commit = table[firstTwo][i];
             PD_TRACE("found commit!");
             found = true;
@@ -614,7 +710,7 @@ f_internal bool resolveObjRecurse
 
     if(outInfo->type == GF_OBJ_COMMIT)
     {
-        PD_TRACE("reading commit from offset %"PRIu64"in packfile.", index);
+        PD_TRACE("reading commit from offset %"PRIu64" in packfile.", index);
 
         uint8_t     *buf   = calloc(outInfo->size, 1);
         DeflateInfo dfInfo = dsReadZlibPtr(&packFile[index], buf, outInfo->size);
@@ -754,10 +850,11 @@ f_internal void readCommitsFromOffsets
         PD_TRACE("hash inside readCommitsFromOffsets: '"PRI_SV"'",
                  ARG_SV(objof[i].hash));
 
-        // ASAN: this leaks
-        readCommitFromPtr(info.data, &commit, pdSVCpy(objof[i].hash), info.size);
+        StringView hash = pdSVCpy(objof[i].hash);
+        gfFreeCommit(&commit);
+        readCommitFromPtr(info.data, &commit, hash, info.size);
 
-        uint8_t firstTwo = twoCharsToByte(objof[i].hash.data[0], objof[i].hash.data[1]);
+        uint8_t firstTwo = twoCharsToByte(hash.data[0], hash.data[1]);
         pdArrPush(table[firstTwo], commit);
 
     freeData:
@@ -1022,7 +1119,7 @@ void gfInitRepository
     hash.size = oidSize * 2;
 
     PD_TRACE("identified HEAD: '"PRI_SV"'", ARG_SV(hash));
-    gfGetCommitInfo(repo->path, hash, head, 0);
+    gfGetCommitInfo(repo->path, pdSVCpy(hash), head, commitTable);
 
 closefile:
     fclose(file);

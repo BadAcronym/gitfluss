@@ -347,11 +347,8 @@ f_internal void *gatherRepoData
 
         if(!gfGetCommitInfo(repo.path, parentHash, &commit, table))
         {
-            pdSVFree(&parentHash);
             break;
         }
-
-        pdSVFree(&parentHash);
     }
 
     if(repoCommitCount > set->repoMax)

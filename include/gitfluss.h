@@ -181,10 +181,10 @@ typedef struct gfCommitInfo
     StringView parentHash;
     StringView authorName;
     StringView authorMail;
-    StringView commiterName;
-    StringView commiterMail;
+    StringView committerName;
+    StringView committerMail;
     int64_t    authorTime;
-    int64_t    commiterTime;
+    int64_t    committerTime;
 }
 gfCommitInfo;
 
