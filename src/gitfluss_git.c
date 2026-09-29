@@ -188,18 +188,29 @@ f_internal bool readCommitFromPtr
     String line = {0};
     line.data = lineBuf;
 
-    // TODO: use the commented code and transfer functionality into while loop here.
-
     uint64_t index = 0;
     while(readLine(commitBuf, bufsize, &index, &line))
     {
         if(pdSVFind(parentIdent, *((StringView*)&line)) == line.data)
         {
-            PD_TRACE("FOUND LINE WITH PARENT: '"PRI_SV"'", ARG_SV(line));
+            line.data += parentIdent.size + 1;
+            line.size -= parentIdent.size + 1;
+
+            commit->parentHash = pdSVCpy(*((StringView*)&line));
         }
         else if(pdSVFind(authorIdent, *((StringView*)&line)) == line.data)
         {
             PD_TRACE("FOUND LINE WITH AUTHOR: '"PRI_SV"'", ARG_SV(line));
+
+            const char *karatLoc = pdSVFind(spaceKarat, *((StringView*)&line));
+
+            StringView authorName = {0};
+            authorName.data = line.data + authorIdent.size + 1;
+            authorName.size = (uint64_t)(karatLoc - authorName.data);
+
+            commit->authorName = pdSVCpy(authorName);
+
+            PD_TRACE("FOUND AUTHORNAME: '"PRI_SV"'", ARG_SV(authorName));
         }
         else if(pdSVFind(committerIdent, *((StringView*)&line)) == line.data)
         {
@@ -213,17 +224,6 @@ f_internal bool readCommitFromPtr
         commit->summary = pdSVCpy(*((StringView*)&line));
     }
 
-    // const char *parentLoc = pdSVFind(parentIdent, commitSV);
-    // if(parentLoc)
-    // {
-    //     parent.data = parentLoc + 7;
-    //     parent.size = 40;
-    //     if(parent.data[40] != 0x0A)
-    //     {
-    //         parent.size = 64;
-    //     }
-    // }
-    //
     // const char *authorLoc = pdSVFind(authorIdent, commitSV);
     // if(authorLoc)
     // {
