@@ -79,20 +79,20 @@ f_internal uint8_t twoCharsToByte
     return (uint8_t)((v1 << 4) | v2);
 }
 
-f_internal int64_t readTimeFromSV
+f_internal int64_t readTimeFromStr
 (
-    StringView sv
+    String str
 ){
     int64_t time = 0;
 
-    for(uint8_t i = 0; i < sv.size; ++i)
+    for(uint8_t i = 0; i < str.size; ++i)
     {
-        if(sv.data[i] == 0x20 || sv.data[i] == 0x0A || !sv.data[i])
+        if(str.data[i] == 0x20 || str.data[i] == 0x0A || !str.data[i])
         {
             break;
         }
         time *= 10;
-        time += sv.data[i] - '0';
+        time += str.data[i] - '0';
     }
 
     return time;
@@ -208,13 +208,47 @@ f_internal bool readCommitFromPtr
             authorName.data = line.data + authorIdent.size + 1;
             authorName.size = (uint64_t)(karatLoc - authorName.data);
 
-            commit->authorName = pdSVCpy(authorName);
+            line.data = line.data + authorName.size;
+            line.size -= authorName.size + 2;
 
-            PD_TRACE("FOUND AUTHORNAME: '"PRI_SV"'", ARG_SV(authorName));
+            const char *karatEndLoc = pdSVFind(karatSpace, *((StringView*)&line));
+
+            StringView authorMail = {0};
+            authorMail.data = (char*)(authorName.data + authorName.size + 2);
+            authorMail.size = (uint64_t)(karatEndLoc - authorMail.data);
+
+            line.data = (char*)authorMail.data + authorMail.size + 2;
+            line.size -= authorMail.size + 2;
+
+            commit->authorName = pdSVCpy(authorName);
+            commit->authorMail = pdSVCpy(authorMail);
+            commit->authorTime = readTimeFromStr(line);
         }
         else if(pdSVFind(committerIdent, *((StringView*)&line)) == line.data)
         {
             PD_TRACE("FOUND LINE WITH COMMITTER: '"PRI_SV"'", ARG_SV(line));
+
+            const char *karatLoc = pdSVFind(spaceKarat, *((StringView*)&line));
+
+            StringView committerName = {0};
+            committerName.data = line.data + committerIdent.size + 1;
+            committerName.size = (uint64_t)(karatLoc - committerName.data);
+
+            line.data = line.data + committerName.size;
+            line.size -= committerName.size + 2;
+
+            const char *karatEndLoc = pdSVFind(karatSpace, *((StringView*)&line));
+
+            StringView committerMail = {0};
+            committerMail.data = (char*)(committerName.data + committerName.size + 2);
+            committerMail.size = (uint64_t)(karatEndLoc - committerMail.data);
+
+            line.data = (char*)committerMail.data + committerMail.size + 2;
+            line.size -= committerMail.size + 2;
+
+            commit->committerName = pdSVCpy(committerName);
+            commit->committerMail = pdSVCpy(committerMail);
+            commit->committerTime = readTimeFromStr(line);
         }
     }
 
