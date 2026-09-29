@@ -200,8 +200,6 @@ f_internal bool readCommitFromPtr
         }
         else if(pdSVFind(authorIdent, *((StringView*)&line)) == line.data)
         {
-            PD_TRACE("FOUND LINE WITH AUTHOR: '"PRI_SV"'", ARG_SV(line));
-
             const char *karatLoc = pdSVFind(spaceKarat, *((StringView*)&line));
 
             StringView authorName = {0};
@@ -226,8 +224,6 @@ f_internal bool readCommitFromPtr
         }
         else if(pdSVFind(committerIdent, *((StringView*)&line)) == line.data)
         {
-            PD_TRACE("FOUND LINE WITH COMMITTER: '"PRI_SV"'", ARG_SV(line));
-
             const char *karatLoc = pdSVFind(spaceKarat, *((StringView*)&line));
 
             StringView committerName = {0};
@@ -258,111 +254,7 @@ f_internal bool readCommitFromPtr
         commit->summary = pdSVCpy(*((StringView*)&line));
     }
 
-    // const char *authorLoc = pdSVFind(authorIdent, commitSV);
-    // if(authorLoc)
-    // {
-    //     authorName.data = authorLoc + 7;
-    //     authorName.size = bufsize - (uint64_t)(((uint8_t*)authorLoc - commitBuf) - 7);
-    //
-    //     // ASAN: heap-buffer-overflow, once again
-    //     // summary = pdSVFindByDelim(authorName, '\n', 2);
-    //
-    //     const char *startKaratLoc = pdSVFind(spaceKarat, authorName);
-    //     const char *endKaratLoc   = pdSVFind(karatSpace, authorName);
-    //
-    //     authorName.size = (uint64_t)(startKaratLoc - authorName.data);
-    //
-    //     authorMail.data = startKaratLoc + 2;
-    //     authorMail.size = (uint64_t)(endKaratLoc - authorMail.data);
-    //
-    //     StringView authorTimeSV = {0};
-    //     authorTimeSV.data = authorMail.data + authorMail.size + 2;
-    //     for(uint32_t j = 0; j < 20; ++j)
-    //     {
-    //         if(authorTimeSV.data[j] == 0x20 || !authorTimeSV.data[j])
-    //         {
-    //             break;
-    //         }
-    //         ++authorTimeSV.size;
-    //     }
-    //
-    //     authorTime = readTimeFromSV(authorTimeSV);
-    //
-    //     PD_TRACE("parsed authorName:   "PRI_SV, ARG_SV(authorName));
-    //     PD_TRACE("parsed authorMail:   "PRI_SV, ARG_SV(authorMail));
-    //     PD_TRACE("parsed authorTime:   "PRI_SV, ARG_SV(authorTimeSV));
-    // }
-    //
-    // // ASAN: heap-buffer-overflow here
-    // PD_DEBUG("trying to find commit inside String: '"PRI_SV"' of size %"PRIu64,
-    //          ARG_SV(commitSV), commitSV.size);
-    // const char *commiterLoc = pdSVFind(commiterIdent, commitSV);
-    // if(commiterLoc)
-    // {
-    //     commiterName.data = commiterLoc + 9;
-    //     commiterName.size = bufsize - (uint64_t)(((uint8_t*)commiterLoc - commitBuf)
-    //                         - 9);
-    //
-    //     summary = pdSVFindByDelim(authorName, '\n', 2);
-    //
-    //     const char *startKaratLoc = pdSVFind(spaceKarat, commiterName);
-    //     const char *endKaratLoc   = pdSVFind(karatSpace, commiterName);
-    //
-    //     commiterName.size = (uint64_t)(startKaratLoc - commiterName.data);
-    //
-    //     commiterMail.data = startKaratLoc + 2;
-    //     commiterMail.size = (uint64_t)(endKaratLoc - commiterMail.data);
-    //
-    //     StringView commiterTimeSV = {0};
-    //     commiterTimeSV.data = commiterMail.data + commiterMail.size + 2;
-    //     for(uint32_t j = 0; j < 20; ++j)
-    //     {
-    //         if(commiterTimeSV.data[j] == 0x20 || !commiterTimeSV.data[j])
-    //         {
-    //             break;
-    //         }
-    //         ++commiterTimeSV.size;
-    //     }
-    //
-    //     commiterTime = readTimeFromSV(commiterTimeSV);
-    //
-    //     PD_TRACE("parsed commiterName:   "PRI_SV, ARG_SV(commiterName));
-    //     PD_TRACE("parsed commiterMail:   "PRI_SV, ARG_SV(commiterMail));
-    //     PD_TRACE("parsed commiterTime:   "PRI_SV, ARG_SV(commiterTimeSV));
-    // }
-    //
-    // PD_TRACE("parsed summary: '"PRI_SV"'", ARG_SV(summary));
-    //
-    // commit->authorTime   = authorTime;
-    // commit->commiterTime = commiterTime;
-    //
-    // if(summary.size)
-    // {
-    //     commit->summary = pdSVCpy(summary);
-    // }
-    // if(authorName.size)
-    // {
-    //     commit->authorName = pdSVCpy(authorName);
-    // }
-    // if(authorMail.size)
-    // {
-    //     commit->authorMail = pdSVCpy(authorMail);
-    // }
-    // if(commiterName.size)
-    // {
-    //     commit->commiterName = pdSVCpy(commiterName);
-    // }
-    // if(commiterMail.size)
-    // {
-    //     commit->commiterMail = pdSVCpy(commiterMail);
-    // }
-    // if(parent.size)
-    // {
-    //     PD_TRACE("parsed parent: "PRI_SV, ARG_SV(parent));
-    //     commit->parentHash = pdSVCpy(parent);
-    // }
-    //
-    // PD_ASSERT(verifyCommit(commit), "returned bogus commit from readCommitFromFile.");
+    PD_ASSERT(verifyCommit(commit), "returned bogus commit from readCommitFromFile.");
     return true;
 }
 
