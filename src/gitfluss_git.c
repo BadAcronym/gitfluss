@@ -636,62 +636,133 @@ f_internal bool readAndApplyDelta
 (
     uint8_t    *packFile,
     uint64_t   index,
-    uint64_t   deltaObjSize,
+    uint64_t   deltaDataSize,
     gfPackInfo *outInfo
 ){
-    uint8_t *buf = calloc(deltaObjSize, 1);
-    if(!buf)
+    uint8_t *deltaDataBuf = calloc(deltaDataSize, 1);
+    if(!deltaDataBuf)
     {
         return false;
     }
 
-    DeflateInfo info = dsReadZlibPtr(&packFile[index], buf, deltaObjSize);
+    DeflateInfo info = dsReadZlibPtr(&packFile[index], deltaDataBuf, deltaDataSize);
     if(!info.success)
     {
         goto error;
     }
 
     uint64_t cursor     = 0;
-    uint64_t baseSize   = readDeltaSize(buf, &cursor, deltaObjSize);
-    uint64_t resultSize = readDeltaSize(buf, &cursor, deltaObjSize);
+    uint64_t baseSize   = readDeltaSize(deltaDataBuf, &cursor, deltaDataSize);
+    uint64_t resultSize = readDeltaSize(deltaDataBuf, &cursor, deltaDataSize);
+
+    uint8_t *resultObjBuf = calloc(resultSize, 1);
+    if(!resultObjBuf)
+    {
+        goto error;
+    }
 
     if(baseSize != outInfo->size)
     {
         PD_ERROR("baseSize %"PRIu64" does not match base object size %"PRIu64
                  " read from base object.", baseSize, outInfo->size);
+        free(resultObjBuf);
         goto error;
     }
 
-    for(uint64_t i = 0; i < deltaObjSize; ++i)
+    uint64_t resultIndex = 0;
+    while(cursor < deltaDataSize)
     {
-        if(buf[i] & 0x80)
-        {
-            PD_TRACE("TODO: INTSTRUCTION: copy byte range from base object");
+        uint8_t opcode = deltaDataBuf[cursor++];
 
-            //
-            goto error;
-            //
+        if(opcode & 0x80)
+        {
+            uint64_t copySize   = 0;
+            uint64_t copyOffset = 0;
+
+            for(uint8_t bit = 0; bit < 4; ++bit)
+            {
+                if(opcode & (1u << bit))
+                {
+                    if(cursor >= deltaDataSize)
+                    {
+                        free(resultObjBuf);
+                        goto error;
+                    }
+
+                    copyOffset |= (uint64_t)deltaDataBuf[cursor++] << (bit * 8);
+                }
+            }
+
+            for(unsigned bit = 0; bit < 3; ++bit)
+            {
+                if(opcode & (1u << (bit + 4)))
+                {
+                    if(cursor >= deltaDataSize)
+                    {
+                        free(resultObjBuf);
+                        goto error;
+                    }
+
+                    copySize |= (uint64_t)deltaDataBuf[cursor++] << (bit * 8);
+                }
+            }
+
+            if(copySize == 0)
+            {
+                copySize = 0x10000;
+            }
+
+            if(copyOffset > baseSize || copySize > baseSize - copyOffset)
+            {
+                PD_ERROR("delta copy outside base object."
+                         "offset=%" PRIu64 ", size=%" PRIu64
+                         ", baseSize=%" PRIu64,
+                         copyOffset, copySize, baseSize);
+                free(resultObjBuf);
+                goto error;
+            }
+
+            if(resultIndex > resultSize || copySize > resultSize - resultIndex)
+            {
+                PD_ERROR("delta copy outside result object: "
+                         "resultIndex=%" PRIu64 ", size=%" PRIu64
+                         ", resultSize=%" PRIu64,
+                         resultIndex, copySize, resultSize);
+                free(resultObjBuf);
+                goto error;
+            }
+
+            // TESTING: untested, really
+            memcpy(resultObjBuf + resultIndex, outInfo->data + copyOffset, copySize);
+            resultIndex += copySize;
+
         }
-        else if(!buf[i])
+        else if(!opcode)
         {
             PD_ERROR("git delta instruction 0 is reserved.");
+            free(resultObjBuf);
             goto error;
         }
         else
         {
-            PD_TRACE("TODO: INTSTRUCTION: add new data to target object.");
+            // TESTING: untested, really
+            PD_TRACE("TODO: INSTRUCTION: add new data to target object.");
+            uint8_t size = deltaDataBuf[cursor++] & 0x7F;
 
-            //
-            goto error;
-            //
+            memcpy(resultObjBuf + resultIndex, deltaDataBuf + resultIndex, size);
+            cursor      += size;
+            resultIndex += size;
         }
     }
 
-    free(buf);
+    free(deltaDataBuf);
+    free(outInfo->data);
+    outInfo->data = resultObjBuf;
+    outInfo->size = resultSize;
     return true;
 
 error:
-    free(buf);
+    free(deltaDataBuf);
     return false;
 }
 
@@ -779,6 +850,13 @@ f_internal bool resolveObjRecurse
             PD_ERROR("could not read recursive object from OBJ_OFS_DELTA.");
             return false;
         }
+
+        if(!outInfo->data)
+        {
+            PD_ERROR("did not actually read recursive object successfully.");
+            return false;
+        }
+
         PD_TRACE("applying delta...");
         if(!readAndApplyDelta(packFile, index, deltaSize, outInfo))
         {
