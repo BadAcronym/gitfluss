@@ -170,7 +170,6 @@ typedef struct gfPackInfo
     uint8_t  *data;
     uint8_t  type;
     uint64_t size;
-    uint64_t compressedSize;
 }
 gfPackInfo;
 
