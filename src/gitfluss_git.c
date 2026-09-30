@@ -258,11 +258,10 @@ f_internal bool readObjectHeader
     uint8_t  byte  = packFile[(*index)++];
     uint64_t chunk = 0;
     uint8_t  shift = 4;
-    bool     read  = byte & 0x80;
     outInfo->size  = byte & 0x0F;
     outInfo->type  = byte >> 4 & 0x07;
 
-    for(uint8_t j = 0; read && j < 10; ++j)
+    while(byte & 0x80)
     {
         if(*index >= packFileSize)
         {
@@ -275,8 +274,6 @@ f_internal bool readObjectHeader
 
         PD_ASSERT(shift < 64, "cannot shift more than 64 bits.");
         PD_ASSERT(chunk < (UINT64_MAX >> shift), "chunk is too large.");
-
-        read = byte & 0x80;
 
         outInfo->size |= chunk << shift;
         shift         += 7;
@@ -607,8 +604,10 @@ f_internal uint64_t readDeltaSize
     uint64_t *cursor,
     uint64_t bufsize
 ){
-    uint8_t  byte = buf[(*cursor)++];
-    uint64_t size = byte & 0x7F;
+    uint8_t  byte  = buf[(*cursor)++];
+    uint64_t size  = byte & 0x7F;
+    uint64_t chunk = 0;
+    uint8_t  shift = 7;
 
     while(byte & 0x80)
     {
@@ -617,8 +616,15 @@ f_internal uint64_t readDeltaSize
             PD_ERROR("cursor out of bounds from readDeltaSize.");
             return 0;
         }
-        byte = buf[(*cursor)++];
-        size = ((size + 1) << 7) | (byte & 0x7F);
+
+        byte  = buf[(*cursor)++];
+        chunk = byte & 0x7F;
+
+        PD_ASSERT(shift < 64, "cannot shift more than 64 bits.");
+        PD_ASSERT(chunk < (UINT64_MAX >> shift), "chunk is too large.");
+
+        size  |= chunk << shift;
+        shift += 7;
     }
 
     PD_TRACE("read delta size of %"PRIu64" from cursor %"PRIu64, size, *cursor);
@@ -656,9 +662,30 @@ f_internal bool readAndApplyDelta
         goto error;
     }
 
-    // apply delta patch?
-    goto error;
-    //
+    for(uint64_t i = 0; i < deltaObjSize; ++i)
+    {
+        if(buf[i] & 0x80)
+        {
+            PD_TRACE("TODO: INTSTRUCTION: copy byte range from base object");
+
+            //
+            goto error;
+            //
+        }
+        else if(!buf[i])
+        {
+            PD_ERROR("git delta instruction 0 is reserved.");
+            goto error;
+        }
+        else
+        {
+            PD_TRACE("TODO: INTSTRUCTION: add new data to target object.");
+
+            //
+            goto error;
+            //
+        }
+    }
 
     free(buf);
     return true;
@@ -669,6 +696,7 @@ error:
 }
 
 // NOTE: if `index` is UINT64_MAX, instead resolve object by hash
+// NOTE: this means the object is NOT in this packfile...
 // NOTE: (leave unimplemented, for now).
 f_internal bool resolveObjRecurse
 (
@@ -729,8 +757,8 @@ f_internal bool resolveObjRecurse
                 PD_ERROR("index out of bounds from OBJ_OFS_DELTA.");
                 return false;
             }
-            byte     = packFile[index++];
-            offset   = ((offset + 1) << 7) | (byte & 0x7F);
+            byte   = packFile[index++];
+            offset = ((offset + 1) << 7) | (byte & 0x7F);
         }
 
         if(offset >= entryStart)
