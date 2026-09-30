@@ -601,6 +601,73 @@ closefile:
     return objof;
 }
 
+f_internal uint64_t readDeltaSize
+(
+    uint8_t  *buf,
+    uint64_t *cursor,
+    uint64_t bufsize
+){
+    uint8_t  byte = buf[(*cursor)++];
+    uint64_t size = byte & 0x7F;
+
+    while(byte & 0x80)
+    {
+        if(*cursor >= bufsize)
+        {
+            PD_ERROR("cursor out of bounds from readDeltaSize.");
+            return 0;
+        }
+        byte = buf[(*cursor)++];
+        size = ((size + 1) << 7) | (byte & 0x7F);
+    }
+
+    PD_TRACE("read delta size of %"PRIu64" from cursor %"PRIu64, size, *cursor);
+
+    return size;
+}
+
+f_internal bool readAndApplyDelta
+(
+    uint8_t    *packFile,
+    uint64_t   index,
+    uint64_t   deltaObjSize,
+    gfPackInfo *outInfo
+){
+    uint8_t *buf = calloc(deltaObjSize, 1);
+    if(!buf)
+    {
+        return false;
+    }
+
+    DeflateInfo info = dsReadZlibPtr(&packFile[index], buf, deltaObjSize);
+    if(!info.success)
+    {
+        goto error;
+    }
+
+    uint64_t cursor     = 0;
+    uint64_t baseSize   = readDeltaSize(buf, &cursor, deltaObjSize);
+    uint64_t resultSize = readDeltaSize(buf, &cursor, deltaObjSize);
+
+    if(baseSize != outInfo->size)
+    {
+        PD_ERROR("baseSize %"PRIu64" does not match base object size %"PRIu64
+                 " read from base object.", baseSize, outInfo->size);
+        goto error;
+    }
+
+    // apply delta patch?
+    goto error;
+    //
+
+    free(buf);
+    return true;
+
+error:
+    free(buf);
+    return false;
+}
+
 // NOTE: if `index` is UINT64_MAX, instead resolve object by hash
 // NOTE: (leave unimplemented, for now).
 f_internal bool resolveObjRecurse
@@ -646,7 +713,6 @@ f_internal bool resolveObjRecurse
         if(outInfo->data)
         {
             free(outInfo->data);
-            outInfo->data = 0;
         }
         outInfo->data = buf;
         return true;
@@ -656,16 +722,14 @@ f_internal bool resolveObjRecurse
         uint8_t  byte   = packFile[index++];
         uint64_t offset = byte & 0x7F;
 
-        bool readMore = true;
-        for(uint8_t j = 0; readMore && j < 11; ++j)
+        while(byte & 0x80)
         {
             if(index >= packFileSize)
             {
-                PD_ERROR("readPackEntry index out of bounds.");
+                PD_ERROR("index out of bounds from OBJ_OFS_DELTA.");
                 return false;
             }
             byte     = packFile[index++];
-            readMore = byte & 0x80;
             offset   = ((offset + 1) << 7) | (byte & 0x7F);
         }
 
@@ -678,10 +742,21 @@ f_internal bool resolveObjRecurse
 
         PD_TRACE("read OFS_DELTA object with offset -%"PRIu64, offset);
 
-        // recurse into entryStart - offset;
-
-        // read delta (inflate)
-        // apply delta patch
+        uint64_t deltaSize = outInfo->size;
+        uint64_t indexRec  = entryStart - offset;
+        PD_TRACE("jumping from packFile entryStart %"PRIu64" back to index %"PRIu64"...",
+                 entryStart, indexRec);
+        if(!resolveObjRecurse(packFile, hash, indexRec, oidSize, packFileSize, outInfo))
+        {
+            PD_ERROR("could not read recursive object from OBJ_OFS_DELTA.");
+            return false;
+        }
+        PD_TRACE("applying delta...");
+        if(!readAndApplyDelta(packFile, index, deltaSize, outInfo))
+        {
+            PD_ERROR("could not apply delta from OBJ_OFS_DELTA.");
+            return false;
+        }
 
         PD_WARN("TODO: OBJ_OFS_DELTA unhandled.");
     }
