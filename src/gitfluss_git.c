@@ -175,15 +175,6 @@ f_internal bool readCommitFromPtr
 
     commit->hash = hash;
 
-    // StringView summary      = {0};
-    // StringView authorName   = {0};
-    // StringView authorMail   = {0};
-    // StringView commiterName = {0};
-    // StringView commiterMail = {0};
-    // StringView parent       = {0};
-    // int64_t    authorTime   = 0;
-    // int64_t    commiterTime = 0;
-
     char lineBuf[1024] = {0};
     String line = {0};
     line.data = lineBuf;
@@ -250,7 +241,6 @@ f_internal bool readCommitFromPtr
 
     if(readLine(commitBuf, bufsize, &index, &line))
     {
-        PD_TRACE("FOUND LINE WITH SUMMARY: '"PRI_SV"'", ARG_SV(line));
         commit->summary = pdSVCpy(*((StringView*)&line));
     }
 
