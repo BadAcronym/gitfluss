@@ -272,7 +272,24 @@ f_internal void *gatherRepoData
         StringView author = commit.authorMail;
         bool       counts = anyAuthor;
 
-        PD_ASSERT(author.data && author.size, "unresolved commit author.");
+        PD_ASSERT(author.data && author.size, "unresolved commit author. "
+                  "full commit:\n"
+                  "hash:          '"PRI_SV"'\n"
+                  "parentHash:    '"PRI_SV"'\n"
+                  "summary:       '"PRI_SV"'\n"
+                  "authorName:    '"PRI_SV"'\n"
+                  "authorMail:    '"PRI_SV"'\n"
+                  "authorTime:     %"PRIi64"\n"
+                  "committerName: '"PRI_SV"'\n"
+                  "committerMail: '"PRI_SV"'\n"
+                  "committerTime:  %"PRIi64"\n",
+                  ARG_SV(commit.hash),
+                  ARG_SV(commit.parentHash),
+                  ARG_SV(commit.summary),
+                  ARG_SV(commit.authorName),
+                  ARG_SV(commit.authorMail), commit.authorTime,
+                  ARG_SV(commit.committerName),
+                  ARG_SV(commit.committerMail), commit.committerTime);
 
         if(commit.authorTime < set->startYearTime ||
            commit.authorTime > set->endYearTime
