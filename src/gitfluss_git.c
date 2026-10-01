@@ -278,9 +278,6 @@ f_internal bool readObjectHeader
         outInfo->size |= chunk << shift;
         shift         += 7;
     }
-    PD_TRACE("parsed length from pack object (type %"PRIu8"): %"PRIu64"",
-             outInfo->type, outInfo->size);
-
     PD_ASSERT(outInfo->type > 0 && outInfo->type < 8, "invalid object type on obj: %"PRIu32
               ". read Byte: 0x%X", outInfo->type, byte);
 
@@ -635,19 +632,29 @@ f_internal uint64_t readDeltaSize
 f_internal bool readAndApplyDelta
 (
     uint8_t    *packFile,
-    uint64_t   index,
+    uint64_t   *index,
     uint64_t   deltaDataSize,
     gfPackInfo *outInfo
 ){
-    uint8_t *deltaDataBuf = calloc(deltaDataSize, 1);
-    if(!deltaDataBuf)
+    if(!outInfo->data)
     {
+        PD_ERROR("outInfo->data is nil. cannot apply delta patch.");
         return false;
     }
 
-    DeflateInfo info = dsReadZlibPtr(&packFile[index], deltaDataBuf, deltaDataSize);
+    uint8_t *deltaDataBuf = calloc(deltaDataSize, 1);
+    if(!deltaDataBuf)
+    {
+        PD_ERROR("failed to allocate buffer for delta data, size %"PRIu64,
+                 deltaDataSize);
+        return false;
+    }
+
+    DeflateInfo info = dsReadZlibPtr(&packFile[*index], deltaDataBuf, deltaDataSize);
     if(!info.success)
     {
+        PD_ERROR("failed to read Zlib compressed data from packFile at index %"PRIu64,
+                 *index);
         goto error;
     }
 
@@ -658,6 +665,8 @@ f_internal bool readAndApplyDelta
     uint8_t *resultObjBuf = calloc(resultSize, 1);
     if(!resultObjBuf)
     {
+        PD_ERROR("failed to allocate buffer for result object, size %"PRIu64,
+                 resultSize);
         goto error;
     }
 
@@ -685,6 +694,8 @@ f_internal bool readAndApplyDelta
                 {
                     if(cursor >= deltaDataSize)
                     {
+                        PD_ERROR("(copyOffset parsing) cursor %"PRIu64" >= "
+                                 "deltaDataSize %"PRIu64, cursor, deltaDataSize);
                         free(resultObjBuf);
                         goto error;
                     }
@@ -699,6 +710,8 @@ f_internal bool readAndApplyDelta
                 {
                     if(cursor >= deltaDataSize)
                     {
+                        PD_ERROR("(copySize parsing) cursor %"PRIu64" >= deltaDataSize "
+                                 "%"PRIu64, cursor, deltaDataSize);
                         free(resultObjBuf);
                         goto error;
                     }
@@ -773,15 +786,16 @@ f_internal bool resolveObjRecurse
 (
     uint8_t    *packFile,
     StringView hash,
-    uint64_t   index,
+    uint64_t   *index,
     uint8_t    oidSize,
-    uint64_t   packFileSize,
+    uint64_t   fileSize,
     gfPackInfo *outInfo
 ){
-    uint64_t entryStart = index;
+    uint64_t entryStart = *index;
 
-    if(!readObjectHeader(packFile, &index, packFileSize, outInfo))
+    if(!readObjectHeader(packFile, index, fileSize, outInfo))
     {
+        PD_ERROR("failed to read object header from index %"PRIu64, *index);
         return false;
     }
 
@@ -792,15 +806,25 @@ f_internal bool resolveObjRecurse
 
     if(outInfo->type == GF_OBJ_COMMIT)
     {
-        PD_TRACE("reading commit from offset %"PRIu64" in packfile.", index);
+        PD_TRACE("identified commit object.");
 
-        uint8_t     *buf   = calloc(outInfo->size, 1);
-        DeflateInfo dfInfo = dsReadZlibPtr(&packFile[index], buf, outInfo->size);
+        uint8_t *buf = calloc(outInfo->size, 1);
+        if(!buf)
+        {
+            PD_ERROR("failed to allocate new outInfo->data of size %"PRIu64,
+                     outInfo->size);
+            return false;
+        }
+
+        PD_TRACE("reading commit from offset %"PRIu64" in packfile. Bufsize: %"PRIu64,
+                 *index, outInfo->size);
+
+        DeflateInfo dfInfo = dsReadZlibPtr(&packFile[*index], buf, outInfo->size);
 
         if(!dfInfo.success)
         {
             PD_ERROR("could not successfully read base object from offset %"PRIu64,
-                     index);
+                     *index);
             free(buf);
             return false;
         }
@@ -814,21 +838,28 @@ f_internal bool resolveObjRecurse
             free(outInfo->data);
         }
         outInfo->data = buf;
+        PD_DEBUG("returned commit of size %"PRIu64" @ %p", outInfo->size,
+                 outInfo->data);
+
+        PD_ASSERT(outInfo->data, "outInfo->data is nil.");
+
         return true;
     }
     else if(outInfo->type == GF_OBJ_OFS_DELTA)
     {
-        uint8_t  byte   = packFile[index++];
+        PD_TRACE("identified ofs delta object.");
+
+        uint8_t  byte   = packFile[(*index)++];
         uint64_t offset = byte & 0x7F;
 
         while(byte & 0x80)
         {
-            if(index >= packFileSize)
+            if(*index >= fileSize)
             {
                 PD_ERROR("index out of bounds from OBJ_OFS_DELTA.");
                 return false;
             }
-            byte   = packFile[index++];
+            byte   = packFile[(*index)++];
             offset = ((offset + 1) << 7) | (byte & 0x7F);
         }
 
@@ -842,18 +873,13 @@ f_internal bool resolveObjRecurse
         PD_TRACE("read OFS_DELTA object with offset -%"PRIu64, offset);
 
         uint64_t deltaSize = outInfo->size;
-        uint64_t indexRec  = entryStart - offset;
-        PD_TRACE("jumping from packFile entryStart %"PRIu64" back to index %"PRIu64"...",
-                 entryStart, indexRec);
-        if(!resolveObjRecurse(packFile, hash, indexRec, oidSize, packFileSize, outInfo))
+        uint64_t indexRec  = (entryStart - offset);
+        PD_TRACE("jumping from packFile entryStart %"PRIu64" back to index %"PRIu64
+                 "...", entryStart, indexRec);
+
+        if(!resolveObjRecurse(packFile, hash, &indexRec, oidSize, fileSize, outInfo))
         {
             PD_ERROR("could not read recursive object from OBJ_OFS_DELTA.");
-            return false;
-        }
-
-        if(!outInfo->data)
-        {
-            PD_ERROR("did not actually read recursive object successfully.");
             return false;
         }
 
@@ -868,13 +894,15 @@ f_internal bool resolveObjRecurse
     }
     else if(outInfo->type == GF_OBJ_REF_DELTA)
     {
+        PD_TRACE("identified ref delta object.");
+
         uint8_t byte = 0;
 
         char nameBuf[64] = {0};
 
         for(uint8_t j = 0; j < oidSize * 2; j += 2)
         {
-            byte = packFile[index++];
+            byte = packFile[(*index)++];
             nameBuf[j]     = valueToHexChar(byte >> 4);
             nameBuf[j + 1] = valueToHexChar(byte & 0x0F);
         }
@@ -911,28 +939,28 @@ f_internal void readCommitsFromOffsets
     uint8_t *packFile = 0;
 
     fseek(file, 0, SEEK_END);
-    uint64_t packFileSize = (uint64_t)ftell(file);
-    packFile = malloc(packFileSize);
+    uint64_t fileSize = (uint64_t)ftell(file);
+    packFile = malloc(fileSize);
 
     fseek(file, 0, SEEK_SET);
 
-    uint64_t elements = fread(packFile, 1, packFileSize, file);
-    if(elements != packFileSize)
+    uint64_t elements = fread(packFile, 1, fileSize, file);
+    if(elements != fileSize)
     {
         PD_WARN("couldn't read pack file into memory. tried to read %"PRIu64", but "
                 "read %"PRIu64" instead.: '"PRI_SV"'",
-                packFileSize, elements, ARG_SV(path));
+                fileSize, elements, ARG_SV(path));
         goto closefile;
     }
 
     uint64_t arraySize = pdArrSize(objof);
-    PD_TRACE("reading %"PRIu64" commits from offsets into packfile.", arraySize);
+    PD_TRACE("reading %"PRIu64" objects from offsets into packfile.", arraySize);
     for(uint32_t i = 0; i < arraySize; ++i)
     {
-        gfPackInfo info = {0};
+        gfPackInfo info  = {0};
+        uint64_t   index = objof[i].offset;
 
-        if(!resolveObjRecurse(packFile, objof[i].hash, objof[i].offset, oidSize,
-                              packFileSize, &info)
+        if(!resolveObjRecurse(packFile, objof[i].hash, &index, oidSize, fileSize, &info)
         ){
             goto closefile;
         }
