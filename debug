@@ -3,4 +3,4 @@
 ./clean
 ./run debug --compile-only
 
-nnd ./bin/debug/gitfluss
+raddbg ./bin/debug/gitfluss
