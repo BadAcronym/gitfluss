@@ -131,7 +131,6 @@ f_internal bool verifyCommit
 }
 #endif
 
-// FIXME: are we reading a newline or null char at start of line?
 f_internal bool readLine
 (
     uint8_t  *buffer,
@@ -726,6 +725,8 @@ f_internal bool readAndApplyDelta
                 copySize = 0x10000;
             }
 
+            // FIXME: what the fffffuuugggg? how am I still hitting this case?
+            // for ex: offset: 9, size: 75264, baseSize: 3667
             if(copyOffset > baseSize || copySize > baseSize - copyOffset)
             {
                 PD_ERROR("delta copy outside base object. offset: %"PRIu64", size: %"
@@ -743,7 +744,6 @@ f_internal bool readAndApplyDelta
                 goto error;
             }
 
-            // TESTING: untested, really
             memcpy(resultObjBuf + resultIndex, outInfo->data + copyOffset, copySize);
             resultIndex += copySize;
             cursor      += copySize;
@@ -756,8 +756,9 @@ f_internal bool readAndApplyDelta
         }
         else
         {
-            // TESTING: untested, really
             uint8_t size = opcode & 0x7F;
+
+            // FIXME: this needs some size asserts, here, too.
 
             // ASAN: heap-buffer-overflow, bogus pointers
             memcpy(resultObjBuf + resultIndex, deltaDataBuf + resultIndex, size);
