@@ -845,48 +845,21 @@ f_internal bool resolveObjRecurse
 
         return true;
     }
-    else if(outInfo->type == GF_OBJ_TREE)
-    {
-        PD_TRACE("identified tree object.");
+    else if(outInfo->type == GF_OBJ_TREE ||
+            outInfo->type == GF_OBJ_BLOB ||
+            outInfo->type == GF_OBJ_TAG
+    ){
+        PD_TRACE("identified object of type %"PRIu8, outInfo->type);
 
         if(firstCall)
         {
-            PD_TRACE("skipping unhandled tree object.");
+            PD_TRACE("skipping object of type %"PRIu8, outInfo->type);
             return true;
         }
 
         //
-        PD_ERROR("TODO: OBJ_TREE from delta recursion unhandled.");
-        return false;
-        //
-    }
-    else if(outInfo->type == GF_OBJ_BLOB)
-    {
-        PD_TRACE("identified blob object.");
-
-        if(firstCall)
-        {
-            PD_TRACE("skipping unhandled blob object.");
-            return true;
-        }
-
-        //
-        PD_ERROR("TODO: OBJ_BLOB from delta recursion unhandled.");
-        return false;
-        //
-    }
-    else if(outInfo->type == GF_OBJ_TAG)
-    {
-        PD_TRACE("identified tag object.");
-
-        if(firstCall)
-        {
-            PD_TRACE("skipping unhandled tag object.");
-            return true;
-        }
-
-        //
-        PD_ERROR("TODO: OBJ_BLOB from delta recursion unhandled.");
+        PD_WARN("TODO: object of type %"PRIu8" from delta recursion unhandled.",
+                outInfo->type);
         return false;
         //
     }
