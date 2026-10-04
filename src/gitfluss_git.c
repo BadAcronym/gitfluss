@@ -653,8 +653,9 @@ f_internal bool readAndApplyDelta
     DeflateInfo info = dsReadZlibPtr(&packFile[*index], deltaDataBuf, deltaDataSize);
     if(!info.success)
     {
-        PD_ERROR("failed to read Zlib compressed data from packFile at index %"PRIu64,
-                 *index);
+        PD_ERROR("failed to read Zlib compressed data from packFile at index %"PRIu64
+                 ". Read %"PRIu64" compressed bytes and wrote %"PRIu64" bytes.",
+                 *index, info.bytesRead, info.bytesWritten);
         goto error;
     }
 
@@ -727,19 +728,16 @@ f_internal bool readAndApplyDelta
 
             if(copyOffset > baseSize || copySize > baseSize - copyOffset)
             {
-                PD_ERROR("delta copy outside base object."
-                         "offset=%" PRIu64 ", size=%" PRIu64
-                         ", baseSize=%" PRIu64,
-                         copyOffset, copySize, baseSize);
+                PD_ERROR("delta copy outside base object. offset: %"PRIu64", size: %"
+                         PRIu64", baseSize: %"PRIu64, copyOffset, copySize, baseSize);
                 free(resultObjBuf);
                 goto error;
             }
 
             if(resultIndex > resultSize || copySize > resultSize - resultIndex)
             {
-                PD_ERROR("delta copy outside result object: "
-                         "resultIndex=%" PRIu64 ", size=%" PRIu64
-                         ", resultSize=%" PRIu64,
+                PD_ERROR("delta copy outside result object: resultIndex: %"PRIu64
+                         ", size: %"PRIu64", resultSize: %"PRIu64,
                          resultIndex, copySize, resultSize);
                 free(resultObjBuf);
                 goto error;
@@ -748,7 +746,7 @@ f_internal bool readAndApplyDelta
             // TESTING: untested, really
             memcpy(resultObjBuf + resultIndex, outInfo->data + copyOffset, copySize);
             resultIndex += copySize;
-
+            cursor      += copySize;
         }
         else if(!opcode)
         {
@@ -759,8 +757,9 @@ f_internal bool readAndApplyDelta
         else
         {
             // TESTING: untested, really
-            uint8_t size = deltaDataBuf[cursor++] & 0x7F;
+            uint8_t size = opcode & 0x7F;
 
+            // ASAN: heap-buffer-overflow, bogus pointers
             memcpy(resultObjBuf + resultIndex, deltaDataBuf + resultIndex, size);
             cursor      += size;
             resultIndex += size;
@@ -838,11 +837,6 @@ f_internal bool resolveObjRecurse
             free(outInfo->data);
         }
         outInfo->data = buf;
-        PD_DEBUG("returned commit of size %"PRIu64" @ %p", outInfo->size,
-                 outInfo->data);
-
-        PD_ASSERT(outInfo->data, "outInfo->data is nil.");
-
         return true;
     }
     else if(outInfo->type == GF_OBJ_TREE ||
@@ -857,11 +851,34 @@ f_internal bool resolveObjRecurse
             return true;
         }
 
-        //
-        PD_WARN("TODO: object of type %"PRIu8" from delta recursion unhandled.",
-                outInfo->type);
-        return false;
-        //
+        uint8_t *buf = calloc(outInfo->size, 1);
+        if(!buf)
+        {
+            PD_ERROR("failed to allocate new outInfo->data of size %"PRIu64,
+                     outInfo->size);
+            return false;
+        }
+
+        DeflateInfo dfInfo = dsReadZlibPtr(&packFile[*index], buf, outInfo->size);
+
+        if(!dfInfo.success)
+        {
+            PD_ERROR("could not successfully read non-commit base object from offset %"
+                     PRIu64, *index);
+            free(buf);
+            return false;
+        }
+
+        PD_ASSERT(dfInfo.bytesWritten == outInfo->size, "expected to decompress into %"
+                  PRIu64" bytes, actual: %"PRIu64".",
+                  outInfo->size, dfInfo.bytesWritten);
+
+        if(outInfo->data)
+        {
+            free(outInfo->data);
+        }
+        outInfo->data = buf;
+        return true;
     }
     else if(outInfo->type == GF_OBJ_OFS_DELTA)
     {
