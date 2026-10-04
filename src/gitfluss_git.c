@@ -759,7 +759,6 @@ f_internal bool readAndApplyDelta
         else
         {
             // TESTING: untested, really
-            PD_TRACE("TODO: INSTRUCTION: add new data to target object.");
             uint8_t size = deltaDataBuf[cursor++] & 0x7F;
 
             memcpy(resultObjBuf + resultIndex, deltaDataBuf + resultIndex, size);
@@ -789,7 +788,8 @@ f_internal bool resolveObjRecurse
     uint64_t   *index,
     uint8_t    oidSize,
     uint64_t   fileSize,
-    gfPackInfo *outInfo
+    gfPackInfo *outInfo,
+    bool       firstCall
 ){
     uint64_t entryStart = *index;
 
@@ -845,6 +845,51 @@ f_internal bool resolveObjRecurse
 
         return true;
     }
+    else if(outInfo->type == GF_OBJ_TREE)
+    {
+        PD_TRACE("identified tree object.");
+
+        if(firstCall)
+        {
+            PD_TRACE("skipping unhandled tree object.");
+            return true;
+        }
+
+        //
+        PD_ERROR("TODO: OBJ_TREE from delta recursion unhandled.");
+        return false;
+        //
+    }
+    else if(outInfo->type == GF_OBJ_BLOB)
+    {
+        PD_TRACE("identified blob object.");
+
+        if(firstCall)
+        {
+            PD_TRACE("skipping unhandled blob object.");
+            return true;
+        }
+
+        //
+        PD_ERROR("TODO: OBJ_BLOB from delta recursion unhandled.");
+        return false;
+        //
+    }
+    else if(outInfo->type == GF_OBJ_TAG)
+    {
+        PD_TRACE("identified tag object.");
+
+        if(firstCall)
+        {
+            PD_TRACE("skipping unhandled tag object.");
+            return true;
+        }
+
+        //
+        PD_ERROR("TODO: OBJ_BLOB from delta recursion unhandled.");
+        return false;
+        //
+    }
     else if(outInfo->type == GF_OBJ_OFS_DELTA)
     {
         PD_TRACE("identified ofs delta object.");
@@ -877,8 +922,9 @@ f_internal bool resolveObjRecurse
         PD_TRACE("jumping from packFile entryStart %"PRIu64" back to index %"PRIu64
                  "...", entryStart, indexRec);
 
-        if(!resolveObjRecurse(packFile, hash, &indexRec, oidSize, fileSize, outInfo))
-        {
+        if(!resolveObjRecurse(packFile, hash, &indexRec, oidSize, fileSize,
+                              outInfo, false)
+        ){
             PD_ERROR("could not read recursive object from OBJ_OFS_DELTA.");
             return false;
         }
@@ -890,7 +936,7 @@ f_internal bool resolveObjRecurse
             return false;
         }
 
-        PD_WARN("TODO: OBJ_OFS_DELTA unhandled.");
+        return true;
     }
     else if(outInfo->type == GF_OBJ_REF_DELTA)
     {
@@ -917,7 +963,10 @@ f_internal bool resolveObjRecurse
         // read delta (inflate)
         // apply delta patch
 
+        //
         PD_WARN("TODO: OBJ_REF_DELTA unhandled.");
+        return false;
+        //
     }
 
     return true;
@@ -960,7 +1009,8 @@ f_internal void readCommitsFromOffsets
         gfPackInfo info  = {0};
         uint64_t   index = objof[i].offset;
 
-        if(!resolveObjRecurse(packFile, objof[i].hash, &index, oidSize, fileSize, &info)
+        if(!resolveObjRecurse(packFile, objof[i].hash, &index, oidSize, fileSize,
+                              &info, true)
         ){
             goto closefile;
         }
