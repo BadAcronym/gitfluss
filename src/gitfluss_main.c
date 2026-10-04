@@ -823,10 +823,10 @@ int main
 
     if(config.flags & GF_FLAG_PROFILE)
     {
-        float printMS   = (float)printing         / 1e6f;
-        float gfinitMS  = (float)gfInitTime       / 1e6f;
-        float gatherMS  = (float)gathering        / 1e6f;
-        float perCommit = (gatherMS + printMS)    / (float)set.totalCommitCount;
+        float printMS   = (float)printing      / 1e6f;
+        float gfinitMS  = (float)gfInitTime    / 1e6f;
+        float gatherMS  = (float)gathering     / 1e6f;
+        float perCommit = (gatherMS + printMS) / (float)set.totalCommitCount;
 
         printf("gitfluss init: %10.5f ms\n", gfinitMS);
         printf("gather time:   %10.5f ms\n", gatherMS);
