@@ -167,9 +167,10 @@ gfThreadData;
 
 typedef struct gfPackInfo
 {
-    uint8_t  *data;
-    uint8_t  type;
-    uint64_t size;
+    StringView hash;
+    uint8_t    *data;
+    uint8_t    type;
+    uint64_t   size;
 }
 gfPackInfo;
 
@@ -200,6 +201,19 @@ typedef struct gfObjectOffset
     uint32_t   offset;
 }
 gfObjectOffset;
+
+typedef struct gfRecurseInfo
+{
+    uint8_t    *packFile;
+    StringView hash;
+    gfPackInfo **cache;
+    uint64_t   *index;
+    uint8_t    oidSize;
+    uint64_t   fileSize;
+    gfPackInfo *outInfo;
+    bool       firstCall;
+}
+gfRecurseInfo;
 
 extern int64_t gfQueryTime
 (

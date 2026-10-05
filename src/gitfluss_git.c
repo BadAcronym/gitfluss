@@ -264,7 +264,8 @@ f_internal bool readObjectHeader
     {
         if(*index >= packFileSize)
         {
-            PD_ERROR("readObjectHeader index out of bounds.");
+            PD_ERROR("readObjectHeader index out of bounds. index: %"PRIu64", "
+                     "fileSize: %"PRIu64, *index, packFileSize);
             return false;
         }
 
@@ -746,7 +747,6 @@ f_internal bool readAndApplyDelta
 
             memcpy(resultObjBuf + resultIndex, outInfo->data + copyOffset, copySize);
             resultIndex += copySize;
-            cursor      += copySize;
         }
         else if(!opcode)
         {
@@ -758,14 +758,25 @@ f_internal bool readAndApplyDelta
         {
             uint8_t size = opcode & 0x7F;
 
-            // FIXME: this needs some size asserts, here, too.
+            // FIXME: this needs some more asserts, here
+            if(resultIndex > resultSize || size > resultSize - resultIndex)
+            {
+                PD_ERROR("delta write outside result object: resultIndex: %"PRIu64
+                         ", size: %"PRIu32", resultSize: %"PRIu64,
+                         resultIndex, size, resultSize);
+                free(resultObjBuf);
+                goto error;
+            }
 
             // ASAN: heap-buffer-overflow, bogus pointers
-            memcpy(resultObjBuf + resultIndex, deltaDataBuf + resultIndex, size);
+            memcpy(resultObjBuf + resultIndex, deltaDataBuf + cursor, size);
             cursor      += size;
             resultIndex += size;
         }
     }
+
+    PD_ASSERT(resultIndex == resultSize, "resultIndex %"PRIu64" does not match "
+              "resultSize %"PRIu64".", resultIndex, resultSize);
 
     free(deltaDataBuf);
     free(outInfo->data);
@@ -778,21 +789,52 @@ error:
     return false;
 }
 
-// NOTE: if `index` is UINT64_MAX, instead resolve object by hash
-// NOTE: this means the object is NOT in this packfile...
-// NOTE: (leave unimplemented, for now).
+// PERF: we NEED to cache these entries by hash. these caches should be separate from
+// the fanout table for later commit reading, but function the same.
+// PERF: calls to this function should be multi-threaded, this is an absolute
+// bottleneck.
 f_internal bool resolveObjRecurse
 (
-    uint8_t    *packFile,
-    StringView hash,
-    uint64_t   *index,
-    uint8_t    oidSize,
-    uint64_t   fileSize,
-    gfPackInfo *outInfo,
-    bool       firstCall
+    gfRecurseInfo *info
 ){
-    uint64_t entryStart = *index;
+    uint64_t   entryStart = *info->index;
+    gfPackInfo **cache    = info->cache;
+    uint8_t    *packFile  = info->packFile;
+    uint64_t   *index     = info->index;
+    uint8_t    oidSize    = info->oidSize;
+    uint64_t   fileSize   = info->fileSize;
+    gfPackInfo *outInfo   = info->outInfo;
+    if(!cache)
+    {
+        goto nocache;
+    }
 
+    StringView hash     = info->hash;
+    uint8_t    firstTwo = twoCharsToByte(hash.data[0], hash.data[1]);
+    gfPackInfo *arr     = cache[firstTwo];
+    if(!arr)
+    {
+        goto nocache;
+    }
+
+    uint64_t arrSize = pdArrSize(arr);
+    for(uint16_t i = 0; i < arrSize; ++i)
+    {
+        if(pdSVSame(hash, arr[i].hash))
+        {
+            PD_TRACE("FOUND CACHED OBJECT FOR HASH: '"PRI_SV"'", ARG_SV(hash));
+            *outInfo = arr[i];
+            return true;
+        }
+    }
+
+    // split first two of hash.
+    // forall entries in cache[firstTwo]
+    // if object is contained, return that one!
+    // if not, allocate and read new object, then store in cache
+    // only free at the end!
+
+nocache:
     if(!readObjectHeader(packFile, index, fileSize, outInfo))
     {
         PD_ERROR("failed to read object header from index %"PRIu64, *index);
@@ -833,10 +875,6 @@ f_internal bool resolveObjRecurse
                   PRIu64" bytes, actual: %"PRIu64".",
                   outInfo->size, dfInfo.bytesWritten);
 
-        if(outInfo->data)
-        {
-            free(outInfo->data);
-        }
         outInfo->data = buf;
         return true;
     }
@@ -844,11 +882,11 @@ f_internal bool resolveObjRecurse
             outInfo->type == GF_OBJ_BLOB ||
             outInfo->type == GF_OBJ_TAG
     ){
-        PD_TRACE("identified object of type %"PRIu8, outInfo->type);
+        PD_TRACE("identified base object of type %"PRIu8, outInfo->type);
 
-        if(firstCall)
+        if(info->firstCall)
         {
-            PD_TRACE("skipping object of type %"PRIu8, outInfo->type);
+            PD_TRACE("skipping base object of type %"PRIu8, outInfo->type);
             return true;
         }
 
@@ -874,10 +912,6 @@ f_internal bool resolveObjRecurse
                   PRIu64" bytes, actual: %"PRIu64".",
                   outInfo->size, dfInfo.bytesWritten);
 
-        if(outInfo->data)
-        {
-            free(outInfo->data);
-        }
         outInfo->data = buf;
         return true;
     }
@@ -913,9 +947,11 @@ f_internal bool resolveObjRecurse
         PD_TRACE("jumping from packFile entryStart %"PRIu64" back to index %"PRIu64
                  "...", entryStart, indexRec);
 
-        if(!resolveObjRecurse(packFile, hash, &indexRec, oidSize, fileSize,
-                              outInfo, false)
-        ){
+        info->firstCall = false;
+        info->index     = &indexRec;
+
+        if(!resolveObjRecurse(info))
+        {
             PD_ERROR("could not read recursive object from OBJ_OFS_DELTA.");
             return false;
         }
@@ -967,6 +1003,7 @@ f_internal void readCommitsFromOffsets
 (
     StringView     path,
     gfObjectOffset *objof,
+    gfPackInfo     **cache,
     gfCommitInfo   **table,
     uint8_t        oidSize
 ){
@@ -993,22 +1030,32 @@ f_internal void readCommitsFromOffsets
         goto closefile;
     }
 
+    gfRecurseInfo info = {0};
+    info.packFile = packFile;
+    info.fileSize = fileSize;
+    info.cache    = cache;
+    info.oidSize  = oidSize;
+
     uint64_t arraySize = pdArrSize(objof);
     PD_TRACE("reading %"PRIu64" objects from offsets into packfile.", arraySize);
     for(uint32_t i = 0; i < arraySize; ++i)
     {
-        gfPackInfo info  = {0};
-        uint64_t   index = objof[i].offset;
+        gfPackInfo outInfo = {0};
+        uint64_t   index   = objof[i].offset;
 
-        if(!resolveObjRecurse(packFile, objof[i].hash, &index, oidSize, fileSize,
-                              &info, true)
+        info.hash      = objof[i].hash;
+        info.index     = &index;
+        info.outInfo   = &outInfo;
+        info.firstCall = true;
+
+        if(!resolveObjRecurse(&info)
         ){
             goto closefile;
         }
 
-        if(info.type != GF_OBJ_COMMIT)
+        if(outInfo.type != GF_OBJ_COMMIT)
         {
-            goto freeData;
+            continue;
         }
 
         gfCommitInfo commit = {0};
@@ -1018,16 +1065,10 @@ f_internal void readCommitsFromOffsets
 
         StringView hash = pdSVCpy(objof[i].hash);
         gfFreeCommit(&commit);
-        readCommitFromPtr(info.data, &commit, hash, info.size);
+        readCommitFromPtr(outInfo.data, &commit, hash, outInfo.size);
 
         uint8_t firstTwo = twoCharsToByte(hash.data[0], hash.data[1]);
         pdArrPush(table[firstTwo], commit);
-
-    freeData:
-        if(info.data)
-        {
-            free(info.data);
-        }
     }
 
 closefile:
@@ -1041,6 +1082,7 @@ closefile:
 f_internal void readPackedCommits
 (
     StringView   idxPath,
+    gfPackInfo   **objCache,
     gfCommitInfo **table,
     uint8_t      oidSize
 ){
@@ -1109,7 +1151,7 @@ f_internal void readPackedCommits
         return;
     }
 
-    readCommitsFromOffsets(packPath, objof, table, oidSize);
+    readCommitsFromOffsets(packPath, objof, objCache, table, oidSize);
 
     uint64_t arraySize = pdArrSize(objof);
     for(uint64_t i = 0; i < arraySize; ++i)
@@ -1187,6 +1229,8 @@ void gfInitRepository
         fclose(configFile);
     }
 
+    gfPackInfo *objCache[256] = {0};
+
     pdSVSeparateByDelim(list, fileBuf, ';', fileCount);
     for(uint64_t i = 0; i < fileCount; ++i)
     {
@@ -1194,7 +1238,7 @@ void gfInitRepository
         {
             char tmpBuf[4096] = {0};
             StringView idxPath = pdSVConcat(gitPACK, fileBuf[i], tmpBuf);
-            readPackedCommits(idxPath, commitTable, oidSize);
+            readPackedCommits(idxPath, objCache, commitTable, oidSize);
         }
     }
 
