@@ -768,10 +768,9 @@ f_internal bool readAndApplyDelta
                 goto error;
             }
 
-            // ASAN: heap-buffer-overflow, bogus pointers
             memcpy(resultObjBuf + resultIndex, deltaDataBuf + cursor, size);
-            cursor      += size;
             resultIndex += size;
+            cursor      += size;
         }
     }
 
