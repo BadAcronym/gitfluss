@@ -167,10 +167,10 @@ gfThreadData;
 
 typedef struct gfPackInfo
 {
-    StringView hash;
-    uint8_t    *data;
-    uint8_t    type;
-    uint64_t   size;
+    uint8_t  *data;
+    uint8_t  type;
+    uint64_t size;
+    uint64_t offset;
 }
 gfPackInfo;
 

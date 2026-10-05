@@ -67,13 +67,13 @@ f_internal uint8_t twoCharsToByte
     v1 = (uint8_t)c1 - '0';
     if(c1 > 0x60)
     {
-        v1 = (uint8_t)c1 - 0x54;
+        v1 = (uint8_t)c1 - 0x57;
     }
 
     v2 = (uint8_t)c2 - '0';
     if(c2 > 0x60)
     {
-        v2 = (uint8_t)c2 - 0x54;
+        v2 = (uint8_t)c2 - 0x57;
     }
 
     return (uint8_t)((v1 << 4) | v2);
@@ -779,7 +779,6 @@ f_internal bool readAndApplyDelta
               "resultSize %"PRIu64".", resultIndex, resultSize);
 
     free(deltaDataBuf);
-    free(outInfo->data);
     outInfo->data = resultObjBuf;
     outInfo->size = resultSize;
     return true;
@@ -789,8 +788,6 @@ error:
     return false;
 }
 
-// PERF: we NEED to cache these entries by hash. these caches should be separate from
-// the fanout table for later commit reading, but function the same.
 // PERF: calls to this function should be multi-threaded, this is an absolute
 // bottleneck.
 f_internal bool resolveObjRecurse
@@ -804,35 +801,31 @@ f_internal bool resolveObjRecurse
     uint8_t    oidSize    = info->oidSize;
     uint64_t   fileSize   = info->fileSize;
     gfPackInfo *outInfo   = info->outInfo;
-    if(!cache)
-    {
-        goto nocache;
-    }
 
-    StringView hash     = info->hash;
-    uint8_t    firstTwo = twoCharsToByte(hash.data[0], hash.data[1]);
-    gfPackInfo *arr     = cache[firstTwo];
+    PD_ASSERT(cache, "no cache present, cannot resolve recursively.");
+
+    StringView hash = info->hash;
+    outInfo->offset = entryStart;
+
+    uint8_t    lastTwo = entryStart & 0xFF;
+    gfPackInfo *arr    = cache[lastTwo];
     if(!arr)
     {
+        PD_TRACE("no objects in cache[0x%"PRIx8"]. skipping...", lastTwo);
         goto nocache;
     }
 
     uint64_t arrSize = pdArrSize(arr);
+    PD_TRACE("LOOKING FOR CACHED OBJECT FOR OFFSET: %"PRIu64, outInfo->offset);
     for(uint16_t i = 0; i < arrSize; ++i)
     {
-        if(pdSVSame(hash, arr[i].hash))
+        if(arr[i].offset == entryStart)
         {
-            PD_TRACE("FOUND CACHED OBJECT FOR HASH: '"PRI_SV"'", ARG_SV(hash));
+            PD_TRACE("FOUND CACHED OBJECT FOR OFFSET: %"PRIu64, outInfo->offset);
             *outInfo = arr[i];
             return true;
         }
     }
-
-    // split first two of hash.
-    // forall entries in cache[firstTwo]
-    // if object is contained, return that one!
-    // if not, allocate and read new object, then store in cache
-    // only free at the end!
 
 nocache:
     if(!readObjectHeader(packFile, index, fileSize, outInfo))
@@ -876,6 +869,8 @@ nocache:
                   outInfo->size, dfInfo.bytesWritten);
 
         outInfo->data = buf;
+        PD_TRACE("SAVING CACHED OBJECT FOR HASH: '"PRI_SV"'", ARG_SV(hash));
+        pdArrPush(cache[lastTwo], *outInfo);
         return true;
     }
     else if(outInfo->type == GF_OBJ_TREE ||
@@ -913,6 +908,8 @@ nocache:
                   outInfo->size, dfInfo.bytesWritten);
 
         outInfo->data = buf;
+        PD_TRACE("SAVING CACHED (other) OBJECT FOR HASH: '"PRI_SV"'", ARG_SV(hash));
+        pdArrPush(cache[lastTwo], *outInfo);
         return true;
     }
     else if(outInfo->type == GF_OBJ_OFS_DELTA)
@@ -963,6 +960,8 @@ nocache:
             return false;
         }
 
+        pdArrPush(cache[lastTwo], *outInfo);
+        PD_TRACE("SAVING CACHED REF_OFS OBJECT FOR HASH: '"PRI_SV"'", ARG_SV(hash));
         return true;
     }
     else if(outInfo->type == GF_OBJ_REF_DELTA)
@@ -994,6 +993,10 @@ nocache:
         PD_WARN("TODO: OBJ_REF_DELTA unhandled.");
         return false;
         //
+
+        PD_TRACE("SAVING CACHED REF_DELTA OBJECT FOR HASH: '"PRI_SV"'", ARG_SV(hash));
+        pdArrPush(cache[lastTwo], *outInfo);
+        return true;
     }
 
     return true;
