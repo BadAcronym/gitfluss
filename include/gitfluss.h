@@ -2,6 +2,7 @@
 #define GF_HEADER
 
 #include "pd_string_view.h"
+#include "pd_print_macros.h"
 
 #include <stdint.h>
 #include <stdbool.h>

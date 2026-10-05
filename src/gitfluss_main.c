@@ -3,7 +3,6 @@
 #include "datasurf_main.h"
 
 #include "pd_dyn_arr.h"
-#include "pd_print_macros.h"
 
 #include <stdint.h>
 #include <stdio.h>

@@ -1,7 +1,6 @@
 #include "gitfluss.h"
 
 #include "pd_path.h"
-#include "pd_print_macros.h"
 
 f_internal void printHelp
 (

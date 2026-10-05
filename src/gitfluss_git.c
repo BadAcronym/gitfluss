@@ -4,7 +4,6 @@
 
 #include "pd_path.h"
 #include "pd_dyn_arr.h"
-#include "pd_print_macros.h"
 
 s_global const StringView sep             = { .size = 1,  .data = "/"                 };
 s_global const StringView spaceKarat      = { .size = 2,  .data = " <"                };
@@ -803,7 +802,6 @@ f_internal bool resolveObjRecurse
 
     PD_ASSERT(cache, "no cache present, cannot resolve recursively.");
 
-    StringView hash = info->hash;
     outInfo->offset = entryStart;
 
     uint8_t    lastTwo = entryStart & 0xFF;
@@ -821,7 +819,9 @@ f_internal bool resolveObjRecurse
         if(arr[i].offset == entryStart)
         {
             PD_TRACE("FOUND CACHED OBJECT FOR OFFSET: %"PRIu64, outInfo->offset);
-            *outInfo = arr[i];
+            outInfo->data = arr[i].data;
+            outInfo->size = arr[i].size;
+            outInfo->type = arr[i].type;
             return true;
         }
     }
@@ -868,7 +868,6 @@ nocache:
                   outInfo->size, dfInfo.bytesWritten);
 
         outInfo->data = buf;
-        PD_TRACE("SAVING CACHED OBJECT FOR HASH: '"PRI_SV"'", ARG_SV(hash));
         pdArrPush(cache[lastTwo], *outInfo);
         return true;
     }
@@ -907,7 +906,6 @@ nocache:
                   outInfo->size, dfInfo.bytesWritten);
 
         outInfo->data = buf;
-        PD_TRACE("SAVING CACHED (other) OBJECT FOR HASH: '"PRI_SV"'", ARG_SV(hash));
         pdArrPush(cache[lastTwo], *outInfo);
         return true;
     }
@@ -960,7 +958,6 @@ nocache:
         }
 
         pdArrPush(cache[lastTwo], *outInfo);
-        PD_TRACE("SAVING CACHED REF_OFS OBJECT FOR HASH: '"PRI_SV"'", ARG_SV(hash));
         return true;
     }
     else if(outInfo->type == GF_OBJ_REF_DELTA)
@@ -993,7 +990,6 @@ nocache:
         return false;
         //
 
-        PD_TRACE("SAVING CACHED REF_DELTA OBJECT FOR HASH: '"PRI_SV"'", ARG_SV(hash));
         pdArrPush(cache[lastTwo], *outInfo);
         return true;
     }
