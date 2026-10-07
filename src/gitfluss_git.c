@@ -454,6 +454,9 @@ f_internal gfObjectOffset *readIDXV1
         goto closefile;
     }
 
+    PD_WARN("TODO: .idx V1 files unhandled.");
+    goto closefile;
+
     for(uint32_t i = 0; i < fanout[255]; ++i)
     {
         uint8_t  byte   = 0;
@@ -474,9 +477,6 @@ f_internal gfObjectOffset *readIDXV1
             PD_ERROR("pack offset is out of bounds.");
             goto closefile;
         }
-
-        PD_WARN("TODO: handle v1 .idx files");
-        goto closefile;
     }
 
 closefile:
@@ -635,6 +635,8 @@ f_internal bool readAndApplyDelta
     uint64_t   deltaDataSize,
     gfPackInfo *outInfo
 ){
+    PD_TRACE("reading delta...");
+
     if(!outInfo->data)
     {
         PD_ERROR("outInfo->data is nil. cannot apply delta patch.");
@@ -661,6 +663,17 @@ f_internal bool readAndApplyDelta
     uint64_t cursor     = 0;
     uint64_t baseSize   = readDeltaSize(deltaDataBuf, &cursor, deltaDataSize);
     uint64_t resultSize = readDeltaSize(deltaDataBuf, &cursor, deltaDataSize);
+
+    PD_TRACE("applying delta...");
+
+    #ifdef TRACE
+    printf("full bytes:\n");
+    for(uint64_t i = 0; i < deltaDataSize; ++i)
+    {
+        printf("0x%"PRIx8" ", deltaDataBuf[i]);
+    }
+    printf("\n");
+    #endif
 
     uint8_t *resultObjBuf = calloc(resultSize, 1);
     if(!resultObjBuf)
@@ -936,11 +949,11 @@ nocache:
 
         PD_TRACE("read OFS_DELTA object with offset -%"PRIu64, offset);
 
-        uint64_t deltaSize = outInfo->size;
         uint64_t indexRec  = (entryStart - offset);
         PD_TRACE("jumping from packFile entryStart %"PRIu64" back to index %"PRIu64
                  "...", entryStart, indexRec);
 
+        uint64_t deltaSize = outInfo->size;
         info->firstCall = false;
         info->index     = &indexRec;
 
@@ -950,7 +963,6 @@ nocache:
             return false;
         }
 
-        PD_TRACE("applying delta...");
         if(!readAndApplyDelta(packFile, index, deltaSize, outInfo))
         {
             PD_ERROR("could not apply delta from OBJ_OFS_DELTA.");
