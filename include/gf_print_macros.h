@@ -51,7 +51,7 @@
         fprintf(stdout, "\033[33;1m" __LOCATION__ "\n\033[33;1;7mWARNING: " \
                 FIRST(__VA_ARGS__) "\033[0m\n" REST(__VA_ARGS__))
 
-#ifdef GF_DEBUG
+#ifdef GF_PRI_DEBUG
     #define GF_ASSERT(condition, ...)                               \
     do                                                              \
     {                                                               \
@@ -73,7 +73,7 @@
     #define GF_DEBUG(...)
 #endif
 
-#ifdef GF_TRACE
+#ifdef GF_PRI_TRACE
     #define GF_TRACE(...) \
             printf(FIRST(__VA_ARGS__) "\n" REST(__VA_ARGS__))
 #else
