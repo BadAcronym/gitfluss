@@ -243,6 +243,18 @@ f_internal bool readCommitFromPtr
     }
 
     PD_ASSERT(verifyCommit(commit), "returned bogus commit from readCommitFromFile.");
+
+    PD_TRACE("read commit:");
+    PD_TRACE("commit->hash:          '"PRI_SV"'", ARG_SV(commit->hash));
+    PD_TRACE("commit->summary:       '"PRI_SV"'", ARG_SV(commit->summary));
+    PD_TRACE("commit->parentHash:    '"PRI_SV"'", ARG_SV(commit->parentHash));
+    PD_TRACE("commit->authorName:    '"PRI_SV"'", ARG_SV(commit->authorName));
+    PD_TRACE("commit->authorMail:    '"PRI_SV"'", ARG_SV(commit->authorMail));
+    PD_TRACE("commit->committerName: '"PRI_SV"'", ARG_SV(commit->committerName));
+    PD_TRACE("commit->committerMail: '"PRI_SV"'", ARG_SV(commit->committerMail));
+    PD_TRACE("commit->authorTime:    %"PRIu64,    commit->authorTime);
+    PD_TRACE("commit->committerTime: %"PRIu64,    commit->committerTime);
+
     return true;
 }
 
@@ -369,6 +381,9 @@ bool gfGetCommitInfo
         return true;
     }
 
+    PD_TRACE("path '"PRI_SV"' does not exist. looking in packfile table...",
+             ARG_SV(commitPath));
+
     bool found = false;
 
     if(!table)
@@ -389,8 +404,8 @@ bool gfGetCommitInfo
              hash.data[0], hash.data[1], arraySize);
     for(uint64_t i = 0; i < arraySize; ++i)
     {
-        PD_TRACE("checking against commit in table[%c%c]: "PRI_SV,
-                 hash.data[0], hash.data[1], ARG_SV(table[firstTwo][i].hash));
+        PD_TRACE("checking against commit in table[0x%x]: "PRI_SV,
+                 firstTwo, ARG_SV(table[firstTwo][i].hash));
 
         if(pdSVSame(hash, table[firstTwo][i].hash))
         {
@@ -1006,7 +1021,7 @@ nocache:
         return true;
     }
 
-    return true;
+    return false;
 }
 
 f_internal void readCommitsFromOffsets
@@ -1058,6 +1073,9 @@ f_internal void readCommitsFromOffsets
         info.outInfo   = &outInfo;
         info.firstCall = true;
 
+        PD_TRACE("resolving '"PRI_SV"' from readCommitsFromOffsets...",
+                 ARG_SV(objof[i].hash));
+
         if(!resolveObjRecurse(&info)
         ){
             goto closefile;
@@ -1068,10 +1086,10 @@ f_internal void readCommitsFromOffsets
             continue;
         }
 
-        gfCommitInfo commit = {0};
-
-        PD_TRACE("hash inside readCommitsFromOffsets: '"PRI_SV"'",
+        PD_TRACE("resolved '"PRI_SV"' from readCommitsFromOffsets as commit.",
                  ARG_SV(objof[i].hash));
+
+        gfCommitInfo commit = {0};
 
         StringView hash = pdSVCpy(objof[i].hash);
         gfFreeCommit(&commit);
@@ -1248,6 +1266,7 @@ void gfInitRepository
         {
             char tmpBuf[4096] = {0};
             StringView idxPath = pdSVConcat(gitPACK, fileBuf[i], tmpBuf);
+            PD_TRACE("reading packed commits from file: '"PRI_SV"'", ARG_SV(idxPath));
             readPackedCommits(idxPath, objCache, commitTable, oidSize);
         }
     }
