@@ -272,6 +272,8 @@ f_internal bool readObjectHeader
     outInfo->size  = byte & 0x0F;
     outInfo->type  = byte >> 4 & 0x07;
 
+    GF_TRACE("identified type: %"PRIu8, outInfo->type);
+
     while(byte & 0x80)
     {
         if(*index >= packFileSize)
@@ -754,8 +756,6 @@ f_internal bool readAndApplyDelta
                 copySize = 0x10000;
             }
 
-            // FIXME: what the fffffuuugggg? how am I still hitting this case?
-            // for ex: offset: 9, size: 75264, baseSize: 3667
             if(copyOffset > baseSize || copySize > baseSize - copyOffset)
             {
                 GF_ERROR("delta copy outside base object. offset: %"PRIu64", size: %"
@@ -786,7 +786,6 @@ f_internal bool readAndApplyDelta
         {
             uint8_t size = opcode & 0x7F;
 
-            // FIXME: this needs some more asserts, here
             if(resultIndex > resultSize || size > resultSize - resultIndex)
             {
                 GF_ERROR("delta write outside result object: resultIndex: %"PRIu64
@@ -896,7 +895,9 @@ nocache:
                   PRIu64" bytes, actual: %"PRIu64".",
                   outInfo->size, dfInfo.bytesWritten);
 
-        outInfo->data = buf;
+        outInfo->data   = buf;
+        outInfo->offset = entryStart;
+        GF_TRACE("CACHING OBJECT (COMMIT) FOR OFFSET: %"PRIu64, outInfo->offset);
         pdArrPush(cache[lastTwo], *outInfo);
         return true;
     }
@@ -934,7 +935,13 @@ nocache:
                   PRIu64" bytes, actual: %"PRIu64".",
                   outInfo->size, dfInfo.bytesWritten);
 
-        outInfo->data = buf;
+        outInfo->data   = buf;
+        outInfo->offset = entryStart;
+        GF_TRACE("CACHING OBJECT (OTHER) FOR OFFSET: %"PRIu64, outInfo->offset);
+
+        // TESTING:
+        GF_TRACE(PRI_SV, ARG_SV(pdCstrSV((char*)outInfo->data)));
+
         pdArrPush(cache[lastTwo], *outInfo);
         return true;
     }
@@ -985,6 +992,8 @@ nocache:
             return false;
         }
 
+        outInfo->offset = entryStart;
+        GF_TRACE("CACHING OBJECT (OFS_DELTA) FOR OFFSET: %"PRIu64, outInfo->offset);
         pdArrPush(cache[lastTwo], *outInfo);
         return true;
     }
@@ -1018,6 +1027,8 @@ nocache:
         return false;
         //
 
+        outInfo->offset = entryStart;
+        GF_TRACE("CACHING OBJECT (REF_DELTA) FOR OFFSET: %"PRIu64, outInfo->offset);
         pdArrPush(cache[lastTwo], *outInfo);
         return true;
     }
@@ -1074,26 +1085,31 @@ f_internal void readCommitsFromOffsets
         info.outInfo   = &outInfo;
         info.firstCall = true;
 
-        GF_TRACE("resolving '"PRI_SV"' from readCommitsFromOffsets...",
-                 ARG_SV(objof[i].hash));
+        GF_TRACE("resolving '"PRI_SV"' at offset %"PRIu32" from "
+                 "readCommitsFromOffsets...", ARG_SV(objof[i].hash), objof[i].offset);
 
         if(!resolveObjRecurse(&info)
         ){
+            GF_DEBUG("could not resolve '"PRI_SV"' recursively, closing file.",
+                     ARG_SV(objof[i].hash));
             goto closefile;
         }
 
         if(outInfo.type != GF_OBJ_COMMIT)
         {
+            GF_TRACE("'"PRI_SV"' is not a commit, but of type: %"PRIu8". skipping...",
+                     ARG_SV(objof[i].hash), outInfo.type);
             continue;
         }
 
-        GF_TRACE("resolved '"PRI_SV"' from readCommitsFromOffsets as commit.",
+        GF_TRACE("resolved '"PRI_SV"' from readCommitsFromOffsets.",
                  ARG_SV(objof[i].hash));
 
         gfCommitInfo commit = {0};
 
         StringView hash = pdSVCpy(objof[i].hash);
         gfFreeCommit(&commit);
+
         readCommitFromPtr(outInfo.data, &commit, hash, outInfo.size);
 
         uint8_t firstTwo = twoCharsToByte(hash.data[0], hash.data[1]);
@@ -1258,11 +1274,10 @@ void gfInitRepository
         fclose(configFile);
     }
 
-    gfPackInfo *objCache[256] = {0};
-
     pdSVSeparateByDelim(list, fileBuf, ';', fileCount);
     for(uint64_t i = 0; i < fileCount; ++i)
     {
+        gfPackInfo *objCache[256] = {0};
         if(pdSVFind(idxIdent, fileBuf[i]))
         {
             char tmpBuf[4096] = {0};
