@@ -1,4 +1,5 @@
 #include "gitfluss.h"
+#include "gf_print_macros.h"
 
 #include "pd_path.h"
 
@@ -102,7 +103,7 @@ f_internal void setColour
         config->colour = WHITE;
     }
 
-    PD_DEBUG("detected colour: "PRI_SV"", ARG_SV(colour));
+    GF_DEBUG("detected colour: "PRI_SV"", ARG_SV(colour));
 }
 
 void gfAddAuthor
@@ -135,7 +136,7 @@ void gfAddAuthor
         config->authors = pdCstrSVCpy(author_cstr, new_buf);
     }
 
-    PD_TRACE("author list: "PRI_SV"", ARG_SV(config->authors));
+    GF_TRACE("author list: "PRI_SV"", ARG_SV(config->authors));
 }
 
 void gfAddAuthorlist
@@ -153,7 +154,7 @@ void gfAddAuthorlist
 
     if(pdVerifyPath(path_expanded) != PD_TYPE_FILE)
     {
-        PD_WARN("tasked with opening author list file: '"PRI_SV"', no such file "
+        GF_WARN("tasked with opening author list file: '"PRI_SV"', no such file "
                 "exists.", ARG_SV(path_expanded));
         return;
     }
@@ -161,7 +162,7 @@ void gfAddAuthorlist
     FILE *file = fopen(path_expanded_cstr, "r");
     if(!file)
     {
-        PD_WARN("tasked with opening author list file: '%s' , failed to open.",
+        GF_WARN("tasked with opening author list file: '%s' , failed to open.",
                 path_expanded_cstr);
         return;
     }
@@ -191,7 +192,7 @@ f_internal void verifyDirectory
     uint8_t result = pdVerifyPath(resolved);
     if(result == PD_TYPE_FILE)
     {
-        PD_WARN("path '"PRI_SV"' is a file, not a directory.", ARG_SV(resolved));
+        GF_WARN("path '"PRI_SV"' is a file, not a directory.", ARG_SV(resolved));
         return;
     }
     else if(result == PD_TYPE_ERROR || result == PD_TYPE_OTHER)
@@ -202,7 +203,7 @@ f_internal void verifyDirectory
             return;
         }
 
-        PD_WARN("path '"PRI_SV"' does not exist. Ignoring...", ARG_SV(resolved));
+        GF_WARN("path '"PRI_SV"' does not exist. Ignoring...", ARG_SV(resolved));
     }
 }
 
@@ -238,7 +239,7 @@ void gfAddPath
         pathSep[resolved.size + 1] = '\0';
         if(pdSVFind(pathComp, config->repositories))
         {
-            PD_DEBUG("path '"PRI_SV"' already in repository list. Ignoring "
+            GF_DEBUG("path '"PRI_SV"' already in repository list. Ignoring "
                      "duplicate...", ARG_SV(resolved));
             return;
         }
@@ -258,7 +259,7 @@ void gfAddPath
         verifyDirectory(resolved);
     }
 
-    PD_TRACE("path list: "PRI_SV"", ARG_SV(config->repositories));
+    GF_TRACE("path list: "PRI_SV"", ARG_SV(config->repositories));
 }
 
 void gfAddPathlist
@@ -273,7 +274,7 @@ void gfAddPathlist
 
     if(pdVerifyPath(path_expanded) != PD_TYPE_FILE)
     {
-        PD_WARN("tasked with opening path list file: '"PRI_SV"', no such file exists.",
+        GF_WARN("tasked with opening path list file: '"PRI_SV"', no such file exists.",
                 ARG_SV(path_expanded));
         return;
     }
@@ -281,7 +282,7 @@ void gfAddPathlist
     FILE *file = fopen(path_expanded_cstr, "r");
     if(!file)
     {
-        PD_DEBUG("tasked with opening path list file: '"PRI_SV"', failed to open.",
+        GF_DEBUG("tasked with opening path list file: '"PRI_SV"', failed to open.",
                  ARG_SV(path_expanded));
         return;
     }
@@ -313,7 +314,7 @@ f_internal uint8_t parseYear
     {
         if(i > 2)
         {
-            PD_WARN("trying to read too many digits into year: %u.", i);
+            GF_WARN("trying to read too many digits into year: %u.", i);
             return number;
         }
 
@@ -324,7 +325,7 @@ f_internal uint8_t parseYear
         }
         else
         {
-            PD_WARN("character '%c' is not a digit. Ignoring...", string[i]);
+            GF_WARN("character '%c' is not a digit. Ignoring...", string[i]);
         }
     }
 
@@ -565,7 +566,7 @@ f_internal void printSpecMissing
 (
     const char *arg
 ){
-    PD_WARN("option '%s' requires a specified argument. Ignoring...", arg);
+    GF_WARN("option '%s' requires a specified argument. Ignoring...", arg);
 }
 
 f_internal uint8_t checkIdentMissing
@@ -864,7 +865,7 @@ void gfReadArgs
         }
         else
         {
-            PD_ERROR("unknown option '"PRI_SV"'.", ARG_SV(arg));
+            GF_ERROR("unknown option '"PRI_SV"'.", ARG_SV(arg));
             printHelp();
             exit(1);
         }

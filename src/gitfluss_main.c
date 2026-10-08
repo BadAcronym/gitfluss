@@ -1,4 +1,5 @@
 #include "gitfluss.h"
+#include "gf_print_macros.h"
 
 #include "datasurf_main.h"
 
@@ -271,7 +272,7 @@ f_internal void *gatherRepoData
         StringView author = commit.authorMail;
         bool       counts = anyAuthor;
 
-        PD_ASSERT(author.data && author.size, "unresolved commit author. "
+        GF_ASSERT(author.data && author.size, "unresolved commit author. "
                   "full commit:\n"
                   "hash:          '"PRI_SV"'\n"
                   "parentHash:    '"PRI_SV"'\n"
@@ -410,7 +411,7 @@ f_internal void gatherData
     gfThread     threads[set->repositoryCount];
     gfThreadData threadData[set->repositoryCount];
 
-    PD_TRACE("dispatching %u threads.", set->repositoryCount);
+    GF_TRACE("dispatching %u threads.", set->repositoryCount);
 
     for(uint32_t i = 0; i < set->repositoryCount; ++i)
     {
@@ -421,7 +422,7 @@ f_internal void gatherData
         threadData[i].set         = set;
         threadData[i].flags       = config->flags;
 
-        PD_TRACE("thread %u: analyzing repository: '"PRI_SV"'",
+        GF_TRACE("thread %u: analyzing repository: '"PRI_SV"'",
                  i, ARG_SV(threadData[i].repository));
 
         gfDispatchThread(&threads[i], (void*)gatherRepoData, &threadData[i]);
@@ -429,7 +430,7 @@ f_internal void gatherData
 
     for(uint32_t i = 0; i < set->repositoryCount; ++i)
     {
-        PD_TRACE("waiting on thread #%u", i);
+        GF_TRACE("waiting on thread #%u", i);
         gfWaitThread(threads[i]);
     }
 }
@@ -509,16 +510,16 @@ f_internal void calculateHeatmap
         return;
     }
 
-    PD_DEBUG("\n");
-    PD_DEBUG("full days since epoch:   %"PRIu64, days_epoch);
-    PD_DEBUG("full years since epoch:  %"PRIu32, set->yearsEpoch);
-    PD_DEBUG("now, unix time:          %"PRIu64, set->now);
-    PD_DEBUG("current year start:      %"PRIu64, currYearStart);
-    PD_DEBUG("current month:           %"PRIu32, currentMonth);
-    PD_DEBUG("current month start:     %"PRIu64, currMonthStart);
-    PD_DEBUG("weekday 365 days ago:    %s",      days[weekday365]);
-    PD_DEBUG("day of the month, today: %"PRIu8,  day_of_month);
-    PD_DEBUG("\n");
+    GF_DEBUG("\n");
+    GF_DEBUG("full days since epoch:   %"PRIu64, days_epoch);
+    GF_DEBUG("full years since epoch:  %"PRIu32, set->yearsEpoch);
+    GF_DEBUG("now, unix time:          %"PRIu64, set->now);
+    GF_DEBUG("current year start:      %"PRIu64, currYearStart);
+    GF_DEBUG("current month:           %"PRIu32, currentMonth);
+    GF_DEBUG("current month start:     %"PRIu64, currMonthStart);
+    GF_DEBUG("weekday 365 days ago:    %s",      days[weekday365]);
+    GF_DEBUG("day of the month, today: %"PRIu8,  day_of_month);
+    GF_DEBUG("\n");
 }
 
 f_internal void displayData
@@ -567,17 +568,17 @@ f_internal void displayData
     percentiles.d70 = set->sorted[zerocount + d70_sep];
     percentiles.d90 = set->sorted[zerocount + d90_sep];
 
-    PD_DEBUG("\n");
-    PD_DEBUG("found 0-days:  %"PRIu32, zerocount);
-    PD_DEBUG("found d20_sep: %"PRIu32, d20_sep);
-    PD_DEBUG("found d50_sep: %"PRIu32, d50_sep);
-    PD_DEBUG("found d70_sep: %"PRIu32, d70_sep);
-    PD_DEBUG("found d90_sep: %"PRIu32, d90_sep);
-    PD_DEBUG("found d20: %"PRIu32, percentiles.d20);
-    PD_DEBUG("found d50: %"PRIu32, percentiles.d50);
-    PD_DEBUG("found d70: %"PRIu32, percentiles.d70);
-    PD_DEBUG("found d90: %"PRIu32, percentiles.d90);
-    PD_DEBUG("\n");
+    GF_DEBUG("\n");
+    GF_DEBUG("found 0-days:  %"PRIu32, zerocount);
+    GF_DEBUG("found d20_sep: %"PRIu32, d20_sep);
+    GF_DEBUG("found d50_sep: %"PRIu32, d50_sep);
+    GF_DEBUG("found d70_sep: %"PRIu32, d70_sep);
+    GF_DEBUG("found d90_sep: %"PRIu32, d90_sep);
+    GF_DEBUG("found d20: %"PRIu32, percentiles.d20);
+    GF_DEBUG("found d50: %"PRIu32, percentiles.d50);
+    GF_DEBUG("found d70: %"PRIu32, percentiles.d70);
+    GF_DEBUG("found d90: %"PRIu32, percentiles.d90);
+    GF_DEBUG("\n");
 
     int64_t yearStart   = set->heatSet->now;
     int64_t currentYear = 0;
@@ -585,7 +586,7 @@ f_internal void displayData
     {
         currentYear = 1970 + (yearStart / (365 * 24 * 3600));
         yearStart -= 365 * 24 * 3600;
-        PD_DEBUG("calculating year frame [%"PRIi64"-%"PRIi64"] @ start %"PRIi64"",
+        GF_DEBUG("calculating year frame [%"PRIi64"-%"PRIi64"] @ start %"PRIi64"",
                  currentYear - 1, currentYear, yearStart);
 
         if((currentYear + 1) % 4 == 2)
@@ -687,7 +688,7 @@ f_internal void displayData
         uint32_t currPrintYear = 1970 + heatSet.yearsEpoch;
         if(currPrintYear < 1971)
         {
-            PD_WARN("skipping year frame [%u] because you could not possibly have git "
+            GF_WARN("skipping year frame [%u] because you could not possibly have git "
                     "commits older than the epoch.", i);
             calculateHeatmap(&heatSet, 1);
             continue;
@@ -724,8 +725,8 @@ void sortStrings
     }
     config->repositories = pdCstrSV(config->sortedRepos);
 
-    PD_DEBUG("\nfinal, sorted author list:\n"PRI_SV"", ARG_SV(config->authors));
-    PD_DEBUG("\nfinal, sorted paths:\n"PRI_SV"\n", ARG_SV(config->repositories));
+    GF_DEBUG("\nfinal, sorted author list:\n"PRI_SV"", ARG_SV(config->authors));
+    GF_DEBUG("\nfinal, sorted paths:\n"PRI_SV"\n", ARG_SV(config->repositories));
 }
 
 int main
@@ -780,7 +781,7 @@ int main
     }
 
     int64_t timezoneOffset = gfQueryTimezoneOffset();
-    PD_DEBUG("queried timezoneOffset: %"PRIi64, timezoneOffset);
+    GF_DEBUG("queried timezoneOffset: %"PRIi64, timezoneOffset);
 
     gfHeatmapSettings heatSet = {0};
     heatSet.heatmap = heatmap;
@@ -796,7 +797,7 @@ int main
     set.repositoryCount   = pdSVCountByDelim(config.repositories, ';');
     set.currDayEnd        = (heatSet.now - nowAdjusted % (24 * 3600) + 24 * 3600);
 
-    PD_DEBUG("currDayEnd: %"PRIi64, set.currDayEnd);
+    GF_DEBUG("currDayEnd: %"PRIi64, set.currDayEnd);
 
     #ifdef BUILD_WINDOWS
         SRWLOCK lock;

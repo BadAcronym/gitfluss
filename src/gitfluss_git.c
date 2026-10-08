@@ -1,4 +1,5 @@
 #include "gitfluss.h"
+#include "gf_print_macros.h"
 
 #include "datasurf_main.h"
 
@@ -40,7 +41,7 @@ f_internal char valueToHexChar
 (
     uint8_t value
 ){
-    PD_ASSERT(value < 0x10, "cannot express values bigger than 15 in 4 bits.");
+    GF_ASSERT(value < 0x10, "cannot express values bigger than 15 in 4 bits.");
 
     if(value > 9)
     {
@@ -58,9 +59,9 @@ f_internal uint8_t twoCharsToByte
     uint8_t v1 = 0;
     uint8_t v2 = 0;
 
-    PD_ASSERT((c1 > 0x2F && c1 < 0x3A) || (c1 > 0x60 && c1 < 0x67),
+    GF_ASSERT((c1 > 0x2F && c1 < 0x3A) || (c1 > 0x60 && c1 < 0x67),
               "c1 outside of valid range. passed char: '%c' (0x%X)", c1, c1);
-    PD_ASSERT((c2 > 0x2F && c2 < 0x3A) || (c2 > 0x60 && c2 < 0x67),
+    GF_ASSERT((c2 > 0x2F && c2 < 0x3A) || (c2 > 0x60 && c2 < 0x67),
               "c2 outside of valid range. passed char: '%c' (0x%X)", c2, c2);
 
     v1 = (uint8_t)c1 - '0';
@@ -109,7 +110,7 @@ f_internal bool verifyCommit
         c = commit->hash.data[i];
         if(!(c > 0x2F && c < 0x3A) && !(c > 0x60 && c < 0x67))
         {
-            PD_ERROR("commit->hash.data[%"PRIu8"] is outside of valid range: '%c' "
+            GF_ERROR("commit->hash.data[%"PRIu8"] is outside of valid range: '%c' "
                      "(0x%X)", i, c, c);
             return false;
         }
@@ -120,7 +121,7 @@ f_internal bool verifyCommit
         c = commit->parentHash.data[i];
         if(!(c > 0x2F && c < 0x3A) && !(c > 0x60 && c < 0x67))
         {
-            PD_ERROR("commit->parentHash.data[%"PRIu8"] is outside of valid range: '%c'"
+            GF_ERROR("commit->parentHash.data[%"PRIu8"] is outside of valid range: '%c'"
                      " (0x%X)", i, c, c);
             return false;
         }
@@ -167,9 +168,9 @@ f_internal bool readCommitFromPtr
     StringView   hash,
     uint64_t     bufsize
 ){
-    PD_ASSERT(commitBuf, "passed nullptr buffer to readCommitFromPtr.");
-    PD_ASSERT(commit,    "passed nullptr commit to readCommitFromPtr.");
-    PD_ASSERT(hash.data, "passed nullptr hash data to readCommitFromPtr.");
+    GF_ASSERT(commitBuf, "passed nullptr buffer to readCommitFromPtr.");
+    GF_ASSERT(commit,    "passed nullptr commit to readCommitFromPtr.");
+    GF_ASSERT(hash.data, "passed nullptr hash data to readCommitFromPtr.");
 
     commit->hash = hash;
 
@@ -242,18 +243,18 @@ f_internal bool readCommitFromPtr
         commit->summary = pdSVCpy(*((StringView*)&line));
     }
 
-    PD_ASSERT(verifyCommit(commit), "returned bogus commit from readCommitFromFile.");
+    GF_ASSERT(verifyCommit(commit), "returned bogus commit from readCommitFromFile.");
 
-    PD_TRACE("read commit:");
-    PD_TRACE("commit->hash:          '"PRI_SV"'", ARG_SV(commit->hash));
-    PD_TRACE("commit->summary:       '"PRI_SV"'", ARG_SV(commit->summary));
-    PD_TRACE("commit->parentHash:    '"PRI_SV"'", ARG_SV(commit->parentHash));
-    PD_TRACE("commit->authorName:    '"PRI_SV"'", ARG_SV(commit->authorName));
-    PD_TRACE("commit->authorMail:    '"PRI_SV"'", ARG_SV(commit->authorMail));
-    PD_TRACE("commit->committerName: '"PRI_SV"'", ARG_SV(commit->committerName));
-    PD_TRACE("commit->committerMail: '"PRI_SV"'", ARG_SV(commit->committerMail));
-    PD_TRACE("commit->authorTime:    %"PRIu64,    commit->authorTime);
-    PD_TRACE("commit->committerTime: %"PRIu64,    commit->committerTime);
+    GF_TRACE("read commit:");
+    GF_TRACE("commit->hash:          '"PRI_SV"'", ARG_SV(commit->hash));
+    GF_TRACE("commit->summary:       '"PRI_SV"'", ARG_SV(commit->summary));
+    GF_TRACE("commit->parentHash:    '"PRI_SV"'", ARG_SV(commit->parentHash));
+    GF_TRACE("commit->authorName:    '"PRI_SV"'", ARG_SV(commit->authorName));
+    GF_TRACE("commit->authorMail:    '"PRI_SV"'", ARG_SV(commit->authorMail));
+    GF_TRACE("commit->committerName: '"PRI_SV"'", ARG_SV(commit->committerName));
+    GF_TRACE("commit->committerMail: '"PRI_SV"'", ARG_SV(commit->committerMail));
+    GF_TRACE("commit->authorTime:    %"PRIu64,    commit->authorTime);
+    GF_TRACE("commit->committerTime: %"PRIu64,    commit->committerTime);
 
     return true;
 }
@@ -275,7 +276,7 @@ f_internal bool readObjectHeader
     {
         if(*index >= packFileSize)
         {
-            PD_ERROR("readObjectHeader index out of bounds. index: %"PRIu64", "
+            GF_ERROR("readObjectHeader index out of bounds. index: %"PRIu64", "
                      "fileSize: %"PRIu64, *index, packFileSize);
             return false;
         }
@@ -283,13 +284,13 @@ f_internal bool readObjectHeader
         byte  = packFile[(*index)++];
         chunk = byte & 0x7F;
 
-        PD_ASSERT(shift < 64, "cannot shift more than 64 bits.");
-        PD_ASSERT(chunk < (UINT64_MAX >> shift), "chunk is too large.");
+        GF_ASSERT(shift < 64, "cannot shift more than 64 bits.");
+        GF_ASSERT(chunk < (UINT64_MAX >> shift), "chunk is too large.");
 
         outInfo->size |= chunk << shift;
         shift         += 7;
     }
-    PD_ASSERT(outInfo->type > 0 && outInfo->type < 8, "invalid object type on obj: %"PRIu32
+    GF_ASSERT(outInfo->type > 0 && outInfo->type < 8, "invalid object type on obj: %"PRIu32
               ". read Byte: 0x%X", outInfo->type, byte);
 
     return true;
@@ -301,7 +302,7 @@ f_internal void readCommitFromFile
     StringView   hash,
     gfCommitInfo *commit
 ){
-    PD_TRACE("opening to read commit from path: '"PRI_SV"'", ARG_SV(path));
+    GF_TRACE("opening to read commit from path: '"PRI_SV"'", ARG_SV(path));
 
     char pathBuf[path.size + 1];
     pdSVCstr(path, pathBuf);
@@ -309,7 +310,7 @@ f_internal void readCommitFromFile
     FILE *file = fopen(pathBuf, "rb");
     if(!file)
     {
-        PD_WARN("failed to open commit file: '%s'", pathBuf);
+        GF_WARN("failed to open commit file: '%s'", pathBuf);
         return;
     }
 
@@ -321,7 +322,7 @@ f_internal void readCommitFromFile
         elements = fread(&zlibBuf[i], 1, 1, file);
     }
 
-    PD_TRACE("reading commit from loose object.");
+    GF_TRACE("reading commit from loose object.");
 
     uint8_t     *dstBuf = calloc(GF_BUFSIZE * 4, 1);
     DeflateInfo dfInfo  = dsReadZlibPtr(zlibBuf, dstBuf, GF_BUFSIZE * 4);
@@ -335,7 +336,7 @@ f_internal void readCommitFromFile
 
 closefile:
     fclose(file);
-    PD_ASSERT(verifyCommit(commit), "returned bogus commit from readCommitFromFile.");
+    GF_ASSERT(verifyCommit(commit), "returned bogus commit from readCommitFromFile.");
 }
 
 bool gfGetCommitInfo
@@ -347,19 +348,19 @@ bool gfGetCommitInfo
 ){
     if(!commit)
     {
-        PD_ERROR("commit that was passed is nullptr.");
+        GF_ERROR("commit that was passed is nullptr.");
         return false;
     }
 
-    PD_ASSERT(repository.data && repository.size, "cannot open null repository.");
+    GF_ASSERT(repository.data && repository.size, "cannot open null repository.");
 
-    PD_ASSERT(hash.size == 40 || hash.size == 64, "commit hash has invalid size: %"
+    GF_ASSERT(hash.size == 40 || hash.size == 64, "commit hash has invalid size: %"
               PRIu64". should be either 40 or 64 characters big. passed hash was: '"
               PRI_SV"'", hash.size, ARG_SV(hash));
 
-    PD_ASSERT(hash.data, "cannot lookup commit with no hash.");
+    GF_ASSERT(hash.data, "cannot lookup commit with no hash.");
 
-    PD_TRACE("looking for commit with hash: "PRI_SV, ARG_SV(hash));
+    GF_TRACE("looking for commit with hash: "PRI_SV, ARG_SV(hash));
 
     StringView hashStart = hash;
     hashStart.size = 2;
@@ -381,36 +382,36 @@ bool gfGetCommitInfo
         return true;
     }
 
-    PD_TRACE("path '"PRI_SV"' does not exist. looking in packfile table...",
+    GF_TRACE("path '"PRI_SV"' does not exist. looking in packfile table...",
              ARG_SV(commitPath));
 
     bool found = false;
 
     if(!table)
     {
-        PD_TRACE("table does not exist.");
+        GF_TRACE("table does not exist.");
         goto notfound;
     }
 
     uint8_t firstTwo = twoCharsToByte(hash.data[0], hash.data[1]);
     if(!table[firstTwo])
     {
-        PD_TRACE("table[0x%x] has no data.", firstTwo);
+        GF_TRACE("table[0x%x] has no data.", firstTwo);
         goto notfound;
     }
 
     uint64_t arraySize = pdArrSize(table[firstTwo]);
-    PD_TRACE("looking for commit in table[%c%c]: size %"PRIu64,
+    GF_TRACE("looking for commit in table[%c%c]: size %"PRIu64,
              hash.data[0], hash.data[1], arraySize);
     for(uint64_t i = 0; i < arraySize; ++i)
     {
-        PD_TRACE("checking against commit in table[0x%x]: "PRI_SV,
+        GF_TRACE("checking against commit in table[0x%x]: "PRI_SV,
                  firstTwo, ARG_SV(table[firstTwo][i].hash));
 
         if(pdSVSame(hash, table[firstTwo][i].hash))
         {
             *commit = table[firstTwo][i];
-            PD_TRACE("found commit!");
+            GF_TRACE("found commit!");
             found = true;
             break;
         }
@@ -425,7 +426,7 @@ bool gfGetCommitInfo
     return true;
 
 notfound:
-    PD_ERROR("could not find commit with hash '"PRI_SV"' anywhere.", ARG_SV(hash));
+    GF_ERROR("could not find commit with hash '"PRI_SV"' anywhere.", ARG_SV(hash));
     pdSVFree(&hash);
     return false;
 }
@@ -443,7 +444,7 @@ f_internal bool readIDXFanout
         {
             if(fread(&byte, 1, 1, file) != 1)
             {
-                PD_ERROR("could not read fanout entry %"PRIu16".", j);
+                GF_ERROR("could not read fanout entry %"PRIu16".", j);
                 return false;
             }
 
@@ -465,11 +466,11 @@ f_internal gfObjectOffset *readIDXV1
 
     if(!readIDXFanout(file, fanout))
     {
-        PD_ERROR("could not read fanouts of v1 IDX file.");
+        GF_ERROR("could not read fanouts of v1 IDX file.");
         goto closefile;
     }
 
-    PD_WARN("TODO: .idx V1 files unhandled.");
+    GF_WARN("TODO: .idx V1 files unhandled.");
     goto closefile;
 
     for(uint32_t i = 0; i < fanout[255]; ++i)
@@ -480,7 +481,7 @@ f_internal gfObjectOffset *readIDXV1
         {
             if(fread(&byte, 1, 1, file) != 1)
             {
-                PD_ERROR("could not read offset of object %"PRIu32".", i);
+                GF_ERROR("could not read offset of object %"PRIu32".", i);
                 goto closefile;
             }
 
@@ -489,7 +490,7 @@ f_internal gfObjectOffset *readIDXV1
 
         if(offset >= packFileSize)
         {
-            PD_ERROR("pack offset is out of bounds.");
+            GF_ERROR("pack offset is out of bounds.");
             goto closefile;
         }
     }
@@ -515,7 +516,7 @@ f_internal gfObjectOffset *readIDXV2
     {
         if(fread(&byte, 1, 1, file) != 1)
         {
-            PD_ERROR("failed to read IDX v2 version number.");
+            GF_ERROR("failed to read IDX v2 version number.");
             goto closefile;
         }
 
@@ -524,14 +525,14 @@ f_internal gfObjectOffset *readIDXV2
 
     if(version != 2)
     {
-        PD_ERROR("unknown IDX v2 version number: %"PRIu32, version);
+        GF_ERROR("unknown IDX v2 version number: %"PRIu32, version);
         goto closefile;
     }
 
     uint32_t fanout[256] = {0};
     if(!readIDXFanout(file, fanout))
     {
-        PD_ERROR("could not read fanouts of v2 IDX file.");
+        GF_ERROR("could not read fanouts of v2 IDX file.");
         goto closefile;
     }
 
@@ -545,7 +546,7 @@ f_internal gfObjectOffset *readIDXV2
         {
             if(fread(&byte, 1, 1, file) != 1)
             {
-                PD_ERROR("could not read name of object %"PRIu32".", i);
+                GF_ERROR("could not read name of object %"PRIu32".", i);
                 pdArrFree(objof);
                 goto closefile;
             }
@@ -564,7 +565,7 @@ f_internal gfObjectOffset *readIDXV2
 
     if(fseek(file, fanout[255] * 4, SEEK_CUR) != 0)
     {
-        PD_ERROR("could not skip CRC table.");
+        GF_ERROR("could not skip CRC table.");
         pdArrFree(objof);
         goto closefile;
     }
@@ -576,7 +577,7 @@ f_internal gfObjectOffset *readIDXV2
         {
             if(fread(&byte, 1, 1, file) != 1)
             {
-                PD_ERROR("could not read offset of object %"PRIu32".", i);
+                GF_ERROR("could not read offset of object %"PRIu32".", i);
                 pdArrFree(objof);
                 goto closefile;
             }
@@ -588,14 +589,14 @@ f_internal gfObjectOffset *readIDXV2
         {
             offset &= 0x7FFFFFFF;
             // TODO: do something with these
-            PD_WARN("TODO: handle object offset via index into large offset table: %"
+            GF_WARN("TODO: handle object offset via index into large offset table: %"
                     PRIu32, offset);
             continue;
         }
 
         if(offset >= packFileSize)
         {
-            PD_ERROR("invalid pack offset %"PRIu32" for filesize %"PRIu64,
+            GF_ERROR("invalid pack offset %"PRIu32" for filesize %"PRIu64,
                      offset, packFileSize);
             pdArrFree(objof);
             goto closefile;
@@ -624,21 +625,21 @@ f_internal uint64_t readDeltaSize
     {
         if(*cursor >= bufsize)
         {
-            PD_ERROR("cursor out of bounds from readDeltaSize.");
+            GF_ERROR("cursor out of bounds from readDeltaSize.");
             return 0;
         }
 
         byte  = buf[(*cursor)++];
         chunk = byte & 0x7F;
 
-        PD_ASSERT(shift < 64, "cannot shift more than 64 bits.");
-        PD_ASSERT(chunk < (UINT64_MAX >> shift), "chunk is too large.");
+        GF_ASSERT(shift < 64, "cannot shift more than 64 bits.");
+        GF_ASSERT(chunk < (UINT64_MAX >> shift), "chunk is too large.");
 
         size  |= chunk << shift;
         shift += 7;
     }
 
-    PD_TRACE("read delta size of %"PRIu64" from cursor %"PRIu64, size, *cursor);
+    GF_TRACE("read delta size of %"PRIu64" from cursor %"PRIu64, size, *cursor);
 
     return size;
 }
@@ -650,18 +651,18 @@ f_internal bool readAndApplyDelta
     uint64_t   deltaDataSize,
     gfPackInfo *outInfo
 ){
-    PD_TRACE("reading delta...");
+    GF_TRACE("reading delta...");
 
     if(!outInfo->data)
     {
-        PD_ERROR("outInfo->data is nil. cannot apply delta patch.");
+        GF_ERROR("outInfo->data is nil. cannot apply delta patch.");
         return false;
     }
 
     uint8_t *deltaDataBuf = calloc(deltaDataSize, 1);
     if(!deltaDataBuf)
     {
-        PD_ERROR("failed to allocate buffer for delta data, size %"PRIu64,
+        GF_ERROR("failed to allocate buffer for delta data, size %"PRIu64,
                  deltaDataSize);
         return false;
     }
@@ -669,7 +670,7 @@ f_internal bool readAndApplyDelta
     DeflateInfo info = dsReadZlibPtr(&packFile[*index], deltaDataBuf, deltaDataSize);
     if(!info.success)
     {
-        PD_ERROR("failed to read Zlib compressed data from packFile at index %"PRIu64
+        GF_ERROR("failed to read Zlib compressed data from packFile at index %"PRIu64
                  ". Read %"PRIu64" compressed bytes and wrote %"PRIu64" bytes.",
                  *index, info.bytesRead, info.bytesWritten);
         goto error;
@@ -679,7 +680,7 @@ f_internal bool readAndApplyDelta
     uint64_t baseSize   = readDeltaSize(deltaDataBuf, &cursor, deltaDataSize);
     uint64_t resultSize = readDeltaSize(deltaDataBuf, &cursor, deltaDataSize);
 
-    PD_TRACE("applying delta...");
+    GF_TRACE("applying delta...");
 
     #ifdef TRACE
     printf("full bytes:\n");
@@ -693,14 +694,14 @@ f_internal bool readAndApplyDelta
     uint8_t *resultObjBuf = calloc(resultSize, 1);
     if(!resultObjBuf)
     {
-        PD_ERROR("failed to allocate buffer for result object, size %"PRIu64,
+        GF_ERROR("failed to allocate buffer for result object, size %"PRIu64,
                  resultSize);
         goto error;
     }
 
     if(baseSize != outInfo->size)
     {
-        PD_ERROR("baseSize %"PRIu64" does not match base object size %"PRIu64
+        GF_ERROR("baseSize %"PRIu64" does not match base object size %"PRIu64
                  " read from base object.", baseSize, outInfo->size);
         free(resultObjBuf);
         goto error;
@@ -722,7 +723,7 @@ f_internal bool readAndApplyDelta
                 {
                     if(cursor >= deltaDataSize)
                     {
-                        PD_ERROR("(copyOffset parsing) cursor %"PRIu64" >= "
+                        GF_ERROR("(copyOffset parsing) cursor %"PRIu64" >= "
                                  "deltaDataSize %"PRIu64, cursor, deltaDataSize);
                         free(resultObjBuf);
                         goto error;
@@ -738,7 +739,7 @@ f_internal bool readAndApplyDelta
                 {
                     if(cursor >= deltaDataSize)
                     {
-                        PD_ERROR("(copySize parsing) cursor %"PRIu64" >= deltaDataSize "
+                        GF_ERROR("(copySize parsing) cursor %"PRIu64" >= deltaDataSize "
                                  "%"PRIu64, cursor, deltaDataSize);
                         free(resultObjBuf);
                         goto error;
@@ -757,7 +758,7 @@ f_internal bool readAndApplyDelta
             // for ex: offset: 9, size: 75264, baseSize: 3667
             if(copyOffset > baseSize || copySize > baseSize - copyOffset)
             {
-                PD_ERROR("delta copy outside base object. offset: %"PRIu64", size: %"
+                GF_ERROR("delta copy outside base object. offset: %"PRIu64", size: %"
                          PRIu64", baseSize: %"PRIu64, copyOffset, copySize, baseSize);
                 free(resultObjBuf);
                 goto error;
@@ -765,7 +766,7 @@ f_internal bool readAndApplyDelta
 
             if(resultIndex > resultSize || copySize > resultSize - resultIndex)
             {
-                PD_ERROR("delta copy outside result object: resultIndex: %"PRIu64
+                GF_ERROR("delta copy outside result object: resultIndex: %"PRIu64
                          ", size: %"PRIu64", resultSize: %"PRIu64,
                          resultIndex, copySize, resultSize);
                 free(resultObjBuf);
@@ -777,7 +778,7 @@ f_internal bool readAndApplyDelta
         }
         else if(!opcode)
         {
-            PD_ERROR("git delta instruction 0 is reserved.");
+            GF_ERROR("git delta instruction 0 is reserved.");
             free(resultObjBuf);
             goto error;
         }
@@ -788,7 +789,7 @@ f_internal bool readAndApplyDelta
             // FIXME: this needs some more asserts, here
             if(resultIndex > resultSize || size > resultSize - resultIndex)
             {
-                PD_ERROR("delta write outside result object: resultIndex: %"PRIu64
+                GF_ERROR("delta write outside result object: resultIndex: %"PRIu64
                          ", size: %"PRIu32", resultSize: %"PRIu64,
                          resultIndex, size, resultSize);
                 free(resultObjBuf);
@@ -801,7 +802,7 @@ f_internal bool readAndApplyDelta
         }
     }
 
-    PD_ASSERT(resultIndex == resultSize, "resultIndex %"PRIu64" does not match "
+    GF_ASSERT(resultIndex == resultSize, "resultIndex %"PRIu64" does not match "
               "resultSize %"PRIu64".", resultIndex, resultSize);
 
     free(deltaDataBuf);
@@ -828,7 +829,7 @@ f_internal bool resolveObjRecurse
     uint64_t   fileSize   = info->fileSize;
     gfPackInfo *outInfo   = info->outInfo;
 
-    PD_ASSERT(cache, "no cache present, cannot resolve recursively.");
+    GF_ASSERT(cache, "no cache present, cannot resolve recursively.");
 
     outInfo->offset = entryStart;
 
@@ -836,17 +837,17 @@ f_internal bool resolveObjRecurse
     gfPackInfo *arr    = cache[lastTwo];
     if(!arr)
     {
-        PD_TRACE("no objects in cache[0x%"PRIx8"]. skipping...", lastTwo);
+        GF_TRACE("no objects in cache[0x%"PRIx8"]. skipping...", lastTwo);
         goto nocache;
     }
 
     uint64_t arrSize = pdArrSize(arr);
-    PD_TRACE("LOOKING FOR CACHED OBJECT FOR OFFSET: %"PRIu64, outInfo->offset);
+    GF_TRACE("LOOKING FOR CACHED OBJECT FOR OFFSET: %"PRIu64, outInfo->offset);
     for(uint16_t i = 0; i < arrSize; ++i)
     {
         if(arr[i].offset == entryStart)
         {
-            PD_TRACE("FOUND CACHED OBJECT FOR OFFSET: %"PRIu64, outInfo->offset);
+            GF_TRACE("FOUND CACHED OBJECT FOR OFFSET: %"PRIu64, outInfo->offset);
             outInfo->data = arr[i].data;
             outInfo->size = arr[i].size;
             outInfo->type = arr[i].type;
@@ -857,41 +858,41 @@ f_internal bool resolveObjRecurse
 nocache:
     if(!readObjectHeader(packFile, index, fileSize, outInfo))
     {
-        PD_ERROR("failed to read object header from index %"PRIu64, *index);
+        GF_ERROR("failed to read object header from index %"PRIu64, *index);
         return false;
     }
 
-    PD_ASSERT(outInfo->type != 0, "object of type 0 is invalid.");
-    PD_ASSERT(outInfo->type != GF_OBJ_RESERVED, "object of type 5 is reserved.");
-    PD_ASSERT(outInfo->type <= GF_OBJ_REF_DELTA, "object of type %"PRIu8" is greater "
+    GF_ASSERT(outInfo->type != 0, "object of type 0 is invalid.");
+    GF_ASSERT(outInfo->type != GF_OBJ_RESERVED, "object of type 5 is reserved.");
+    GF_ASSERT(outInfo->type <= GF_OBJ_REF_DELTA, "object of type %"PRIu8" is greater "
               "than the maxiumum of 7.", outInfo->type);
 
     if(outInfo->type == GF_OBJ_COMMIT)
     {
-        PD_TRACE("identified commit object.");
+        GF_TRACE("identified commit object.");
 
         uint8_t *buf = calloc(outInfo->size, 1);
         if(!buf)
         {
-            PD_ERROR("failed to allocate new outInfo->data of size %"PRIu64,
+            GF_ERROR("failed to allocate new outInfo->data of size %"PRIu64,
                      outInfo->size);
             return false;
         }
 
-        PD_TRACE("reading commit from offset %"PRIu64" in packfile. Bufsize: %"PRIu64,
+        GF_TRACE("reading commit from offset %"PRIu64" in packfile. Bufsize: %"PRIu64,
                  *index, outInfo->size);
 
         DeflateInfo dfInfo = dsReadZlibPtr(&packFile[*index], buf, outInfo->size);
 
         if(!dfInfo.success)
         {
-            PD_ERROR("could not successfully read base object from offset %"PRIu64,
+            GF_ERROR("could not successfully read base object from offset %"PRIu64,
                      *index);
             free(buf);
             return false;
         }
 
-        PD_ASSERT(dfInfo.bytesWritten == outInfo->size, "expected to decompress into %"
+        GF_ASSERT(dfInfo.bytesWritten == outInfo->size, "expected to decompress into %"
                   PRIu64" bytes, actual: %"PRIu64".",
                   outInfo->size, dfInfo.bytesWritten);
 
@@ -903,18 +904,18 @@ nocache:
             outInfo->type == GF_OBJ_BLOB ||
             outInfo->type == GF_OBJ_TAG
     ){
-        PD_TRACE("identified base object of type %"PRIu8, outInfo->type);
+        GF_TRACE("identified base object of type %"PRIu8, outInfo->type);
 
         if(info->firstCall)
         {
-            PD_TRACE("skipping base object of type %"PRIu8, outInfo->type);
+            GF_TRACE("skipping base object of type %"PRIu8, outInfo->type);
             return true;
         }
 
         uint8_t *buf = calloc(outInfo->size, 1);
         if(!buf)
         {
-            PD_ERROR("failed to allocate new outInfo->data of size %"PRIu64,
+            GF_ERROR("failed to allocate new outInfo->data of size %"PRIu64,
                      outInfo->size);
             return false;
         }
@@ -923,13 +924,13 @@ nocache:
 
         if(!dfInfo.success)
         {
-            PD_ERROR("could not successfully read non-commit base object from offset %"
+            GF_ERROR("could not successfully read non-commit base object from offset %"
                      PRIu64, *index);
             free(buf);
             return false;
         }
 
-        PD_ASSERT(dfInfo.bytesWritten == outInfo->size, "expected to decompress into %"
+        GF_ASSERT(dfInfo.bytesWritten == outInfo->size, "expected to decompress into %"
                   PRIu64" bytes, actual: %"PRIu64".",
                   outInfo->size, dfInfo.bytesWritten);
 
@@ -939,7 +940,7 @@ nocache:
     }
     else if(outInfo->type == GF_OBJ_OFS_DELTA)
     {
-        PD_TRACE("identified ofs delta object.");
+        GF_TRACE("identified ofs delta object.");
 
         uint8_t  byte   = packFile[(*index)++];
         uint64_t offset = byte & 0x7F;
@@ -948,7 +949,7 @@ nocache:
         {
             if(*index >= fileSize)
             {
-                PD_ERROR("index out of bounds from OBJ_OFS_DELTA.");
+                GF_ERROR("index out of bounds from OBJ_OFS_DELTA.");
                 return false;
             }
             byte   = packFile[(*index)++];
@@ -957,15 +958,15 @@ nocache:
 
         if(offset >= entryStart)
         {
-            PD_ERROR("negative offset %"PRIu64" is larger than current position of "
+            GF_ERROR("negative offset %"PRIu64" is larger than current position of "
                      "file %"PRIu64".", offset, entryStart);
             return false;
         }
 
-        PD_TRACE("read OFS_DELTA object with offset -%"PRIu64, offset);
+        GF_TRACE("read OFS_DELTA object with offset -%"PRIu64, offset);
 
         uint64_t indexRec  = (entryStart - offset);
-        PD_TRACE("jumping from packFile entryStart %"PRIu64" back to index %"PRIu64
+        GF_TRACE("jumping from packFile entryStart %"PRIu64" back to index %"PRIu64
                  "...", entryStart, indexRec);
 
         uint64_t deltaSize = outInfo->size;
@@ -974,13 +975,13 @@ nocache:
 
         if(!resolveObjRecurse(info))
         {
-            PD_ERROR("could not read recursive object from OBJ_OFS_DELTA.");
+            GF_ERROR("could not read recursive object from OBJ_OFS_DELTA.");
             return false;
         }
 
         if(!readAndApplyDelta(packFile, index, deltaSize, outInfo))
         {
-            PD_ERROR("could not apply delta from OBJ_OFS_DELTA.");
+            GF_ERROR("could not apply delta from OBJ_OFS_DELTA.");
             return false;
         }
 
@@ -989,7 +990,7 @@ nocache:
     }
     else if(outInfo->type == GF_OBJ_REF_DELTA)
     {
-        PD_TRACE("identified ref delta object.");
+        GF_TRACE("identified ref delta object.");
 
         uint8_t byte = 0;
 
@@ -1006,14 +1007,14 @@ nocache:
         name.data = nameBuf;
         name.size = oidSize * 2;
 
-        PD_TRACE("read REF_DELTA object '"PRI_SV"'", ARG_SV(name));
+        GF_TRACE("read REF_DELTA object '"PRI_SV"'", ARG_SV(name));
 
         // recursively read base object, looking up by object hash
         // read delta (inflate)
         // apply delta patch
 
         //
-        PD_WARN("TODO: OBJ_REF_DELTA unhandled.");
+        GF_WARN("TODO: OBJ_REF_DELTA unhandled.");
         return false;
         //
 
@@ -1035,7 +1036,7 @@ f_internal void readCommitsFromOffsets
     FILE *file = fopen(path.data, "rb");
     if(!file)
     {
-        PD_WARN("couldn't open pack file: '"PRI_SV"'", ARG_SV(path));
+        GF_WARN("couldn't open pack file: '"PRI_SV"'", ARG_SV(path));
         return;
     }
     uint8_t *packFile = 0;
@@ -1049,7 +1050,7 @@ f_internal void readCommitsFromOffsets
     uint64_t elements = fread(packFile, 1, fileSize, file);
     if(elements != fileSize)
     {
-        PD_WARN("couldn't read pack file into memory. tried to read %"PRIu64", but "
+        GF_WARN("couldn't read pack file into memory. tried to read %"PRIu64", but "
                 "read %"PRIu64" instead.: '"PRI_SV"'",
                 fileSize, elements, ARG_SV(path));
         goto closefile;
@@ -1062,7 +1063,7 @@ f_internal void readCommitsFromOffsets
     info.oidSize  = oidSize;
 
     uint64_t arraySize = pdArrSize(objof);
-    PD_TRACE("reading %"PRIu64" objects from offsets into packfile.", arraySize);
+    GF_TRACE("reading %"PRIu64" objects from offsets into packfile.", arraySize);
     for(uint32_t i = 0; i < arraySize; ++i)
     {
         gfPackInfo outInfo = {0};
@@ -1073,7 +1074,7 @@ f_internal void readCommitsFromOffsets
         info.outInfo   = &outInfo;
         info.firstCall = true;
 
-        PD_TRACE("resolving '"PRI_SV"' from readCommitsFromOffsets...",
+        GF_TRACE("resolving '"PRI_SV"' from readCommitsFromOffsets...",
                  ARG_SV(objof[i].hash));
 
         if(!resolveObjRecurse(&info)
@@ -1086,7 +1087,7 @@ f_internal void readCommitsFromOffsets
             continue;
         }
 
-        PD_TRACE("resolved '"PRI_SV"' from readCommitsFromOffsets as commit.",
+        GF_TRACE("resolved '"PRI_SV"' from readCommitsFromOffsets as commit.",
                  ARG_SV(objof[i].hash));
 
         gfCommitInfo commit = {0};
@@ -1117,7 +1118,7 @@ f_internal void readPackedCommits
     FILE *file = fopen(idxPath.data, "rb");
     if(!file)
     {
-        PD_ERROR("could not open .idx file: '"PRI_SV"'", ARG_SV(idxPath));
+        GF_ERROR("could not open .idx file: '"PRI_SV"'", ARG_SV(idxPath));
         return;
     }
 
@@ -1127,7 +1128,7 @@ f_internal void readPackedCommits
     {
         if(fread(&byte, 1, 1, file) != 1)
         {
-            PD_ERROR("couldn't read first 4 bytes of .idx file: '"PRI_SV"'",
+            GF_ERROR("couldn't read first 4 bytes of .idx file: '"PRI_SV"'",
                      ARG_SV(idxPath));
             return;
         }
@@ -1149,7 +1150,7 @@ f_internal void readPackedCommits
     FILE *packFile = fopen(packPath.data, "rb");
     if(!packFile)
     {
-        PD_ERROR("could not open packfile from path '%s'.", packPath.data);
+        GF_ERROR("could not open packfile from path '%s'.", packPath.data);
         return;
     }
     else
@@ -1163,19 +1164,19 @@ f_internal void readPackedCommits
 
     if(v2)
     {
-        PD_TRACE("reading .idx v2 file: '"PRI_SV"'", ARG_SV(idxPath));
+        GF_TRACE("reading .idx v2 file: '"PRI_SV"'", ARG_SV(idxPath));
         objof = readIDXV2(file, oidSize, packFileSize);
     }
     else
     {
-        PD_TRACE("reading .idx v1 file: '"PRI_SV"'", ARG_SV(idxPath));
+        GF_TRACE("reading .idx v1 file: '"PRI_SV"'", ARG_SV(idxPath));
         fseek(file, 0, SEEK_SET);
         objof = readIDXV1(file, oidSize, packFileSize);
     }
 
     if(!objof)
     {
-        PD_ERROR("could not read any object-offset pairs.");
+        GF_ERROR("could not read any object-offset pairs.");
         return;
     }
 
@@ -1207,7 +1208,7 @@ void gfInitRepository
     gitHEAD = pdSVConcat(absolute, gitHEAD, absoluteBuf);
     gitCONF = pdSVConcat(absolute, gitCONF, confBuf);
 
-    PD_TRACE("resolved head of '"PRI_SV"' to '"PRI_SV"'",
+    GF_TRACE("resolved head of '"PRI_SV"' to '"PRI_SV"'",
              ARG_SV(repo->path), ARG_SV(gitHEAD));
 
     if(pdVerifyPath(gitPACK) != PD_TYPE_DIRECTORY)
@@ -1231,7 +1232,7 @@ void gfInitRepository
     FILE *configFile = fopen(confBuf, "r");
     if(!configFile)
     {
-        PD_WARN("could not read git config from '%s' to determine object ID size. "
+        GF_WARN("could not read git config from '%s' to determine object ID size. "
                 "Assuming 20 bytes.", confBuf);
     }
     else
@@ -1266,7 +1267,7 @@ void gfInitRepository
         {
             char tmpBuf[4096] = {0};
             StringView idxPath = pdSVConcat(gitPACK, fileBuf[i], tmpBuf);
-            PD_TRACE("reading packed commits from file: '"PRI_SV"'", ARG_SV(idxPath));
+            GF_TRACE("reading packed commits from file: '"PRI_SV"'", ARG_SV(idxPath));
             readPackedCommits(idxPath, objCache, commitTable, oidSize);
         }
     }
@@ -1274,7 +1275,7 @@ void gfInitRepository
     FILE *file = fopen(absoluteBuf, "rb");
     if(!file)
     {
-        PD_WARN("couldn't open repository: '"PRI_SV"'", ARG_SV(repo->path));
+        GF_WARN("couldn't open repository: '"PRI_SV"'", ARG_SV(repo->path));
         return;
     }
 
@@ -1290,14 +1291,14 @@ void gfInitRepository
 
     if(refLoc && !(refLoc == readHead.data))
     {
-        PD_TRACE("identified HEAD: '"PRI_SV"'", ARG_SV(readHead));
+        GF_TRACE("identified HEAD: '"PRI_SV"'", ARG_SV(readHead));
         gfGetCommitInfo(absolute, readHead, head, 0);
         goto closefile;
     }
 
     readHead.data += 5;
     readHead.size -= 5;
-    PD_TRACE("identified HEAD ref: '"PRI_SV"'", ARG_SV(readHead));
+    GF_TRACE("identified HEAD ref: '"PRI_SV"'", ARG_SV(readHead));
 
     StringView ref = pdCstrSV("/.git/");
     char refBuf[4096] = {0};
@@ -1307,7 +1308,7 @@ void gfInitRepository
 
     fclose(file);
 
-    PD_TRACE("opening ref under '%s'...", headBuf);
+    GF_TRACE("opening ref under '%s'...", headBuf);
 
     char hashBuf[64]   = {0};
 
@@ -1320,7 +1321,7 @@ void gfInitRepository
         {
             if(fread(&hashBuf[i], 1, 1, file) != 1)
             {
-                PD_ERROR("could not read HEAD commit from '"PRI_SV"'.",
+                GF_ERROR("could not read HEAD commit from '"PRI_SV"'.",
                          ARG_SV(readHead));
             }
         }
@@ -1334,7 +1335,7 @@ void gfInitRepository
         file = fopen(packedHeadBuf, "r");
         if(!file)
         {
-            PD_ERROR("found ref neither under '"PRI_SV"' nor in '"PRI_SV"'.",
+            GF_ERROR("found ref neither under '"PRI_SV"' nor in '"PRI_SV"'.",
                      ARG_SV(readHead), ARG_SV(packedHead));
             return;
         }
@@ -1357,7 +1358,7 @@ void gfInitRepository
     hash.data = hashBuf;
     hash.size = oidSize * 2;
 
-    PD_TRACE("identified HEAD: '"PRI_SV"'", ARG_SV(hash));
+    GF_TRACE("identified HEAD: '"PRI_SV"'", ARG_SV(hash));
     gfGetCommitInfo(repo->path, pdSVCpy(hash), head, commitTable);
 
 closefile:

@@ -31,14 +31,14 @@ vendor/datasurf/vendor/puddle/src/linux_pd_path.c \
 
 args_release="-O2"
 
-args_debug="-DDEBUG -g -O0"
+args_debug="-DDEBUG -DGF_DEBUG -g -O0"
 
 args_asan="$args_debug -DASAN \
 -fsanitize=address,leak,undefined \
 -fno-omit-frame-pointer \
 -static-libasan"
 
-args_trace="$args_debug -DTRACE"
+args_trace="$args_debug -DGF_TRACE"
 
 function compile()
 {
