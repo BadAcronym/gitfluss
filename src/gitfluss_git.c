@@ -6,6 +6,8 @@
 #include "pd_path.h"
 #include "pd_dyn_arr.h"
 
+#define TEN_MILLION 10000000
+
 s_global const StringView sep             = { .size = 1,  .data = "/"                 };
 s_global const StringView spaceKarat      = { .size = 2,  .data = " <"                };
 s_global const StringView karatSpace      = { .size = 2,  .data = "> "                };
@@ -661,12 +663,20 @@ f_internal bool readAndApplyDelta
         return false;
     }
 
-    uint8_t *deltaDataBuf = calloc(deltaDataSize, 1);
+    // PERF: we should really make this a scratch buffer. Deflate a little bit, then
+    // parse, then deflate if more is needed, etc. For that, I need to implement scratch
+    // reading in datasurf.
+    uint8_t *deltaDataBuf = malloc(deltaDataSize);
     if(!deltaDataBuf)
     {
         GF_ERROR("failed to allocate buffer for delta data, size %"PRIu64,
                  deltaDataSize);
         return false;
+    }
+
+    if(deltaDataSize > TEN_MILLION)
+    {
+        GF_TRACE("allocated large delta: deltaDataSize: %"PRIu64, deltaDataSize);
     }
 
     DeflateInfo info = dsReadZlibPtr(&packFile[*index], deltaDataBuf, deltaDataSize);
@@ -693,12 +703,17 @@ f_internal bool readAndApplyDelta
     printf("\n");
     #endif
 
-    uint8_t *resultObjBuf = calloc(resultSize, 1);
+    uint8_t *resultObjBuf = malloc(resultSize);
     if(!resultObjBuf)
     {
         GF_ERROR("failed to allocate buffer for result object, size %"PRIu64,
                  resultSize);
         goto error;
+    }
+
+    if(resultSize > TEN_MILLION)
+    {
+        GF_TRACE("allocated large result buffer: resultSize: %"PRIu64, resultSize);
     }
 
     if(baseSize != outInfo->size)
@@ -921,6 +936,11 @@ nocache:
             return false;
         }
 
+        if(outInfo->size > TEN_MILLION)
+        {
+            GF_TRACE("allocated large object: outInfo->size: %"PRIu64, outInfo->size);
+        }
+
         DeflateInfo dfInfo = dsReadZlibPtr(&packFile[*index], buf, outInfo->size);
 
         if(!dfInfo.success)
@@ -938,9 +958,6 @@ nocache:
         outInfo->data   = buf;
         outInfo->offset = entryStart;
         GF_TRACE("CACHING OBJECT (OTHER) FOR OFFSET: %"PRIu64, outInfo->offset);
-
-        // TESTING:
-        GF_TRACE(PRI_SV, ARG_SV(pdCstrSV((char*)outInfo->data)));
 
         pdArrPush(cache[lastTwo], *outInfo);
         return true;
