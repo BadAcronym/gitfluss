@@ -870,6 +870,17 @@ f_internal bool resolveObjRecurse
     }
 
 nocache:
+    if(*index == UINT64_MAX)
+    {
+        // TODO: read midx to find where this hash is, actually, then read & return from
+        // there
+
+        //
+        GF_WARN("TODO: HASH lookup unhandled.");
+        return false;
+        //
+    }
+
     if(!readObjectHeader(packFile, index, fileSize, outInfo))
     {
         GF_ERROR("failed to read object header from index %"PRIu64, *index);
@@ -1035,18 +1046,26 @@ nocache:
 
         GF_TRACE("read REF_DELTA object '"PRI_SV"'", ARG_SV(name));
 
-        // recursively read base object, looking up by object hash
-        // read delta (inflate)
-        // apply delta patch
+        uint64_t noIndex   = UINT64_MAX;
+        uint64_t deltaSize = outInfo->size;
+        info->firstCall = false;
+        info->index     = &noIndex;
 
-        //
-        GF_WARN("TODO: OBJ_REF_DELTA unhandled.");
-        return false;
-        //
+        if(!resolveObjRecurse(info))
+        {
+            GF_ERROR("could not read recursive object from OBJ_OFS_DELTA.");
+            return false;
+        }
+
+        if(!readAndApplyDelta(packFile, index, deltaSize, outInfo))
+        {
+            GF_ERROR("could not apply delta from OBJ_OFS_DELTA.");
+            return false;
+        }
 
         outInfo->offset = entryStart;
-        GF_TRACE("CACHING OBJECT (REF_DELTA) FOR OFFSET: %"PRIu64, outInfo->offset);
-        pdArrPush(cache[lastTwo], *outInfo);
+        GF_TRACE("CACHING OBJECT (REF_DELTA) FOR OFFSET: UINT64_MAX");
+        pdArrPush(cache[UINT64_MAX & 0xFF], *outInfo);
         return true;
     }
 
