@@ -360,6 +360,7 @@ f_internal void *gatherRepoData
             break;
         }
 
+        // ASAN: this is still not freed, always?
         StringView parentHash = pdSVCpy(commit.parentHash);
 
         if(!gfGetCommitInfo(repo.path, parentHash, &commit, table))
@@ -388,13 +389,15 @@ f_internal void *gatherRepoData
         uint64_t arraySize = pdArrSize(table[i]);
         for(uint64_t j = 0; j < arraySize; ++j)
         {
+            // pdSVFree(&table[i][j].authorMail);
+
             // NOTE: let asan cry for a bit until everything's done
-            // gfFreeCommit(&table[i][j]);
+            gfFreeCommit(&table[i][j]);
         }
         pdArrFree(table[i]);
     }
 
-    gfFreeCommit(&commit);
+    // gfFreeCommit(&commit);
     return 0;
 }
 

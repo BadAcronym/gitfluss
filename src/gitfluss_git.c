@@ -27,7 +27,7 @@ void gfFreeCommit
 (
     gfCommitInfo *commit
 ){
-    commit->authorTime   = 0;
+    commit->authorTime    = 0;
     commit->committerTime = 0;
 
     pdSVFree(&commit->hash);
@@ -1153,6 +1153,25 @@ f_internal void readCommitsFromOffsets
     }
 
 closefile:
+    for(uint16_t i = 0; i < 256; ++i)
+    {
+        if(!cache[i])
+        {
+            continue;
+        }
+
+        uint64_t arrSize = pdArrSize(cache[i]);
+        for(uint64_t j = 0; j < arrSize; ++j)
+        {
+            if(cache[i][j].data)
+            {
+                free(cache[i][j].data);
+            }
+        }
+
+        pdArrFree(cache[i]);
+    }
+
     if(packFile)
     {
         free(packFile);
