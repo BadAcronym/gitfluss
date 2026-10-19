@@ -6,6 +6,8 @@
 #include "pd_path.h"
 #include "pd_dyn_arr.h"
 
+#include <memory.h>
+
 #define TEN_MILLION 10000000
 
 s_global const StringView sep             = { .size = 1,  .data = "/"                 };
@@ -133,36 +135,6 @@ f_internal bool verifyCommit
 }
 #endif
 
-f_internal bool readLine
-(
-    uint8_t  *buffer,
-    uint64_t bufsize,
-    uint64_t *index,
-    String   *line
-){
-    line->size = 0;
-
-    if(*index >= bufsize)
-    {
-        return 0;
-    }
-
-    for(uint64_t i = 0; *index < bufsize; ++i)
-    {
-        line->data[i] = (char)buffer[*index];
-        ++line->size;
-        ++(*index);
-
-        if(line->data[i] == '\0' || line->data[i] == '\n')
-        {
-            line->size -= 1;
-            break;
-        }
-    }
-
-    return line->size;
-}
-
 f_internal bool readCommitFromPtr
 (
     uint8_t      *commitBuf,
@@ -180,8 +152,12 @@ f_internal bool readCommitFromPtr
     String line = {0};
     line.data = lineBuf;
 
+    StringView commitBufSV = {0};
+    commitBufSV.data = (char*)commitBuf;
+    commitBufSV.size = bufsize;
+
     uint64_t index = 0;
-    while(readLine(commitBuf, bufsize, &index, &line))
+    while(pdSVReadLine(commitBufSV, &index, &line))
     {
         if(pdSVFind(parentIdent, *((StringView*)&line)) == line.data)
         {
@@ -240,7 +216,7 @@ f_internal bool readCommitFromPtr
         }
     }
 
-    if(readLine(commitBuf, bufsize, &index, &line))
+    if(pdSVReadLine(commitBufSV, &index, &line))
     {
         commit->summary = pdSVCpy(*((StringView*)&line));
     }
