@@ -624,7 +624,7 @@ f_internal u64 readDeltaSize
     return size;
 }
 
-f_internal bool readAndApplyDelta
+f_internal u08 *readDelta
 (
     u08        *packFile,
     u64        *index,
@@ -647,7 +647,7 @@ f_internal bool readAndApplyDelta
     {
         GF_ERROR("failed to allocate buffer for delta data, size %"PRIu64,
                  deltaDataSize);
-        return false;
+        return 0;
     }
 
     if(deltaDataSize > TEN_MILLION)
@@ -661,14 +661,27 @@ f_internal bool readAndApplyDelta
         GF_ERROR("failed to read Zlib compressed data from packFile at index %"PRIu64
                  ". Read %"PRIu64" compressed bytes and wrote %"PRIu64" bytes.",
                  *index, info.bytesRead, info.bytesWritten);
-        goto error;
+        free(deltaDataBuf);
+        return 0;
     }
 
-    u64 cursor     = 0;
-    u64 baseSize   = readDeltaSize(deltaDataBuf, &cursor, deltaDataSize);
-    u64 resultSize = readDeltaSize(deltaDataBuf, &cursor, deltaDataSize);
+    return deltaDataBuf;
+}
 
+f_internal bool applyDelta
+(
+    u08        *packFile,
+    u64        *index,
+    u64        deltaDataSize,
+    u08        *deltaDataBuf,
+    gfPackInfo *outInfo,
+    u64        *cursorPos,
+    u64        baseSize,
+    u64        resultSize
+){
     GF_TRACE("applying delta...");
+
+    u64 cursor = *cursorPos;
 
     #ifdef TRACE
     printf("full bytes:\n");
@@ -803,6 +816,28 @@ f_internal bool readAndApplyDelta
 error:
     free(deltaDataBuf);
     return false;
+}
+
+// TODO: refactor these shenanigans to:
+// not allocate a huge buffer upfront for a large object (size > 1M),
+// but instead work on a scratch buffer. Read at the latest possible time, exactly how
+// many bytes you need, none more.
+// Large objects should not be cached.
+f_internal bool readAndApplyDelta
+(
+    u08        *packFile,
+    u64        *index,
+    u64        deltaDataSize,
+    gfPackInfo *outInfo
+){
+    u08 *deltaDataBuf = readDelta(packFile, index, deltaDataSize, outInfo);
+
+    u64 cursor     = 0;
+    u64 baseSize   = readDeltaSize(deltaDataBuf, &cursor, deltaDataSize);
+    u64 resultSize = readDeltaSize(deltaDataBuf, &cursor, deltaDataSize);
+
+    return applyDelta(packFile, index, deltaDataSize, deltaDataBuf, outInfo, &cursor,
+                      baseSize, resultSize);
 }
 
 // PERF: calls to this function should be multi-threaded, this is an absolute
