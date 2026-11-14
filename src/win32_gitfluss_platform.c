@@ -4,14 +4,14 @@
 
 #include <process.h>
 
-int64_t gfQueryTime
+i64 gfQueryTime
 (
     void
 ){
     return time(0);
 }
 
-uint64_t gfQueryMonotonic
+u64 gfQueryMonotonic
 (
     void
 ){
@@ -27,22 +27,22 @@ uint64_t gfQueryMonotonic
     LARGE_INTEGER counter;
     QueryPerformanceCounter(&counter);
 
-    uint64_t seconds   = counter.QuadPart / freq.QuadPart;
-    uint64_t remainder = counter.QuadPart % freq.QuadPart;
+    u64 seconds   = counter.QuadPart / freq.QuadPart;
+    u64 remainder = counter.QuadPart % freq.QuadPart;
 
-    uint64_t nanoseconds = (remainder * BILLION) / freq.QuadPart;
+    u64 nanoseconds = (remainder * BILLION) / freq.QuadPart;
 
     return seconds * BILLION + nanoseconds;
 }
 
-int64_t gfQueryTimezoneOffset
+i64 gfQueryTimezoneOffset
 (
     void
 ){
     TIME_ZONE_INFORMATION zoneInfo = {0};
 
-    DWORD   daylight = GetTimeZoneInformation(&zoneInfo);
-    int64_t result   = zoneInfo.Bias * 60;
+    DWORD daylight = GetTimeZoneInformation(&zoneInfo);
+    i64   result   = zoneInfo.Bias * 60;
 
     if(daylight == TIME_ZONE_ID_STANDARD)
     {

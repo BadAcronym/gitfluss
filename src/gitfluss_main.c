@@ -5,7 +5,6 @@
 
 #include "pd_dyn_arr.h"
 
-#include <stdint.h>
 #include <stdio.h>
 
 s_global const char *months[12] =
@@ -70,10 +69,10 @@ s_global const char *colours[40] =
     "\033[38;2;255;255;255m",
 };
 
-f_internal uint8_t daysInMonth
+f_internal u08 daysInMonth
 (
-    uint8_t month,
-    uint8_t leapYear
+    u08 month,
+    u08 leapYear
 ){
     if(month == 1 && leapYear)
     {
@@ -97,7 +96,7 @@ f_internal void printCorrespondingHeat
 (
     gfConf        *config,
     gfPercentiles *percentiles,
-    uint32_t      commitCount
+    u32           commitCount
 ){
     if(!commitCount)
     {
@@ -152,7 +151,7 @@ f_internal void printCorrespondingHeat
         return;
     }
 
-    uint8_t    colour     = config->colour;
+    u08        colour     = config->colour;
     const char *character = config->character;
     if(!character)
     {
@@ -186,16 +185,16 @@ f_internal void printCorrespondingHeat
 f_internal void printHeatMap
 (
     gfHeatmapSettings *set,
-    uint8_t           yearsBack
+    u08               yearsBack
 ){
-    uint8_t currentWeekday = 0;
+    u08 currentWeekday = 0;
     printf("     ");
 
-    for(uint8_t i = 0; i < 13; ++i)
+    for(u08 i = 0; i < 13; ++i)
     {
-        uint8_t indexedMonth   = (set->currentMonth + i) % 12;
-        uint8_t remainingDays  = daysInMonth(indexedMonth, set->leapYear);
-        uint8_t remainingWeeks = (remainingDays + currentWeekday) / 7;
+        u08 indexedMonth   = (set->currentMonth + i) % 12;
+        u08 remainingDays  = daysInMonth(indexedMonth, set->leapYear);
+        u08 remainingWeeks = (remainingDays + currentWeekday) / 7;
 
         if(i == 0)
         {
@@ -207,20 +206,20 @@ f_internal void printHeatMap
         {
             printf("%s", months[indexedMonth]);
 
-            for(uint8_t j = 3; j < remainingWeeks; ++j)
+            for(u08 j = 3; j < remainingWeeks; ++j)
             {
                 printf(" ");
             }
         }
         else
         {
-            for(uint8_t j = 0; j < remainingWeeks; ++j)
+            for(u08 j = 0; j < remainingWeeks; ++j)
             {
                 printf(" ");
             }
         }
 
-        for(uint8_t j = 0; j < remainingDays; ++j)
+        for(u08 j = 0; j < remainingDays; ++j)
         {
             if(++currentWeekday > 6)
             {
@@ -230,9 +229,9 @@ f_internal void printHeatMap
     }
     printf("\n");
 
-    for(uint8_t i = 0; i < 7; ++i)
+    for(u08 i = 0; i < 7; ++i)
     {
-        int64_t offset = (yearsBack + 1) * 365;
+        i64 offset = (yearsBack + 1) * 365;
         printf(" %s ", days[i]);
         for(int16_t j = i - set->weekday365; j < 366; j += 7)
         {
@@ -252,11 +251,11 @@ f_internal void *gatherRepoData
     gfThreadData      *data       = (gfThreadData*)arguments;
     gfDisplaySettings *set        = data->set;
     StringView        *authorlist = data->authorlist;
-    uint32_t          authorcount = data->authorcount;
-    uint8_t           flags       = data->flags;
+    u32               authorcount = data->authorcount;
+    u08               flags       = data->flags;
 
-    int64_t  currDayStart    = set->currDayEnd - (24 * 3600);
-    uint32_t repoCommitCount = 0;
+    i64 currDayStart    = set->currDayEnd - (24 * 3600);
+    u32 repoCommitCount = 0;
 
     bool anyAuthor = false;
 
@@ -297,7 +296,7 @@ f_internal void *gatherRepoData
             goto nextCommit;
         }
 
-        for(uint16_t j = 0; !counts && j < authorcount; ++j)
+        for(u16 j = 0; !counts && j < authorcount; ++j)
         {
             if(pdSVSame(authorlist[j], author))
             {
@@ -317,7 +316,7 @@ f_internal void *gatherRepoData
         if(counts)
         {
             ++repoCommitCount;
-            int64_t daysSince = (set->currDayEnd - commit.authorTime) / (24 * 3600);
+            i64 daysSince = (set->currDayEnd - commit.authorTime) / (24 * 3600);
 
             gfLock(set);
             if(commit.authorTime < set->oldestCommitTime)
@@ -344,8 +343,8 @@ f_internal void *gatherRepoData
                 // end.
                 printf("("PRI_SV")\n[%02u:%02u]: "PRI_SV"\n\n",
                        ARG_SV(repo.path),
-                       (uint32_t)(commit.authorTime - currDayStart) / 3600,
-                       (uint32_t)(commit.authorTime % 3600) / 60,
+                       (u32)(commit.authorTime - currDayStart) / 3600,
+                       (u32)(commit.authorTime % 3600) / 60,
                        ARG_SV(commit.summary));
             }
         }
@@ -379,15 +378,15 @@ f_internal void *gatherRepoData
         gfUnlock(set);
     }
 
-    for(uint16_t i = 0; i < 256; ++i)
+    for(u16 i = 0; i < 256; ++i)
     {
         if(!table[i])
         {
             continue;
         }
 
-        uint64_t arraySize = pdArrSize(table[i]);
-        for(uint64_t j = 0; j < arraySize; ++j)
+        u64 arraySize = pdArrSize(table[i]);
+        for(u64 j = 0; j < arraySize; ++j)
         {
             // pdSVFree(&table[i][j].authorMail);
 
@@ -406,7 +405,7 @@ f_internal void gatherData
     gfConf            *config,
     gfDisplaySettings *set
 ){
-    uint32_t   authorcount = pdSVCountByDelim(config->authors, ';');
+    u32 authorcount = pdSVCountByDelim(config->authors, ';');
     StringView authorlist[authorcount];
 
     pdSVSeparateByDelim(config->authors, authorlist, ';', authorcount);
@@ -416,7 +415,7 @@ f_internal void gatherData
 
     GF_TRACE("dispatching %u threads.", set->repositoryCount);
 
-    for(uint32_t i = 0; i < set->repositoryCount; ++i)
+    for(u32 i = 0; i < set->repositoryCount; ++i)
     {
         threadData[i].id          = i;
         threadData[i].repository  = pdSVFindByDelim(config->repositories, ';', i);
@@ -431,7 +430,7 @@ f_internal void gatherData
         gfDispatchThread(&threads[i], (void*)gatherRepoData, &threadData[i]);
     }
 
-    for(uint32_t i = 0; i < set->repositoryCount; ++i)
+    for(u32 i = 0; i < set->repositoryCount; ++i)
     {
         GF_TRACE("waiting on thread #%u", i);
         gfWaitThread(threads[i]);
@@ -441,13 +440,13 @@ f_internal void gatherData
 f_internal void calculateHeatmap
 (
     gfHeatmapSettings *set,
-    uint8_t           silent
+    u08               silent
 ){
     set->yearsEpoch = 0;
 
-    int64_t days_epoch    = set->now / (24 * 3600);
-    int64_t currYearStart = 0;
-    for(uint32_t i = 0; i < days_epoch;)
+    i64 daysEpoch    = set->now / (24 * 3600);
+    i64 currYearStart = 0;
+    for(u32 i = 0; i < daysEpoch;)
     {
         ++set->yearsEpoch;
 
@@ -469,16 +468,16 @@ f_internal void calculateHeatmap
         }
     }
 
-    uint8_t currentMonth   = 0;
-    int64_t currMonthStart = currYearStart;
-    for(uint16_t i = 0; i < 365; ++i)
+    u08 currentMonth   = 0;
+    i64 currMonthStart = currYearStart;
+    for(u16 i = 0; i < 365; ++i)
     {
         if(currYearStart + i * 24 * 3600 > set->now)
         {
             break;
         }
 
-        uint8_t daysThisMonth = daysInMonth(currentMonth, set->yearsEpoch % 4 == 2);
+        u08 daysThisMonth = daysInMonth(currentMonth, set->yearsEpoch % 4 == 2);
 
         i += daysThisMonth;
         if(currMonthStart + daysThisMonth * 24 * 3600 > set->now)
@@ -489,18 +488,18 @@ f_internal void calculateHeatmap
         currMonthStart += daysThisMonth * 24 * 3600;
     }
 
-    uint8_t weekday365 = (3 + (uint8_t)(days_epoch - 364)) % 7;
+    u08 weekday365 = (3 + (u08)(daysEpoch - 364)) % 7;
     if(set->yearsEpoch % 4 == 2)
     {
         ++weekday365;
         weekday365 %= 7;
     }
-    int64_t dayEnd       = set->now - set->now % (24 * 3600) + 24 * 3600;
-    uint8_t day_of_month = (uint8_t)((dayEnd - currMonthStart) / (24 * 3600));
+    i64 dayEnd       = set->now - set->now % (24 * 3600) + 24 * 3600;
+    u08 dayOfMonth = (u08)((dayEnd - currMonthStart) / (24 * 3600));
 
     set->currentMonth = currentMonth;
     set->weekday365   = weekday365;
-    set->day_of_month = day_of_month;
+    set->day_of_month = dayOfMonth;
     set->leapYear     = set->yearsEpoch % 4 == 2;
     set->now          = set->now + 365 * 24 * 3600;
     if(set->leapYear)
@@ -514,14 +513,14 @@ f_internal void calculateHeatmap
     }
 
     GF_DEBUG("\n");
-    GF_DEBUG("full days since epoch:   %"PRIu64, days_epoch);
+    GF_DEBUG("full days since epoch:   %"PRIu64, daysEpoch);
     GF_DEBUG("full years since epoch:  %"PRIu32, set->yearsEpoch);
     GF_DEBUG("now, unix time:          %"PRIu64, set->now);
     GF_DEBUG("current year start:      %"PRIu64, currYearStart);
     GF_DEBUG("current month:           %"PRIu32, currentMonth);
     GF_DEBUG("current month start:     %"PRIu64, currMonthStart);
     GF_DEBUG("weekday 365 days ago:    %s",      days[weekday365]);
-    GF_DEBUG("day of the month, today: %"PRIu8,  day_of_month);
+    GF_DEBUG("day of the month, today: %"PRIu8,  dayOfMonth);
     GF_DEBUG("\n");
 }
 
@@ -530,15 +529,15 @@ f_internal void displayData
     gfConf            *config,
     gfDisplaySettings *set
 ){
-    int64_t daysCommit = (set->heatSet->now - set->oldestCommitTime) / (24 * 3600);
+    i64 daysCommit = (set->heatSet->now - set->oldestCommitTime) / (24 * 3600);
 
-    uint32_t max       = 0;
-    uint32_t maxday    = 0;
-    uint32_t zerocount = 0;
+    u32 max       = 0;
+    u32 maxday    = 0;
+    u32 zerocount = 0;
 
-    for(uint32_t i = 0; i < 365; ++i)
+    for(u32 i = 0; i < 365; ++i)
     {
-        for(uint32_t j = 0; j < 365 - i; ++j)
+        for(u32 j = 0; j < 365 - i; ++j)
         {
             if(set->sorted[j] > max)
             {
@@ -548,44 +547,44 @@ f_internal void displayData
 
             if(set->sorted[j] > set->sorted[j + 1])
             {
-                uint32_t tmp = set->sorted[j];
+                u32 tmp = set->sorted[j];
                 set->sorted[j]     = set->sorted[j + 1];
                 set->sorted[j + 1] = tmp;
             }
         }
     }
 
-    for(uint16_t i = 0; i < 365 && !set->sorted[i]; ++i)
+    for(u16 i = 0; i < 365 && !set->sorted[i]; ++i)
     {
         ++zerocount;
     }
 
-    uint16_t d20_sep = (uint16_t)((float)(365 - zerocount) * 0.20f);
-    uint16_t d50_sep = (uint16_t)((float)(365 - zerocount) * 0.50f);
-    uint16_t d70_sep = (uint16_t)((float)(365 - zerocount) * 0.70f);
-    uint16_t d90_sep = (uint16_t)((float)(365 - zerocount) * 0.90f);
+    u16 d20Sep = (u16)((f32)(365 - zerocount) * 0.20f);
+    u16 d50Sep = (u16)((f32)(365 - zerocount) * 0.50f);
+    u16 d70Sep = (u16)((f32)(365 - zerocount) * 0.70f);
+    u16 d90Sep = (u16)((f32)(365 - zerocount) * 0.90f);
 
     gfPercentiles percentiles = {0};
-    percentiles.d20 = set->sorted[zerocount + d20_sep];
-    percentiles.d50 = set->sorted[zerocount + d50_sep];
-    percentiles.d70 = set->sorted[zerocount + d70_sep];
-    percentiles.d90 = set->sorted[zerocount + d90_sep];
+    percentiles.d20 = set->sorted[zerocount + d20Sep];
+    percentiles.d50 = set->sorted[zerocount + d50Sep];
+    percentiles.d70 = set->sorted[zerocount + d70Sep];
+    percentiles.d90 = set->sorted[zerocount + d90Sep];
 
     GF_DEBUG("\n");
     GF_DEBUG("found 0-days:  %"PRIu32, zerocount);
-    GF_DEBUG("found d20_sep: %"PRIu32, d20_sep);
-    GF_DEBUG("found d50_sep: %"PRIu32, d50_sep);
-    GF_DEBUG("found d70_sep: %"PRIu32, d70_sep);
-    GF_DEBUG("found d90_sep: %"PRIu32, d90_sep);
+    GF_DEBUG("found d20_sep: %"PRIu32, d20Sep);
+    GF_DEBUG("found d50_sep: %"PRIu32, d50Sep);
+    GF_DEBUG("found d70_sep: %"PRIu32, d70Sep);
+    GF_DEBUG("found d90_sep: %"PRIu32, d90Sep);
     GF_DEBUG("found d20: %"PRIu32, percentiles.d20);
     GF_DEBUG("found d50: %"PRIu32, percentiles.d50);
     GF_DEBUG("found d70: %"PRIu32, percentiles.d70);
     GF_DEBUG("found d90: %"PRIu32, percentiles.d90);
     GF_DEBUG("\n");
 
-    int64_t yearStart   = set->heatSet->now;
-    int64_t currentYear = 0;
-    for(uint8_t i = 0; i < config->years; ++i)
+    i64 yearStart   = set->heatSet->now;
+    i64 currentYear = 0;
+    for(u08 i = 0; i < config->years; ++i)
     {
         currentYear = 1970 + (yearStart / (365 * 24 * 3600));
         yearStart -= 365 * 24 * 3600;
@@ -617,13 +616,13 @@ f_internal void displayData
         printf("\n");
     #endif
 
-    uint32_t currentStreak      = 0;
-    uint8_t  brokeCurrentStreak = 0;
+    u32 currentStreak      = 0;
+    u08 brokeCurrentStreak = 0;
 
-    uint32_t streak        = 0;
-    uint32_t longestStreak = 0;
+    u32 streak        = 0;
+    u32 longestStreak = 0;
 
-    for(uint32_t i = 0; i < MAX_DAYS; ++i)
+    for(u32 i = 0; i < MAX_DAYS; ++i)
     {
         if(!brokeCurrentStreak && !set->heatSet->heatmap[i])
         {
@@ -655,8 +654,8 @@ f_internal void displayData
 
     if(config->flags & GF_FLAG_INFO)
     {
-        float percentage = 100.0f * (float)set->personalCommitCount /
-                           (float)set->totalCommitCount;
+        f32 percentage = 100.0f * (f32)set->personalCommitCount /
+                         (f32)set->totalCommitCount;
 
         printf("\n%"PRIu64" commits analyzed across %"PRIu32" repositories.\n",
                set->totalCommitCount, set->repositoryCount);
@@ -686,9 +685,9 @@ f_internal void displayData
         return;
     }
 
-    for(uint8_t i = 0; i < config->years; ++i)
+    for(u08 i = 0; i < config->years; ++i)
     {
-        uint32_t currPrintYear = 1970 + heatSet.yearsEpoch;
+        u32 currPrintYear = 1970 + heatSet.yearsEpoch;
         if(currPrintYear < 1971)
         {
             GF_WARN("skipping year frame [%u] because you could not possibly have git "
@@ -747,14 +746,14 @@ int main
                             ENABLE_VIRTUAL_TERMINAL_PROCESSING);
     #endif
 
-    uint64_t now = gfQueryMonotonic();
+    u64 now = gfQueryMonotonic();
 
     char sortedRepos[MAX_PATH * 128];
     char sortedAuthors[MAX_PATH * 4];
     char biggestRepoBuf[MAX_PATH + 1];
 
-    uint32_t heatmap[MAX_DAYS] = {0};
-    uint32_t sorted[366]       = {0};
+    u32 heatmap[MAX_DAYS] = {0};
+    u32 sorted[366]       = {0};
 
     gfConf config = {0};
     config.sortedRepos   = sortedRepos;
@@ -783,20 +782,20 @@ int main
         gfAddPath(&config, fallback);
     }
 
-    int64_t timezoneOffset = gfQueryTimezoneOffset();
+    i64 timezoneOffset = gfQueryTimezoneOffset();
     GF_DEBUG("queried timezoneOffset: %"PRIi64, timezoneOffset);
 
     gfHeatmapSettings heatSet = {0};
     heatSet.heatmap = heatmap;
     heatSet.now     = gfQueryTime();
 
-    int64_t nowAdjusted = heatSet.now + timezoneOffset;
+    i64 nowAdjusted = heatSet.now + timezoneOffset;
 
     gfDisplaySettings set = {0};
     set.heatSet           = &heatSet;
     set.sorted            = sorted;
     set.biggestRepoBuf    = biggestRepoBuf;
-    set.oldestCommitTime  = INT64_MAX;
+    set.oldestCommitTime  = I64MAX;
     set.repositoryCount   = pdSVCountByDelim(config.repositories, ';');
     set.currDayEnd        = (heatSet.now - nowAdjusted % (24 * 3600) + 24 * 3600);
 
@@ -808,7 +807,7 @@ int main
         set.lockSet = &lock;
     #endif
 
-    uint64_t gfInitTime = gfQueryMonotonic() - now;
+    u64 gfInitTime = gfQueryMonotonic() - now;
     now = gfQueryMonotonic();
 
     // TESTING: set start & end time manually
@@ -817,26 +816,26 @@ int main
 
     gatherData(&config, &set);
 
-    uint64_t gathering = gfQueryMonotonic() - now;
+    u64 gathering = gfQueryMonotonic() - now;
     now = gfQueryMonotonic();
 
     displayData(&config, &set);
 
-    uint64_t printing = gfQueryMonotonic() - now;
+    u64 printing = gfQueryMonotonic() - now;
 
     if(config.flags & GF_FLAG_PROFILE)
     {
-        float printMS   = (float)printing      / 1e6f;
-        float gfinitMS  = (float)gfInitTime    / 1e6f;
-        float gatherMS  = (float)gathering     / 1e6f;
-        float perCommit = (gatherMS + printMS) / (float)set.totalCommitCount;
+        f32 printMS   = (f32)printing      / 1e6f;
+        f32 gfinitMS  = (f32)gfInitTime    / 1e6f;
+        f32 gatherMS  = (f32)gathering     / 1e6f;
+        f32 perCommit = (gatherMS + printMS) / (f32)set.totalCommitCount;
 
         printf("gitfluss init: %10.5f ms\n", gfinitMS);
         printf("gather time:   %10.5f ms\n", gatherMS);
         printf("print time:    %10.5f ms\n", printMS);
         printf("per commit:    %10.5f ms\n", perCommit);
         printf("effective:     %10.0f commits/s\n\n",
-               (float)set.totalCommitCount / (gatherMS + printMS) * 1e3);
+               (f32)set.totalCommitCount / (gatherMS + printMS) * 1e3);
     }
 
     if(config.character)

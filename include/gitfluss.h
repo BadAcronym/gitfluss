@@ -3,8 +3,6 @@
 
 #include "pd_string_view.h"
 
-#include <stdint.h>
-#include <stdbool.h>
 #include <inttypes.h>
 
 #ifdef BUILD_LINUX
@@ -40,6 +38,7 @@
 #endif
 
 #define f_internal static
+#define s_global   static
 #define BILLION    1000000000L
 
 #define bool  _Bool
@@ -91,24 +90,24 @@ typedef struct gfConf
     const char *mono2;
     const char *mono3;
     const char *mono4;
-    uint16_t   startYear;
-    uint16_t   endYear;
-    uint8_t    percentile0;
-    uint8_t    percentile1;
-    uint8_t    percentile2;
-    uint8_t    percentile3;
-    uint8_t    colour;
-    uint8_t    years;
-    uint8_t    flags;
+    u16        startYear;
+    u16        endYear;
+    u08        percentile0;
+    u08        percentile1;
+    u08        percentile2;
+    u08        percentile3;
+    u08        colour;
+    u08        years;
+    u08        flags;
 }
 gfConf;
 
 typedef struct gfPercentiles
 {
-    uint32_t d20;
-    uint32_t d50;
-    uint32_t d70;
-    uint32_t d90;
+    u32 d20;
+    u32 d50;
+    u32 d70;
+    u32 d90;
 }
 gfPercentiles;
 
@@ -116,15 +115,15 @@ typedef struct gfHeatmapSettings
 {
     gfConf        *config;
     gfPercentiles *percentiles;
-    uint32_t      *heatmap;
-    uint16_t      startYear;
-    uint16_t      endYear;
-    int64_t       now;
-    uint8_t       currentMonth;
-    uint8_t       weekday365;
-    uint8_t       day_of_month;
-    uint8_t       leapYear;
-    uint8_t       yearsEpoch;
+    u32           *heatmap;
+    u16           startYear;
+    u16           endYear;
+    i64           now;
+    u08           currentMonth;
+    u08           weekday365;
+    u08           day_of_month;
+    u08           leapYear;
+    u08           yearsEpoch;
 }
 gfHeatmapSettings;
 
@@ -132,33 +131,33 @@ typedef struct gfDisplaySettings
 {
     gfHeatmapSettings *heatSet;
     StringView        biggestRepo;
-    uint64_t          totalCommitCount;
-    uint64_t          personalCommitCount;
-    uint32_t          repositoryCount;
-    uint32_t          commitsToday;
-    uint32_t          repoMax;
-    uint32_t          *sorted;
-    int64_t           startYearTime;
-    int64_t           endYearTime;
-    int64_t           currDayEnd;
-    int64_t           oldestCommitTime;
+    u64               totalCommitCount;
+    u64               personalCommitCount;
+    u32               repositoryCount;
+    u32               commitsToday;
+    u32               repoMax;
+    u32               *sorted;
+    i64               startYearTime;
+    i64               endYearTime;
+    i64               currDayEnd;
+    i64               oldestCommitTime;
     char              *biggestRepoBuf;
 
     #ifdef BUILD_LINUX
-    pthread_mutex_t mutexSet;
+    pthread_mutex_t   mutexSet;
     #endif
 
     #ifdef BUILD_WINDOWS
-    PSRWLOCK lockSet;
+    PSRWLOCK          lockSet;
     #endif
 }
 gfDisplaySettings;
 
 typedef struct gfThreadData
 {
-    uint8_t           flags;
-    uint32_t          id;
-    uint32_t          authorcount;
+    u08               flags;
+    u32               id;
+    u32               authorcount;
     StringView        repository;
     StringView        *authorlist;
     gfDisplaySettings *set;
@@ -167,10 +166,10 @@ gfThreadData;
 
 typedef struct gfPackInfo
 {
-    uint8_t  *data;
-    uint8_t  type;
-    uint64_t size;
-    uint64_t offset;
+    u08 *data;
+    u08 type;
+    u64 size;
+    u64 offset;
 }
 gfPackInfo;
 
@@ -183,8 +182,8 @@ typedef struct gfCommitInfo
     StringView authorMail;
     StringView committerName;
     StringView committerMail;
-    int64_t    authorTime;
-    int64_t    committerTime;
+    i64        authorTime;
+    i64        committerTime;
 }
 gfCommitInfo;
 
@@ -198,34 +197,34 @@ gfRepository;
 typedef struct gfObjectOffset
 {
     StringView hash;
-    uint32_t   offset;
+    u32        offset;
 }
 gfObjectOffset;
 
 typedef struct gfRecurseInfo
 {
-    uint8_t    *packFile;
+    u08        *packFile;
     StringView hash;
     gfPackInfo **cache;
-    uint64_t   *index;
-    uint8_t    oidSize;
-    uint64_t   fileSize;
+    u64        *index;
+    u08        oidSize;
+    u64        fileSize;
     gfPackInfo *outInfo;
     bool       firstCall;
 }
 gfRecurseInfo;
 
-extern int64_t gfQueryTime
+extern i64 gfQueryTime
 (
     void
 );
 
-extern uint64_t gfQueryMonotonic
+extern u64 gfQueryMonotonic
 (
     void
 );
 
-extern int64_t gfQueryTimezoneOffset
+extern i64 gfQueryTimezoneOffset
 (
     void
 );

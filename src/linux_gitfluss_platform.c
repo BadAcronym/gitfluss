@@ -1,6 +1,6 @@
 #include "gitfluss.h"
 
-int64_t gfQueryTime
+i64 gfQueryTime
 (
     void
 ){
@@ -10,17 +10,17 @@ int64_t gfQueryTime
     return spec.tv_sec;
 }
 
-uint64_t gfQueryMonotonic
+u64 gfQueryMonotonic
 (
     void
 ){
     struct timespec spec;
     clock_gettime(CLOCK_MONOTONIC, &spec);
 
-    return (uint64_t)spec.tv_sec * BILLION + (uint64_t)spec.tv_nsec;
+    return (u64)spec.tv_sec * BILLION + (u64)spec.tv_nsec;
 }
 
-int64_t gfQueryTimezoneOffset
+i64 gfQueryTimezoneOffset
 (
     void
 ){

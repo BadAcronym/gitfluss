@@ -43,7 +43,7 @@ void gfFreeCommit
 
 f_internal char valueToHexChar
 (
-    uint8_t value
+    u08 value
 ){
     GF_ASSERT(value < 0x10, "cannot express values bigger than 15 in 4 bits.");
 
@@ -55,41 +55,41 @@ f_internal char valueToHexChar
     return value + 0x30;
 }
 
-f_internal uint8_t twoCharsToByte
+f_internal u08 twoCharsToByte
 (
     char c1,
     char c2
 ){
-    uint8_t v1 = 0;
-    uint8_t v2 = 0;
+    u08 v1 = 0;
+    u08 v2 = 0;
 
     GF_ASSERT((c1 > 0x2F && c1 < 0x3A) || (c1 > 0x60 && c1 < 0x67),
               "c1 outside of valid range. passed char: '%c' (0x%X)", c1, c1);
     GF_ASSERT((c2 > 0x2F && c2 < 0x3A) || (c2 > 0x60 && c2 < 0x67),
               "c2 outside of valid range. passed char: '%c' (0x%X)", c2, c2);
 
-    v1 = (uint8_t)c1 - '0';
+    v1 = (u08)c1 - '0';
     if(c1 > 0x60)
     {
-        v1 = (uint8_t)c1 - 0x57;
+        v1 = (u08)c1 - 0x57;
     }
 
-    v2 = (uint8_t)c2 - '0';
+    v2 = (u08)c2 - '0';
     if(c2 > 0x60)
     {
-        v2 = (uint8_t)c2 - 0x57;
+        v2 = (u08)c2 - 0x57;
     }
 
-    return (uint8_t)((v1 << 4) | v2);
+    return (u08)((v1 << 4) | v2);
 }
 
-f_internal int64_t readTimeFromStr
+f_internal i64 readTimeFromStr
 (
     String str
 ){
-    int64_t time = 0;
+    i64 time = 0;
 
-    for(uint8_t i = 0; i < str.size; ++i)
+    for(u08 i = 0; i < str.size; ++i)
     {
         if(str.data[i] == 0x20 || str.data[i] == 0x0A || !str.data[i])
         {
@@ -109,7 +109,7 @@ f_internal bool verifyCommit
 ){
     char c = 0;
 
-    for(uint8_t i = 0; i < commit->hash.size; ++i)
+    for(u08 i = 0; i < commit->hash.size; ++i)
     {
         c = commit->hash.data[i];
         if(!(c > 0x2F && c < 0x3A) && !(c > 0x60 && c < 0x67))
@@ -120,7 +120,7 @@ f_internal bool verifyCommit
         }
     }
 
-    for(uint8_t i = 0; i < commit->parentHash.size; ++i)
+    for(u08 i = 0; i < commit->parentHash.size; ++i)
     {
         c = commit->parentHash.data[i];
         if(!(c > 0x2F && c < 0x3A) && !(c > 0x60 && c < 0x67))
@@ -137,10 +137,10 @@ f_internal bool verifyCommit
 
 f_internal bool readCommitFromPtr
 (
-    uint8_t      *commitBuf,
+    u08          *commitBuf,
     gfCommitInfo *commit,
     StringView   hash,
-    uint64_t     bufsize
+    u64          bufsize
 ){
     GF_ASSERT(commitBuf, "passed nullptr buffer to readCommitFromPtr.");
     GF_ASSERT(commit,    "passed nullptr commit to readCommitFromPtr.");
@@ -156,7 +156,7 @@ f_internal bool readCommitFromPtr
     commitBufSV.data = (char*)commitBuf;
     commitBufSV.size = bufsize;
 
-    uint64_t index = 0;
+    u64 index = 0;
     while(pdSVReadLine(commitBufSV, &index, &line))
     {
         if(pdSVFind(parentIdent, *((StringView*)&line)) == line.data)
@@ -172,7 +172,7 @@ f_internal bool readCommitFromPtr
 
             StringView authorName = {0};
             authorName.data = line.data + authorIdent.size + 1;
-            authorName.size = (uint64_t)(karatLoc - authorName.data);
+            authorName.size = (u64)(karatLoc - authorName.data);
 
             line.data = line.data + authorName.size;
             line.size -= authorName.size + 2;
@@ -181,7 +181,7 @@ f_internal bool readCommitFromPtr
 
             StringView authorMail = {0};
             authorMail.data = (char*)(authorName.data + authorName.size + 2);
-            authorMail.size = (uint64_t)(karatEndLoc - authorMail.data);
+            authorMail.size = (u64)(karatEndLoc - authorMail.data);
 
             line.data = (char*)authorMail.data + authorMail.size + 2;
             line.size -= authorMail.size + 2;
@@ -196,7 +196,7 @@ f_internal bool readCommitFromPtr
 
             StringView committerName = {0};
             committerName.data = line.data + committerIdent.size + 1;
-            committerName.size = (uint64_t)(karatLoc - committerName.data);
+            committerName.size = (u64)(karatLoc - committerName.data);
 
             line.data = line.data + committerName.size;
             line.size -= committerName.size + 2;
@@ -205,7 +205,7 @@ f_internal bool readCommitFromPtr
 
             StringView committerMail = {0};
             committerMail.data = (char*)(committerName.data + committerName.size + 2);
-            committerMail.size = (uint64_t)(karatEndLoc - committerMail.data);
+            committerMail.size = (u64)(karatEndLoc - committerMail.data);
 
             line.data = (char*)committerMail.data + committerMail.size + 2;
             line.size -= committerMail.size + 2;
@@ -239,16 +239,16 @@ f_internal bool readCommitFromPtr
 
 f_internal bool readObjectHeader
 (
-    uint8_t    *packFile,
-    uint64_t   *index,
-    uint64_t   packFileSize,
+    u08        *packFile,
+    u64        *index,
+    u64        packFileSize,
     gfPackInfo *outInfo
 ){
-    uint8_t  byte  = packFile[(*index)++];
-    uint64_t chunk = 0;
-    uint8_t  shift = 4;
-    outInfo->size  = byte & 0x0F;
-    outInfo->type  = byte >> 4 & 0x07;
+    u08 byte  = packFile[(*index)++];
+    u64 chunk = 0;
+    u08 shift = 4;
+    outInfo->size = byte & 0x0F;
+    outInfo->type = byte >> 4 & 0x07;
 
     GF_TRACE("identified type: %"PRIu8, outInfo->type);
 
@@ -265,7 +265,7 @@ f_internal bool readObjectHeader
         chunk = byte & 0x7F;
 
         GF_ASSERT(shift < 64, "cannot shift more than 64 bits.");
-        GF_ASSERT(chunk < (UINT64_MAX >> shift), "chunk is too large.");
+        GF_ASSERT(chunk < (U64MAX >> shift), "chunk is too large.");
 
         outInfo->size |= chunk << shift;
         shift         += 7;
@@ -294,17 +294,17 @@ f_internal void readCommitFromFile
         return;
     }
 
-    uint8_t zlibBuf[1024] = {0};
+    u08 zlibBuf[1024] = {0};
 
-    uint64_t elements = 1;
-    for(uint64_t i = 0; i < 1024 && elements == 1; ++i)
+    u64 elements = 1;
+    for(u64 i = 0; i < 1024 && elements == 1; ++i)
     {
         elements = fread(&zlibBuf[i], 1, 1, file);
     }
 
     GF_TRACE("reading commit from loose object.");
 
-    uint8_t     *dstBuf = calloc(GF_BUFSIZE * 4, 1);
+    u08         *dstBuf = calloc(GF_BUFSIZE * 4, 1);
     DeflateInfo dfInfo  = dsReadZlibPtr(zlibBuf, dstBuf, GF_BUFSIZE * 4);
     if(!dfInfo.success)
     {
@@ -354,7 +354,7 @@ bool gfGetCommitInfo
     commitPath = pdSVConcat(commitPath, sep, pathBuf);
     commitPath = pdSVConcat(commitPath, hashRest, pathBuf);
 
-    uint8_t result = pdVerifyPath(commitPath);
+    u08 result = pdVerifyPath(commitPath);
     if(result == PD_TYPE_FILE)
     {
         gfFreeCommit(commit);
@@ -373,17 +373,17 @@ bool gfGetCommitInfo
         goto notfound;
     }
 
-    uint8_t firstTwo = twoCharsToByte(hash.data[0], hash.data[1]);
+    u08 firstTwo = twoCharsToByte(hash.data[0], hash.data[1]);
     if(!table[firstTwo])
     {
         GF_TRACE("table[0x%x] has no data.", firstTwo);
         goto notfound;
     }
 
-    uint64_t arraySize = pdArrSize(table[firstTwo]);
+    u64 arraySize = pdArrSize(table[firstTwo]);
     GF_TRACE("looking for commit in table[%c%c]: size %"PRIu64,
              hash.data[0], hash.data[1], arraySize);
-    for(uint64_t i = 0; i < arraySize; ++i)
+    for(u64 i = 0; i < arraySize; ++i)
     {
         GF_TRACE("checking against commit in table[0x%x]: "PRI_SV,
                  firstTwo, ARG_SV(table[firstTwo][i].hash));
@@ -413,14 +413,14 @@ notfound:
 
 f_internal bool readIDXFanout
 (
-    FILE     *file,
-    uint32_t *fanouts
+    FILE *file,
+    u32  *fanouts
 ){
-    uint8_t byte = 0;
+    u08 byte = 0;
 
-    for(uint16_t i = 0; i < 256; ++i)
+    for(u16 i = 0; i < 256; ++i)
     {
-        for(uint8_t j = 0; j < 4; ++j)
+        for(u08 j = 0; j < 4; ++j)
         {
             if(fread(&byte, 1, 1, file) != 1)
             {
@@ -428,7 +428,7 @@ f_internal bool readIDXFanout
                 return false;
             }
 
-            fanouts[i] |= (uint32_t)(byte << (8 * (3 - j)));
+            fanouts[i] |= (u32)(byte << (8 * (3 - j)));
         }
     }
 
@@ -437,11 +437,11 @@ f_internal bool readIDXFanout
 
 f_internal gfObjectOffset *readIDXV1
 (
-    FILE     *file,
-    uint8_t  oidSize,
-    uint64_t packFileSize
+    FILE *file,
+    u08  oidSize,
+    u64  packFileSize
 ){
-    uint32_t       fanout[256] = {0};
+    u32            fanout[256] = {0};
     gfObjectOffset *objof      = 0;
 
     if(!readIDXFanout(file, fanout))
@@ -453,11 +453,11 @@ f_internal gfObjectOffset *readIDXV1
     GF_WARN("TODO: .idx V1 files unhandled.");
     goto closefile;
 
-    for(uint32_t i = 0; i < fanout[255]; ++i)
+    for(u32 i = 0; i < fanout[255]; ++i)
     {
-        uint8_t  byte   = 0;
-        uint32_t offset = 0;
-        for(uint8_t j = 0; j < 4; ++j)
+        u08 byte   = 0;
+        u32 offset = 0;
+        for(u08 j = 0; j < 4; ++j)
         {
             if(fread(&byte, 1, 1, file) != 1)
             {
@@ -465,7 +465,7 @@ f_internal gfObjectOffset *readIDXV1
                 goto closefile;
             }
 
-            offset |= (uint32_t)(byte << (8 * (3 - j)));
+            offset |= (u32)(byte << (8 * (3 - j)));
         }
 
         if(offset >= packFileSize)
@@ -484,15 +484,15 @@ closefile:
 // thing into memory first, then iterate byte-by-byte instead of using fread byte-by-byte.
 f_internal gfObjectOffset *readIDXV2
 (
-    FILE     *file,
-    uint8_t  oidSize,
-    uint64_t packFileSize
+    FILE *file,
+    u08  oidSize,
+    u64  packFileSize
 ){
     gfObjectOffset *objof = 0;
 
-    uint8_t  byte    = 0;
-    uint32_t version = 0;
-    for(uint8_t i = 0; i < 4; ++i)
+    u08 byte    = 0;
+    u32 version = 0;
+    for(u08 i = 0; i < 4; ++i)
     {
         if(fread(&byte, 1, 1, file) != 1)
         {
@@ -500,7 +500,7 @@ f_internal gfObjectOffset *readIDXV2
             goto closefile;
         }
 
-        version |= (uint32_t)(byte << (3 - i));
+        version |= (u32)(byte << (3 - i));
     }
 
     if(version != 2)
@@ -509,7 +509,7 @@ f_internal gfObjectOffset *readIDXV2
         goto closefile;
     }
 
-    uint32_t fanout[256] = {0};
+    u32 fanout[256] = {0};
     if(!readIDXFanout(file, fanout))
     {
         GF_ERROR("could not read fanouts of v2 IDX file.");
@@ -518,11 +518,11 @@ f_internal gfObjectOffset *readIDXV2
 
     pdArrReserve(objof, fanout[255]);
 
-    for(uint32_t i = 0; i < fanout[255]; ++i)
+    for(u32 i = 0; i < fanout[255]; ++i)
     {
         char nameBuf[64] = {0};
 
-        for(uint8_t j = 0; j < oidSize * 2; j += 2)
+        for(u08 j = 0; j < oidSize * 2; j += 2)
         {
             if(fread(&byte, 1, 1, file) != 1)
             {
@@ -550,10 +550,10 @@ f_internal gfObjectOffset *readIDXV2
         goto closefile;
     }
 
-    for(uint32_t i = 0; i < fanout[255]; ++i)
+    for(u32 i = 0; i < fanout[255]; ++i)
     {
-        uint32_t offset = 0;
-        for(uint8_t j = 0; j < 4; ++j)
+        u32 offset = 0;
+        for(u08 j = 0; j < 4; ++j)
         {
             if(fread(&byte, 1, 1, file) != 1)
             {
@@ -562,7 +562,7 @@ f_internal gfObjectOffset *readIDXV2
                 goto closefile;
             }
 
-            offset |= (uint32_t)(byte << (8 * (3 - j)));
+            offset |= (u32)(byte << (8 * (3 - j)));
         }
 
         if(offset & 0x80000000)
@@ -590,16 +590,16 @@ closefile:
     return objof;
 }
 
-f_internal uint64_t readDeltaSize
+f_internal u64 readDeltaSize
 (
-    uint8_t  *buf,
-    uint64_t *cursor,
-    uint64_t bufsize
+    u08 *buf,
+    u64 *cursor,
+    u64 bufsize
 ){
-    uint8_t  byte  = buf[(*cursor)++];
-    uint64_t size  = byte & 0x7F;
-    uint64_t chunk = 0;
-    uint8_t  shift = 7;
+    u08 byte  = buf[(*cursor)++];
+    u64 size  = byte & 0x7F;
+    u64 chunk = 0;
+    u08 shift = 7;
 
     while(byte & 0x80)
     {
@@ -613,7 +613,7 @@ f_internal uint64_t readDeltaSize
         chunk = byte & 0x7F;
 
         GF_ASSERT(shift < 64, "cannot shift more than 64 bits.");
-        GF_ASSERT(chunk < (UINT64_MAX >> shift), "chunk is too large.");
+        GF_ASSERT(chunk < (U64MAX >> shift), "chunk is too large.");
 
         size  |= chunk << shift;
         shift += 7;
@@ -626,9 +626,9 @@ f_internal uint64_t readDeltaSize
 
 f_internal bool readAndApplyDelta
 (
-    uint8_t    *packFile,
-    uint64_t   *index,
-    uint64_t   deltaDataSize,
+    u08        *packFile,
+    u64        *index,
+    u64        deltaDataSize,
     gfPackInfo *outInfo
 ){
     GF_TRACE("reading delta...");
@@ -642,7 +642,7 @@ f_internal bool readAndApplyDelta
     // PERF: we should really make this a scratch buffer. Deflate a little bit, then
     // parse, then deflate if more is needed, etc. For that, I need to implement scratch
     // reading in datasurf.
-    uint8_t *deltaDataBuf = malloc(deltaDataSize);
+    u08 *deltaDataBuf = malloc(deltaDataSize);
     if(!deltaDataBuf)
     {
         GF_ERROR("failed to allocate buffer for delta data, size %"PRIu64,
@@ -664,22 +664,22 @@ f_internal bool readAndApplyDelta
         goto error;
     }
 
-    uint64_t cursor     = 0;
-    uint64_t baseSize   = readDeltaSize(deltaDataBuf, &cursor, deltaDataSize);
-    uint64_t resultSize = readDeltaSize(deltaDataBuf, &cursor, deltaDataSize);
+    u64 cursor     = 0;
+    u64 baseSize   = readDeltaSize(deltaDataBuf, &cursor, deltaDataSize);
+    u64 resultSize = readDeltaSize(deltaDataBuf, &cursor, deltaDataSize);
 
     GF_TRACE("applying delta...");
 
     #ifdef TRACE
     printf("full bytes:\n");
-    for(uint64_t i = 0; i < deltaDataSize; ++i)
+    for(u64 i = 0; i < deltaDataSize; ++i)
     {
         printf("0x%"PRIx8" ", deltaDataBuf[i]);
     }
     printf("\n");
     #endif
 
-    uint8_t *resultObjBuf = malloc(resultSize);
+    u08 *resultObjBuf = malloc(resultSize);
     if(!resultObjBuf)
     {
         GF_ERROR("failed to allocate buffer for result object, size %"PRIu64,
@@ -700,17 +700,17 @@ f_internal bool readAndApplyDelta
         goto error;
     }
 
-    uint64_t resultIndex = 0;
+    u64 resultIndex = 0;
     while(cursor < deltaDataSize)
     {
-        uint8_t opcode = deltaDataBuf[cursor++];
+        u08 opcode = deltaDataBuf[cursor++];
 
         if(opcode & 0x80)
         {
-            uint64_t copySize   = 0;
-            uint64_t copyOffset = 0;
+            u64 copySize   = 0;
+            u64 copyOffset = 0;
 
-            for(uint8_t bit = 0; bit < 4; ++bit)
+            for(u08 bit = 0; bit < 4; ++bit)
             {
                 if(opcode & (1u << bit))
                 {
@@ -722,11 +722,11 @@ f_internal bool readAndApplyDelta
                         goto error;
                     }
 
-                    copyOffset |= (uint64_t)deltaDataBuf[cursor++] << (bit * 8);
+                    copyOffset |= (u64)deltaDataBuf[cursor++] << (bit * 8);
                 }
             }
 
-            for(unsigned bit = 0; bit < 3; ++bit)
+            for(u08 bit = 0; bit < 3; ++bit)
             {
                 if(opcode & (1u << (bit + 4)))
                 {
@@ -738,7 +738,7 @@ f_internal bool readAndApplyDelta
                         goto error;
                     }
 
-                    copySize |= (uint64_t)deltaDataBuf[cursor++] << (bit * 8);
+                    copySize |= (u64)deltaDataBuf[cursor++] << (bit * 8);
                 }
             }
 
@@ -775,7 +775,7 @@ f_internal bool readAndApplyDelta
         }
         else
         {
-            uint8_t size = opcode & 0x7F;
+            u08 size = opcode & 0x7F;
 
             if(resultIndex > resultSize || size > resultSize - resultIndex)
             {
@@ -811,19 +811,19 @@ f_internal bool resolveObjRecurse
 (
     gfRecurseInfo *info
 ){
-    uint64_t   entryStart = *info->index;
+    u64        entryStart = *info->index;
     gfPackInfo **cache    = info->cache;
-    uint8_t    *packFile  = info->packFile;
-    uint64_t   *index     = info->index;
-    uint8_t    oidSize    = info->oidSize;
-    uint64_t   fileSize   = info->fileSize;
+    u08        *packFile  = info->packFile;
+    u64        *index     = info->index;
+    u08        oidSize    = info->oidSize;
+    u64        fileSize   = info->fileSize;
     gfPackInfo *outInfo   = info->outInfo;
 
     GF_ASSERT(cache, "no cache present, cannot resolve recursively.");
 
     outInfo->offset = entryStart;
 
-    uint8_t    lastTwo = entryStart & 0xFF;
+    u08        lastTwo = entryStart & 0xFF;
     gfPackInfo *arr    = cache[lastTwo];
     if(!arr)
     {
@@ -831,9 +831,9 @@ f_internal bool resolveObjRecurse
         goto nocache;
     }
 
-    uint64_t arrSize = pdArrSize(arr);
+    u64 arrSize = pdArrSize(arr);
     GF_TRACE("LOOKING FOR CACHED OBJECT FOR OFFSET: %"PRIu64, outInfo->offset);
-    for(uint16_t i = 0; i < arrSize; ++i)
+    for(u16 i = 0; i < arrSize; ++i)
     {
         if(arr[i].offset == entryStart)
         {
@@ -846,7 +846,7 @@ f_internal bool resolveObjRecurse
     }
 
 nocache:
-    if(*index == UINT64_MAX)
+    if(*index == U64MAX)
     {
         // TODO: read midx to find where this hash is, actually, then read & return from
         // there
@@ -872,7 +872,7 @@ nocache:
     {
         GF_TRACE("identified commit object.");
 
-        uint8_t *buf = calloc(outInfo->size, 1);
+        u08 *buf = calloc(outInfo->size, 1);
         if(!buf)
         {
             GF_ERROR("failed to allocate new outInfo->data of size %"PRIu64,
@@ -915,7 +915,7 @@ nocache:
             return true;
         }
 
-        uint8_t *buf = calloc(outInfo->size, 1);
+        u08 *buf = calloc(outInfo->size, 1);
         if(!buf)
         {
             GF_ERROR("failed to allocate new outInfo->data of size %"PRIu64,
@@ -953,8 +953,8 @@ nocache:
     {
         GF_TRACE("identified ofs delta object.");
 
-        uint8_t  byte   = packFile[(*index)++];
-        uint64_t offset = byte & 0x7F;
+        u08  byte   = packFile[(*index)++];
+        u64 offset = byte & 0x7F;
 
         while(byte & 0x80)
         {
@@ -976,11 +976,11 @@ nocache:
 
         GF_TRACE("read OFS_DELTA object with offset -%"PRIu64, offset);
 
-        uint64_t indexRec  = (entryStart - offset);
+        u64 indexRec  = (entryStart - offset);
         GF_TRACE("jumping from packFile entryStart %"PRIu64" back to index %"PRIu64
                  "...", entryStart, indexRec);
 
-        uint64_t deltaSize = outInfo->size;
+        u64 deltaSize = outInfo->size;
         info->firstCall = false;
         info->index     = &indexRec;
 
@@ -1005,11 +1005,10 @@ nocache:
     {
         GF_TRACE("identified ref delta object.");
 
-        uint8_t byte = 0;
-
+        u08  byte        = 0;
         char nameBuf[64] = {0};
 
-        for(uint8_t j = 0; j < oidSize * 2; j += 2)
+        for(u08 j = 0; j < oidSize * 2; j += 2)
         {
             byte = packFile[(*index)++];
             nameBuf[j]     = valueToHexChar(byte >> 4);
@@ -1022,8 +1021,8 @@ nocache:
 
         GF_TRACE("read REF_DELTA object '"PRI_SV"'", ARG_SV(name));
 
-        uint64_t noIndex   = UINT64_MAX;
-        uint64_t deltaSize = outInfo->size;
+        u64 noIndex   = U64MAX;
+        u64 deltaSize = outInfo->size;
         info->firstCall = false;
         info->index     = &noIndex;
 
@@ -1040,8 +1039,8 @@ nocache:
         }
 
         outInfo->offset = entryStart;
-        GF_TRACE("CACHING OBJECT (REF_DELTA) FOR OFFSET: UINT64_MAX");
-        pdArrPush(cache[UINT64_MAX & 0xFF], *outInfo);
+        GF_TRACE("CACHING OBJECT (REF_DELTA) FOR OFFSET: U64MAX");
+        pdArrPush(cache[U64MAX & 0xFF], *outInfo);
         return true;
     }
 
@@ -1054,7 +1053,7 @@ f_internal void readCommitsFromOffsets
     gfObjectOffset *objof,
     gfPackInfo     **cache,
     gfCommitInfo   **table,
-    uint8_t        oidSize
+    u08            oidSize
 ){
     FILE *file = fopen(path.data, "rb");
     if(!file)
@@ -1062,15 +1061,15 @@ f_internal void readCommitsFromOffsets
         GF_WARN("couldn't open pack file: '"PRI_SV"'", ARG_SV(path));
         return;
     }
-    uint8_t *packFile = 0;
+    u08 *packFile = 0;
 
     fseek(file, 0, SEEK_END);
-    uint64_t fileSize = (uint64_t)ftell(file);
+    u64 fileSize = (u64)ftell(file);
     packFile = malloc(fileSize);
 
     fseek(file, 0, SEEK_SET);
 
-    uint64_t elements = fread(packFile, 1, fileSize, file);
+    u64 elements = fread(packFile, 1, fileSize, file);
     if(elements != fileSize)
     {
         GF_WARN("couldn't read pack file into memory. tried to read %"PRIu64", but "
@@ -1085,12 +1084,12 @@ f_internal void readCommitsFromOffsets
     info.cache    = cache;
     info.oidSize  = oidSize;
 
-    uint64_t arraySize = pdArrSize(objof);
+    u64 arraySize = pdArrSize(objof);
     GF_TRACE("reading %"PRIu64" objects from offsets into packfile.", arraySize);
-    for(uint32_t i = 0; i < arraySize; ++i)
+    for(u32 i = 0; i < arraySize; ++i)
     {
         gfPackInfo outInfo = {0};
-        uint64_t   index   = objof[i].offset;
+        u64        index   = objof[i].offset;
 
         info.hash      = objof[i].hash;
         info.index     = &index;
@@ -1124,20 +1123,20 @@ f_internal void readCommitsFromOffsets
 
         readCommitFromPtr(outInfo.data, &commit, hash, outInfo.size);
 
-        uint8_t firstTwo = twoCharsToByte(hash.data[0], hash.data[1]);
+        u08 firstTwo = twoCharsToByte(hash.data[0], hash.data[1]);
         pdArrPush(table[firstTwo], commit);
     }
 
 closefile:
-    for(uint16_t i = 0; i < 256; ++i)
+    for(u16 i = 0; i < 256; ++i)
     {
         if(!cache[i])
         {
             continue;
         }
 
-        uint64_t arrSize = pdArrSize(cache[i]);
-        for(uint64_t j = 0; j < arrSize; ++j)
+        u64 arrSize = pdArrSize(cache[i]);
+        for(u64 j = 0; j < arrSize; ++j)
         {
             if(cache[i][j].data)
             {
@@ -1160,7 +1159,7 @@ f_internal void readPackedCommits
     StringView   idxPath,
     gfPackInfo   **objCache,
     gfCommitInfo **table,
-    uint8_t      oidSize
+    u08          oidSize
 ){
     FILE *file = fopen(idxPath.data, "rb");
     if(!file)
@@ -1169,9 +1168,9 @@ f_internal void readPackedCommits
         return;
     }
 
-    bool    v2   = true;
-    uint8_t byte = 0;
-    for(uint8_t i = 0; i < 4; ++i)
+    bool v2   = true;
+    u08  byte = 0;
+    for(u08 i = 0; i < 4; ++i)
     {
         if(fread(&byte, 1, 1, file) != 1)
         {
@@ -1192,7 +1191,7 @@ f_internal void readPackedCommits
     StringView packPath = pdSVConcat(idxPath, pdCstrSV(".pack"), packBuf);
     idxPath.size += 4;
 
-    uint64_t packFileSize = 0;
+    u64 packFileSize = 0;
 
     FILE *packFile = fopen(packPath.data, "rb");
     if(!packFile)
@@ -1203,7 +1202,7 @@ f_internal void readPackedCommits
     else
     {
         fseek(packFile, 0, SEEK_END);
-        packFileSize = (uint64_t)ftell(packFile);
+        packFileSize = (u64)ftell(packFile);
     }
     fclose(packFile);
 
@@ -1229,8 +1228,8 @@ f_internal void readPackedCommits
 
     readCommitsFromOffsets(packPath, objof, objCache, table, oidSize);
 
-    uint64_t arraySize = pdArrSize(objof);
-    for(uint64_t i = 0; i < arraySize; ++i)
+    u64 arraySize = pdArrSize(objof);
+    for(u64 i = 0; i < arraySize; ++i)
     {
         pdSVFree(&objof[i].hash);
     }
@@ -1265,16 +1264,16 @@ void gfInitRepository
 
     char       listBuf[8192] = {0};
     StringView list          = pdListFiles(gitPACK, listBuf);
-    uint64_t   fileCount     = pdSVCountByDelim(list, ';');
+    u64   fileCount     = pdSVCountByDelim(list, ';');
 
     StringView fileBuf[fileCount];
-    for(uint64_t i = 0; i < fileCount; ++i)
+    for(u64 i = 0; i < fileCount; ++i)
     {
         fileBuf[i].data = 0;
         fileBuf[i].size = 0;
     }
 
-    uint8_t oidSize = 20;
+    u08 oidSize = 20;
 
     FILE *configFile = fopen(confBuf, "r");
     if(!configFile)
@@ -1306,7 +1305,7 @@ void gfInitRepository
     }
 
     pdSVSeparateByDelim(list, fileBuf, ';', fileCount);
-    for(uint64_t i = 0; i < fileCount; ++i)
+    for(u64 i = 0; i < fileCount; ++i)
     {
         gfPackInfo *objCache[256] = {0};
         if(pdSVFind(idxIdent, fileBuf[i]))
@@ -1326,8 +1325,8 @@ void gfInitRepository
     }
 
     char headBuf[4096] = {0};
-    uint64_t elements = 1;
-    for(uint64_t i = 0; elements == 1; ++i)
+    u64 elements = 1;
+    for(u64 i = 0; elements == 1; ++i)
     {
         elements = fread(&headBuf[i], 1, 1, file);
     }
@@ -1363,7 +1362,7 @@ void gfInitRepository
     file = fopen(headBuf, "r");
     if(file)
     {
-        for(uint8_t i = 0; i < oidSize * 2; ++i)
+        for(u08 i = 0; i < oidSize * 2; ++i)
         {
             if(fread(&hashBuf[i], 1, 1, file) != 1)
             {
@@ -1392,7 +1391,7 @@ void gfInitRepository
 
             if(pdSVSame(path, headPackedIdent))
             {
-                for(uint8_t i = 0; i < oidSize * 2; ++i)
+                for(u08 i = 0; i < oidSize * 2; ++i)
                 {
                     hashBuf[i] = lineBuf[i];
                 }
