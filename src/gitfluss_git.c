@@ -297,11 +297,7 @@ f_internal void readCommitFromFile
 
     u08 zlibBuf[1024] = {0};
 
-    u64 elements = 1;
-    for(u64 i = 0; i < 1024 && elements == 1; ++i)
-    {
-        elements = fread(&zlibBuf[i], 1, 1, file);
-    }
+    fread(&zlibBuf, 1024, 1, file);
 
     GF_TRACE("reading commit from loose object.");
 
@@ -358,6 +354,7 @@ bool gfGetCommitInfo
     u08 result = pdVerifyPath(commitPath);
     if(result == PD_TYPE_FILE)
     {
+        // ASAN: already freed here
         gfFreeCommit(commit);
         readCommitFromFile(commitPath, hash, commit);
         return true;
@@ -715,6 +712,7 @@ f_internal bool applyDelta
     {
         GF_ERROR("baseSize %"PRIu64" does not match base object size %"PRIu64
                  " read from base object.", baseSize, outInfo->size);
+        GF_TRACE("failed to apply delta.");
         free(resultObjBuf);
         goto error;
     }
@@ -1007,59 +1005,52 @@ f_internal gfHashLocation findObjectOffset
                     }
                 }
 
-                if(foundIndex == U32MAX)
-                {
-                    continue;
-                }
+                u64 offsetTablePos = 8 + 256 * 4 + fanout[255] * hash.size / 2 +
+                                     fanout[255] * 4;
+                u64 entryPos = offsetTablePos + (u64)foundIndex * 4;
 
-                if(fseek(idxFile, fanout[255] * 4, SEEK_CUR) != 0)
+                if(fseek(idxFile, (long)entryPos, SEEK_SET) != 0)
                 {
-                    GF_ERROR("could not skip CRC table.");
+                    GF_ERROR("could not seek to object offset.");
+                    fclose(idxFile);
                     return (gfHashLocation){0};
                 }
 
-                for(u32 i = 0; i < fanout[255]; ++i)
+                u32 offset = 0;
+                for(u08 j = 0; j < 4; ++j)
                 {
-                    u32 offset = 0;
-                    for(u08 j = 0; j < 4; ++j)
+                    if(fread(&byte, 1, 1, idxFile) != 1)
                     {
-                        if(fread(&byte, 1, 1, idxFile) != 1)
-                        {
-                            GF_ERROR("could not read offset of object %"PRIu32".", i);
-                            return (gfHashLocation){0};
-                        }
-
-                        offset |= (u32)(byte << (8 * (3 - j)));
-                    }
-
-                    if(i != foundIndex)
-                    {
-                        continue;
-                    }
-
-                    if(offset & 0x80000000)
-                    {
-                        offset &= 0x7FFFFFFF;
-                        // TODO: do something with these
-                        GF_WARN("TODO: handle object offset via index into large "
-                                "offset table: %" PRIu32, offset);
+                        GF_ERROR("could not read offset of object %"PRIu32".",
+                                 foundIndex);
                         return (gfHashLocation){0};
                     }
 
-                    char packFileBuf[idxPath.size + 2];
-                    packFileBuf[idxPath.size + 1] = '\0';
-
-                    pdSVTrim(&idxPath, 3, SV_RIGHT);
-                    pdSVConcat(idxPath, pdCstrSV("pack"), packFileBuf);
-
-                    StringView packFile = pdCstrSV(packFileBuf);
-
-                    GF_TRACE("TESTING: WE FOUND IT!!!");
-                    loc.index        = offset;
-                    loc.packFilePath = pdSVCpy(packFile);
-                    fclose(idxFile);
-                    return loc;
+                    offset |= (u32)(byte << (8 * (3 - j)));
                 }
+
+                if(offset & 0x80000000)
+                {
+                    offset &= 0x7FFFFFFF;
+                    // TODO: do something with these
+                    GF_WARN("TODO: handle object offset via index into large "
+                            "offset table: %" PRIu32, offset);
+                    return (gfHashLocation){0};
+                }
+
+                char packFileBuf[idxPath.size + 2];
+                packFileBuf[idxPath.size + 1] = '\0';
+
+                pdSVTrim(&idxPath, 3, SV_RIGHT);
+                pdSVConcat(idxPath, pdCstrSV("pack"), packFileBuf);
+
+                StringView packFile = pdCstrSV(packFileBuf);
+
+                GF_TRACE("TESTING: WE FOUND IT!!!");
+                loc.index        = offset;
+                loc.packFilePath = pdSVCpy(packFile);
+                fclose(idxFile);
+                return loc;
             }
             else
             {
@@ -1118,9 +1109,6 @@ f_internal bool resolveObjRecurse
 nocache:
     if(*index == U64MAX)
     {
-        // TODO: again, might be on-disk.
-        // if not, find it MIDX or IDX.
-
         if(resolveObjOnDisk(info))
         {
             return true;
@@ -1133,19 +1121,47 @@ nocache:
         GF_TRACE("TESTING: result.packFile: '"PRI_SV"'", ARG_SV(result.packFilePath));
         GF_TRACE("TESTING: result.index: %"PRIu64, result.index);
 
-        // URGENT: open the packfile and return its resolved object... god, that took
-        // forever.
+        char packFileBuf[result.packFilePath.size + 1];
+        pdSVCstr(result.packFilePath, packFileBuf);
 
-        // info->packFile = result.packFile;
-        // info->fileSize = result.fileSize;
-        info->index = &result.index;
+        FILE *packFile = fopen(packFileBuf, "rb");
+        if(!packFile)
+        {
+            GF_ERROR("failed to open packfile: '%s'", packFileBuf);
+        }
 
-        //
-        GF_WARN("TODO: hash lookup unimplemented.");
-        return false;
-        //
+        fseek(packFile, 0, SEEK_END);
+        u64 packFileSize  = (u64)ftell(packFile);
+        u08 *packFileRead = malloc(packFileSize);
+        fseek(packFile, 0, SEEK_SET);
 
-        return resolveObjRecurse(info);
+        if(fread(packFileRead, packFileSize, 1, packFile) != 1)
+        {
+            GF_ERROR("failed to read new packfile.");
+        }
+
+        fclose(packFile);
+
+        // TESTING: AI code
+        u08        *savedPackFile = info->packFile;
+        u64         savedFileSize = info->fileSize;
+        u64        *savedIndex    = info->index;
+        StringView  savedHash     = pdSVCpy(info->hash);
+
+        info->packFile = packFileRead;
+        info->fileSize = packFileSize;
+        info->index    = &result.index;
+
+        bool success = resolveObjRecurse(info);
+
+        info->packFile  = savedPackFile;
+        info->fileSize  = savedFileSize;
+        info->index     = savedIndex;
+        info->hash      = savedHash;
+        // TESTING: end AI code
+
+        free(packFileRead);
+        return success;
     }
 
     if(!readObjectHeader(packFile, index, fileSize, outInfo))
@@ -1310,6 +1326,8 @@ nocache:
         name.data = nameBuf;
         name.size = oidSize * 2;
 
+        u64 deltaSize = outInfo->size;
+
         GF_TRACE("read REF_DELTA object '"PRI_SV"' of size: %"PRIu64,
                  ARG_SV(name), outInfo->size);
 
@@ -1324,7 +1342,6 @@ nocache:
             return false;
         }
 
-        u64 deltaSize = outInfo->size;
         if(!readAndApplyDelta(packFile, index, deltaSize, outInfo))
         {
             GF_ERROR("could not apply delta from OBJ_OFS_DELTA.");
@@ -1419,6 +1436,7 @@ f_internal void readCommitsFromOffsets
         gfCommitInfo commit = {0};
 
         StringView hash = pdSVCpy(objof[i].hash);
+        // ASAN: double free here
         gfFreeCommit(&commit);
 
         readCommitFromPtr(outInfo.data, &commit, hash, outInfo.size);

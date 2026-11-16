@@ -388,10 +388,9 @@ f_internal void *gatherRepoData
         u64 arraySize = pdArrSize(table[i]);
         for(u64 j = 0; j < arraySize; ++j)
         {
-            // pdSVFree(&table[i][j].authorMail);
-
             // NOTE: let asan cry for a bit until everything's done
-            gfFreeCommit(&table[i][j]);
+            // pdSVFree(&table[i][j].authorMail);
+            // gfFreeCommit(&table[i][j]);
         }
         pdArrFree(table[i]);
     }
