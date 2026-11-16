@@ -266,29 +266,11 @@ f_internal void *gatherRepoData
     repo.path            = data->repository;
     gfInitRepository(&repo, &commit, table);
 
+    GF_TRACE("TESTING: LOOP START");
     while(commit.parentHash.size)
     {
-        StringView author = commit.authorMail;
-        bool       counts = anyAuthor;
-
-        GF_ASSERT(author.data && author.size, "unresolved commit author. "
-                  "full commit:\n"
-                  "hash:          '"PRI_SV"'\n"
-                  "parentHash:    '"PRI_SV"'\n"
-                  "summary:       '"PRI_SV"'\n"
-                  "authorName:    '"PRI_SV"'\n"
-                  "authorMail:    '"PRI_SV"'\n"
-                  "authorTime:     %"PRIi64"\n"
-                  "committerName: '"PRI_SV"'\n"
-                  "committerMail: '"PRI_SV"'\n"
-                  "committerTime:  %"PRIi64"\n",
-                  ARG_SV(commit.hash),
-                  ARG_SV(commit.parentHash),
-                  ARG_SV(commit.summary),
-                  ARG_SV(commit.authorName),
-                  ARG_SV(commit.authorMail), commit.authorTime,
-                  ARG_SV(commit.committerName),
-                  ARG_SV(commit.committerMail), commit.committerTime);
+        GF_TRACE("TESTING: analyzing commit: '"PRI_SV"'", ARG_SV(commit.hash));
+        bool counts = anyAuthor;
 
         if(commit.authorTime < set->startYearTime ||
            commit.authorTime > set->endYearTime
@@ -298,7 +280,7 @@ f_internal void *gatherRepoData
 
         for(u16 j = 0; !counts && j < authorcount; ++j)
         {
-            if(pdSVSame(authorlist[j], author))
+            if(pdSVSame(authorlist[j], commit.authorMail))
             {
                 counts = true;
             }
@@ -310,6 +292,7 @@ f_internal void *gatherRepoData
         }
 
         gfLock(set);
+        GF_TRACE("ding!");
         ++set->totalCommitCount;
         gfUnlock(set);
 
@@ -350,7 +333,7 @@ f_internal void *gatherRepoData
         }
         else if(flags & GF_FLAG_NOMATCH)
         {
-            printf("unmatched author: "PRI_SV"\n", ARG_SV(author));
+            printf("unmatched author: "PRI_SV"\n", ARG_SV(commit.authorMail));
         }
 
     nextCommit:
@@ -656,7 +639,7 @@ f_internal void displayData
         f32 percentage = 100.0f * (f32)set->personalCommitCount /
                          (f32)set->totalCommitCount;
 
-        printf("\n%"PRIu64" commits analyzed across %"PRIu32" repositories.\n",
+        printf("\n%"PRIu64" commits analysed across %"PRIu32" repositories.\n",
                set->totalCommitCount, set->repositoryCount);
         printf("%"PRIu64" were matched with a provided author (%.2f%%).\n",
                set->personalCommitCount, percentage);

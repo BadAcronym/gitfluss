@@ -222,7 +222,7 @@ f_internal bool readCommitFromPtr
         commit->summary = pdSVCpy(*((StringView*)&line));
     }
 
-    GF_ASSERT(verifyCommit(commit), "returned bogus commit from readCommitFromFile.");
+    GF_ASSERT(verifyCommit(commit), "returned bogus commit from readCommitFromPtr.");
 
     GF_TRACE("read commit:");
     GF_TRACE("commit->hash:          '"PRI_SV"'", ARG_SV(commit->hash));
@@ -277,6 +277,7 @@ f_internal bool readObjectHeader
     return true;
 }
 
+// URGENT: check for a cached commit and if none, then add it to cache!
 f_internal void readCommitFromFile
 (
     StringView   path,
@@ -1358,6 +1359,7 @@ nocache:
 }
 
 // TODO: also read the commits that are specified in the MIDX file.
+// URGENT: make sure they are added to the table. always.
 f_internal void readCommitsFromOffsets
 (
     StringView     path,
@@ -1554,6 +1556,7 @@ f_internal void readPackedCommits
     pdArrFree(objof);
 }
 
+// FIXME: setting the first commit to not be the head? wtf
 void gfInitRepository
 (
     gfRepository *repo,
