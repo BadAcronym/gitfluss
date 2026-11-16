@@ -4,6 +4,7 @@
 #include "datasurf_main.h"
 
 #include "pd_path.h"
+#include "pd_util.h"
 #include "pd_dyn_arr.h"
 
 #include <memory.h>
@@ -270,8 +271,8 @@ f_internal bool readObjectHeader
         outInfo->size |= chunk << shift;
         shift         += 7;
     }
-    GF_ASSERT(outInfo->type > 0 && outInfo->type < 8, "invalid object type on obj: %"PRIu32
-              ". read Byte: 0x%X", outInfo->type, byte);
+    GF_ASSERT(outInfo->type > 0 && outInfo->type < 8, "invalid object type on obj: %"
+              PRIu32". read Byte: 0x%X", outInfo->type, byte);
 
     return true;
 }
@@ -480,8 +481,9 @@ closefile:
     return objof;
 }
 
-// PERF: probably do the same thing as I tried to do with the packfile. read the entire
-// thing into memory first, then iterate byte-by-byte instead of using fread byte-by-byte.
+// PERF: probably do the same thing as I tried to do with the packfile. read the
+// entire thing into memory first, then iterate byte-by-byte instead of using
+// fread byte-by-byte.
 f_internal gfObjectOffset *readIDXV2
 (
     FILE *file,
@@ -541,6 +543,8 @@ f_internal gfObjectOffset *readIDXV2
         gfObjectOffset oo = {0};
         oo.hash = pdSVCpy(name);
         pdArrPush(objof, oo);
+        GF_TRACE("pushed object with hash '"PRI_SV"' to object-offset table.",
+                 ARG_SV(oo.hash));
     }
 
     if(fseek(file, fanout[255] * 4, SEEK_CUR) != 0)
@@ -635,13 +639,14 @@ f_internal u08 *readDelta
 
     if(!outInfo->data)
     {
-        GF_ERROR("outInfo->data is nil. cannot apply delta patch.");
+        GF_ERROR("outInfo->data is nil. cannot actually read delta object.");
         return false;
     }
 
     // PERF: we should really make this a scratch buffer. Deflate a little bit, then
     // parse, then deflate if more is needed, etc. For that, I need to implement scratch
     // reading in datasurf.
+    // FIXME: we can't be running around like this and just malloc'ing the whole thing.
     u08 *deltaDataBuf = malloc(deltaDataSize);
     if(!deltaDataBuf)
     {
@@ -692,6 +697,7 @@ f_internal bool applyDelta
     printf("\n");
     #endif
 
+    // FIXME: we can't be running around like this and just malloc'ing the whole thing.
     u08 *resultObjBuf = malloc(resultSize);
     if(!resultObjBuf)
     {
@@ -819,7 +825,7 @@ error:
 }
 
 // TODO: refactor these shenanigans to:
-// not allocate a huge buffer upfront for a large object (size > 1M),
+// not allocate a huge buffer upfront for a large object (size > 10M),
 // but instead work on a scratch buffer. Read at the latest possible time, exactly how
 // many bytes you need, none more.
 // Large objects should not be cached.
@@ -838,6 +844,235 @@ f_internal bool readAndApplyDelta
 
     return applyDelta(packFile, index, deltaDataSize, deltaDataBuf, outInfo, &cursor,
                       baseSize, resultSize);
+}
+
+f_internal bool resolveObjOnDisk
+(
+    gfRecurseInfo *info
+){
+    StringView hashStart = info->hash;
+    hashStart.size = 2;
+
+    StringView hashRest = info->hash;
+    pdSVTrim(&hashRest, 2, SV_LEFT);
+
+    char pathBuf[4096] = {0};
+
+    StringView objPath = pdSVConcat(info->repository, gitObjectFolder, pathBuf);
+    objPath = pdSVConcat(objPath, hashStart, pathBuf);
+    objPath = pdSVConcat(objPath, sep, pathBuf);
+    objPath = pdSVConcat(objPath, hashRest, pathBuf);
+
+    char objPathBuf[objPath.size + 1];
+    pdSVCstr(objPath, pathBuf);
+
+    u08 result = pdVerifyPath(objPath);
+    if(result == PD_TYPE_FILE)
+    {
+        GF_TRACE("opening to read object from path: '"PRI_SV"'", ARG_SV(objPath));
+
+        BinBuffer zlibBuf = pdReadBinFile(objPathBuf);
+
+        // FIXME: resolve object rest of the way here and add the resolved
+        // object to the cache!!
+
+        //
+        GF_WARN("reading generic object from loose file unimplemented.");
+        return false;
+        //
+
+        GF_TRACE("reading object from loose file.");
+        return true;
+    }
+
+    return false;
+}
+
+// this function is not very good, but I can't really be bothered right now to make it
+// not suck. reading the MIDX would be an improvement.
+f_internal gfHashLocation findObjectOffset
+(
+    StringView objectsPath,
+    StringView hash
+){
+    GF_TRACE("TESTING: looking for object with hash '"PRI_SV"' in idx files.",
+             ARG_SV(hash));
+
+    gfHashLocation loc = {0};
+
+    char packBuf[4096] = {0};
+    StringView pack = pdCstrSV("/pack/");
+
+    pack = pdSVConcat(objectsPath, pack, packBuf);
+
+    char       listBuf[8192] = {0};
+    StringView list          = pdListFiles(pack, listBuf);
+    u64        fileCount     = pdSVCountByDelim(list, ';');
+
+    StringView fileBuf[fileCount];
+    for(u64 i = 0; i < fileCount; ++i)
+    {
+        fileBuf[i].data = 0;
+        fileBuf[i].size = 0;
+    }
+
+    pdSVSeparateByDelim(list, fileBuf, ';', fileCount);
+
+    for(u64 f = 0; f < fileCount; ++f)
+    {
+        if(pdSVFind(idxIdent, fileBuf[f]))
+        {
+            char tmpBuf[4096] = {0};
+            StringView idxPath = pdSVConcat(pack, fileBuf[f], tmpBuf);
+
+            FILE *idxFile = fopen(tmpBuf, "rb");
+            if(!idxFile)
+            {
+                GF_ERROR("failed to open idxFile from findObjectOffset.");
+                return (gfHashLocation){0};
+            }
+
+            bool v2   = true;
+            u08  byte = 0;
+            for(u08 i = 0; i < 4; ++i)
+            {
+                if(fread(&byte, 1, 1, idxFile) != 1)
+                {
+                    GF_ERROR("couldn't read first 4 bytes of .idx file: '"PRI_SV"'",
+                             ARG_SV(idxPath));
+                    return (gfHashLocation){0};
+                }
+
+                if((char)byte != idxV2Magic.data[i])
+                {
+                    v2 = false;
+                }
+            }
+
+            u32 foundIndex = U32MAX;
+
+            if(v2)
+            {
+                u32 version = 0;
+                for(u08 i = 0; i < 4; ++i)
+                {
+                    if(fread(&byte, 1, 1, idxFile) != 1)
+                    {
+                        GF_ERROR("failed to read IDX v2 version number.");
+                        return (gfHashLocation){0};
+                    }
+
+                    version |= (u32)(byte << (3 - i));
+                }
+
+                if(version != 2)
+                {
+                    GF_ERROR("unknown IDX v2 version number: %"PRIu32, version);
+                    return (gfHashLocation){0};
+                }
+
+                u32 fanout[256] = {0};
+                if(!readIDXFanout(idxFile, fanout))
+                {
+                    GF_ERROR("could not read fanouts of v2 IDX file.");
+                    return (gfHashLocation){0};
+                }
+
+                for(u32 i = 0; i < fanout[255]; ++i)
+                {
+                    char nameBuf[64] = {0};
+
+                    for(u08 j = 0; j < hash.size; j += 2)
+                    {
+                        if(fread(&byte, 1, 1, idxFile) != 1)
+                        {
+                            GF_ERROR("could not read name of object %"PRIu32".", i);
+                            return (gfHashLocation){0};
+                        }
+                        nameBuf[j]     = valueToHexChar(byte >> 4);
+                        nameBuf[j + 1] = valueToHexChar(byte & 0x0F);
+                    }
+
+                    StringView name = {0};
+                    name.data = nameBuf;
+                    name.size = hash.size;
+
+                    if(pdSVSame(hash, name))
+                    {
+                        GF_TRACE("FOUND OBJECT '"PRI_SV"' IN FILE '"PRI_SV
+                                 "' AT INDEX %"PRIu32,
+                                 ARG_SV(hash), ARG_SV(idxPath), i);
+                        foundIndex = i;
+                        break;
+                    }
+                }
+
+                if(foundIndex == U32MAX)
+                {
+                    continue;
+                }
+
+                if(fseek(idxFile, fanout[255] * 4, SEEK_CUR) != 0)
+                {
+                    GF_ERROR("could not skip CRC table.");
+                    return (gfHashLocation){0};
+                }
+
+                for(u32 i = 0; i < fanout[255]; ++i)
+                {
+                    u32 offset = 0;
+                    for(u08 j = 0; j < 4; ++j)
+                    {
+                        if(fread(&byte, 1, 1, idxFile) != 1)
+                        {
+                            GF_ERROR("could not read offset of object %"PRIu32".", i);
+                            return (gfHashLocation){0};
+                        }
+
+                        offset |= (u32)(byte << (8 * (3 - j)));
+                    }
+
+                    if(i != foundIndex)
+                    {
+                        continue;
+                    }
+
+                    if(offset & 0x80000000)
+                    {
+                        offset &= 0x7FFFFFFF;
+                        // TODO: do something with these
+                        GF_WARN("TODO: handle object offset via index into large "
+                                "offset table: %" PRIu32, offset);
+                        return (gfHashLocation){0};
+                    }
+
+                    char packFileBuf[idxPath.size + 2];
+                    packFileBuf[idxPath.size + 1] = '\0';
+
+                    pdSVTrim(&idxPath, 3, SV_RIGHT);
+                    pdSVConcat(idxPath, pdCstrSV("pack"), packFileBuf);
+
+                    StringView packFile = pdCstrSV(packFileBuf);
+
+                    GF_TRACE("TESTING: WE FOUND IT!!!");
+                    loc.index        = offset;
+                    loc.packFilePath = pdSVCpy(packFile);
+                    fclose(idxFile);
+                    return loc;
+                }
+            }
+            else
+            {
+                //
+                GF_ERROR("IDX v1 from findObjectOffset unhandled.");
+                //
+            }
+
+            fclose(idxFile);
+        }
+    }
+
+    return (gfHashLocation){0};
 }
 
 // PERF: calls to this function should be multi-threaded, this is an absolute
@@ -883,13 +1118,34 @@ f_internal bool resolveObjRecurse
 nocache:
     if(*index == U64MAX)
     {
-        // TODO: read midx to find where this hash is, actually, then read & return from
-        // there
+        // TODO: again, might be on-disk.
+        // if not, find it MIDX or IDX.
+
+        if(resolveObjOnDisk(info))
+        {
+            return true;
+        }
+
+        GF_TRACE("searching for the offset of object '"PRI_SV"'", ARG_SV(info->hash));
+
+        gfHashLocation result = findObjectOffset(info->repository, info->hash);
+
+        GF_TRACE("TESTING: result.packFile: '"PRI_SV"'", ARG_SV(result.packFilePath));
+        GF_TRACE("TESTING: result.index: %"PRIu64, result.index);
+
+        // URGENT: open the packfile and return its resolved object... god, that took
+        // forever.
+
+        // info->packFile = result.packFile;
+        // info->fileSize = result.fileSize;
+        info->index = &result.index;
 
         //
-        GF_WARN("TODO: HASH lookup unhandled.");
+        GF_WARN("TODO: hash lookup unimplemented.");
         return false;
         //
+
+        return resolveObjRecurse(info);
     }
 
     if(!readObjectHeader(packFile, index, fileSize, outInfo))
@@ -988,7 +1244,7 @@ nocache:
     {
         GF_TRACE("identified ofs delta object.");
 
-        u08  byte   = packFile[(*index)++];
+        u08 byte   = packFile[(*index)++];
         u64 offset = byte & 0x7F;
 
         while(byte & 0x80)
@@ -1054,12 +1310,13 @@ nocache:
         name.data = nameBuf;
         name.size = oidSize * 2;
 
-        GF_TRACE("read REF_DELTA object '"PRI_SV"'", ARG_SV(name));
+        GF_TRACE("read REF_DELTA object '"PRI_SV"' of size: %"PRIu64,
+                 ARG_SV(name), outInfo->size);
 
         u64 noIndex   = U64MAX;
-        u64 deltaSize = outInfo->size;
         info->firstCall = false;
         info->index     = &noIndex;
+        info->hash      = name;
 
         if(!resolveObjRecurse(info))
         {
@@ -1067,6 +1324,7 @@ nocache:
             return false;
         }
 
+        u64 deltaSize = outInfo->size;
         if(!readAndApplyDelta(packFile, index, deltaSize, outInfo))
         {
             GF_ERROR("could not apply delta from OBJ_OFS_DELTA.");
@@ -1082,6 +1340,7 @@ nocache:
     return false;
 }
 
+// TODO: also read the commits that are specified in the MIDX file.
 f_internal void readCommitsFromOffsets
 (
     StringView     path,
@@ -1113,11 +1372,17 @@ f_internal void readCommitsFromOffsets
         goto closefile;
     }
 
+    StringView repository = path;
+    size trimCount = path.size - ((size)(pdSVFind(gitObjectFolder, path) - path.data) +
+                                         gitObjectFolder.size);
+    pdSVTrim(&repository, trimCount, SV_RIGHT);
+
     gfRecurseInfo info = {0};
-    info.packFile = packFile;
-    info.fileSize = fileSize;
-    info.cache    = cache;
-    info.oidSize  = oidSize;
+    info.repository = repository;
+    info.packFile   = packFile;
+    info.fileSize   = fileSize;
+    info.cache      = cache;
+    info.oidSize    = oidSize;
 
     u64 arraySize = pdArrSize(objof);
     GF_TRACE("reading %"PRIu64" objects from offsets into packfile.", arraySize);
@@ -1280,6 +1545,7 @@ void gfInitRepository
     char packBuf[4096]     = {0};
     char confBuf[4096]     = {0};
     char absoluteBuf[4096] = {0};
+
     StringView absolute = pdExpandPath(repo->path, absoluteBuf);
     StringView gitPACK  = pdCstrSV("/.git/objects/pack/");
     StringView gitHEAD  = pdCstrSV("/.git/HEAD");
@@ -1299,7 +1565,7 @@ void gfInitRepository
 
     char       listBuf[8192] = {0};
     StringView list          = pdListFiles(gitPACK, listBuf);
-    u64   fileCount     = pdSVCountByDelim(list, ';');
+    u64        fileCount     = pdSVCountByDelim(list, ';');
 
     StringView fileBuf[fileCount];
     for(u64 i = 0; i < fileCount; ++i)

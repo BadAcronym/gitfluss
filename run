@@ -20,6 +20,7 @@ src/linux_gitfluss_platform.c \
 vendor/datasurf/src/datasurf_zlib.c \
 vendor/datasurf/src/datasurf_huffman.c \
 vendor/datasurf/src/datasurf_algo_deflate.c \
+vendor/datasurf/vendor/puddle/src/pd_util.c \
 vendor/datasurf/vendor/puddle/src/pd_string_view.c \
 vendor/datasurf/vendor/puddle/src/linux_pd_path.c \
 -Iinclude/ \

@@ -201,8 +201,16 @@ typedef struct gfObjectOffset
 }
 gfObjectOffset;
 
+typedef struct gfHashLocation
+{
+    StringView packFilePath;
+    u64        index;
+}
+gfHashLocation;
+
 typedef struct gfRecurseInfo
 {
+    StringView repository;
     u08        *packFile;
     StringView hash;
     gfPackInfo **cache;
