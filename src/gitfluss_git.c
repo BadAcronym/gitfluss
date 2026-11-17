@@ -35,7 +35,17 @@ void gfFreeCommit
 
     pdSVFree(&commit->hash);
     pdSVFree(&commit->summary);
-    pdSVFree(&commit->parentHash);
+
+    if(commit->parentHashes)
+    {
+        for(u16 i = 0; i < pdArrSize(commit->parentHashes); ++i)
+        {
+            pdSVFree(&commit->parentHashes[i]);
+        }
+        commit->parentHashes = 0;
+    }
+
+    // pdSVFree(&commit->parentHash);
     pdSVFree(&commit->authorName);
     pdSVFree(&commit->authorMail);
     pdSVFree(&commit->committerName);
@@ -121,16 +131,17 @@ f_internal bool verifyCommit
         }
     }
 
-    for(u08 i = 0; i < commit->parentHash.size; ++i)
-    {
-        c = commit->parentHash.data[i];
-        if(!(c > 0x2F && c < 0x3A) && !(c > 0x60 && c < 0x67))
-        {
-            GF_ERROR("commit->parentHash.data[%"PRIu8"] is outside of valid range: '%c'"
-                     " (0x%X)", i, c, c);
-            return false;
-        }
-    }
+    // CURRENT: let's not worry about verifying the parent hashes, for now
+    // for(u08 i = 0; i < commit->parentHash.size; ++i)
+    // {
+    //     c = commit->parentHash.data[i];
+    //     if(!(c > 0x2F && c < 0x3A) && !(c > 0x60 && c < 0x67))
+    //     {
+    //         GF_ERROR("commit->parentHash.data[%"PRIu8"] is outside of valid range: '%c'"
+    //                  " (0x%X)", i, c, c);
+    //         return false;
+    //     }
+    // }
 
     return true;
 }
@@ -160,12 +171,13 @@ f_internal bool readCommitFromPtr
     u64 index = 0;
     while(pdSVReadLine(commitBufSV, &index, &line))
     {
+        GF_TRACE("TESTING full line: "PRI_SV, ARG_SV(line));
         if(pdSVFind(parentIdent, *((StringView*)&line)) == line.data)
         {
             line.data += parentIdent.size + 1;
             line.size -= parentIdent.size + 1;
 
-            commit->parentHash = pdSVCpy(*((StringView*)&line));
+            pdArrPush(commit->parentHashes, pdSVCpy(*((StringView*)&line)));
         }
         else if(pdSVFind(authorIdent, *((StringView*)&line)) == line.data)
         {
@@ -227,7 +239,18 @@ f_internal bool readCommitFromPtr
     GF_TRACE("read commit:");
     GF_TRACE("commit->hash:          '"PRI_SV"'", ARG_SV(commit->hash));
     GF_TRACE("commit->summary:       '"PRI_SV"'", ARG_SV(commit->summary));
-    GF_TRACE("commit->parentHash:    '"PRI_SV"'", ARG_SV(commit->parentHash));
+
+    #ifdef DEBUG
+    if(commit->parentHashes)
+    {
+        for(u16 i = 0; i < pdArrSize(commit->parentHashes); ++i)
+        {
+            GF_TRACE("commit->parentHash:    '"PRI_SV"'", ARG_SV(commit->parentHashes[i]));
+        }
+    }
+    #endif
+    // GF_TRACE("commit->parentHash:    '"PRI_SV"'", ARG_SV(commit->parentHash));
+
     GF_TRACE("commit->authorName:    '"PRI_SV"'", ARG_SV(commit->authorName));
     GF_TRACE("commit->authorMail:    '"PRI_SV"'", ARG_SV(commit->authorMail));
     GF_TRACE("commit->committerName: '"PRI_SV"'", ARG_SV(commit->committerName));
@@ -355,7 +378,6 @@ bool gfGetCommitInfo
     u08 result = pdVerifyPath(commitPath);
     if(result == PD_TYPE_FILE)
     {
-        // ASAN: already freed here
         gfFreeCommit(commit);
         readCommitFromFile(commitPath, hash, commit);
         return true;
@@ -1438,9 +1460,9 @@ f_internal void readCommitsFromOffsets
         gfCommitInfo commit = {0};
 
         StringView hash = pdSVCpy(objof[i].hash);
-        // ASAN: double free here
         gfFreeCommit(&commit);
 
+        // ASAN: segfault
         readCommitFromPtr(outInfo.data, &commit, hash, outInfo.size);
 
         u08 firstTwo = twoCharsToByte(hash.data[0], hash.data[1]);
@@ -1556,7 +1578,6 @@ f_internal void readPackedCommits
     pdArrFree(objof);
 }
 
-// FIXME: setting the first commit to not be the head? wtf
 void gfInitRepository
 (
     gfRepository *repo,
@@ -1727,6 +1748,8 @@ void gfInitRepository
 
     GF_TRACE("identified HEAD: '"PRI_SV"'", ARG_SV(hash));
     gfGetCommitInfo(repo->path, pdSVCpy(hash), head, commitTable);
+
+    GF_TRACE("TESTING: gfInitRepository returned organically.");
 
 closefile:
     fclose(file);

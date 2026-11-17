@@ -177,7 +177,7 @@ typedef struct gfCommitInfo
 {
     StringView hash;
     StringView summary;
-    StringView parentHash;
+    StringView *parentHashes;
     StringView authorName;
     StringView authorMail;
     StringView committerName;

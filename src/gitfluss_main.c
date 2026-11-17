@@ -267,7 +267,7 @@ f_internal void *gatherRepoData
     gfInitRepository(&repo, &commit, table);
 
     GF_TRACE("TESTING: LOOP START");
-    while(commit.parentHash.size)
+    for(;;)
     {
         GF_TRACE("TESTING: analyzing commit: '"PRI_SV"'", ARG_SV(commit.hash));
         bool counts = anyAuthor;
@@ -275,6 +275,8 @@ f_internal void *gatherRepoData
         if(commit.authorTime < set->startYearTime ||
            commit.authorTime > set->endYearTime
         ){
+            GF_TRACE("TESTING: skipped out-of-time commit: '"PRI_SV"'",
+                     ARG_SV(commit.hash));
             goto nextCommit;
         }
 
@@ -292,7 +294,7 @@ f_internal void *gatherRepoData
         }
 
         gfLock(set);
-        GF_TRACE("ding!");
+        GF_TRACE("TESTING: counting commit: '"PRI_SV"'", ARG_SV(commit.hash));
         ++set->totalCommitCount;
         gfUnlock(set);
 
@@ -337,16 +339,21 @@ f_internal void *gatherRepoData
         }
 
     nextCommit:
-        if(!commit.parentHash.data || !commit.parentHash.size)
+        if(!commit.parentHashes || !pdArrSize(commit.parentHashes))
         {
             break;
         }
 
-        // ASAN: this is still not freed, always?
-        StringView parentHash = pdSVCpy(commit.parentHash);
+        // CURRENT: only ever taking first available parent here. 🤔
+        // technically, we should fork. for every instance of this with two parents,
+        // enter recursion. otherwise, continue as normal.
+
+        StringView parentHash = pdSVCpy(commit.parentHashes[0]);
 
         if(!gfGetCommitInfo(repo.path, parentHash, &commit, table))
         {
+            GF_TRACE("TESTING: couldn't get commit info from parent: '"PRI_SV"'",
+                     ARG_SV(parentHash));
             break;
         }
     }
