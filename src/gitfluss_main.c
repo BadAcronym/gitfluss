@@ -316,7 +316,6 @@ f_internal void *gatherRepoData
         return 0;
     }
 
-    GF_TRACE("TESTING: LOOP START");
     for(;;)
     {
         GF_TRACE("TESTING: analyzing commit: '"PRI_SV"'", ARG_SV(commit.hash));
@@ -485,14 +484,12 @@ f_internal void *gatherRepoData
         u64 arraySize = pdArrSize(table[i]);
         for(u64 j = 0; j < arraySize; ++j)
         {
-            // NOTE: let asan cry for a bit until everything's done
-            // pdSVFree(&table[i][j].authorMail);
-            // gfFreeCommit(&table[i][j]);
+            gfFreeCommit(&table[i][j]);
         }
         pdArrFree(table[i]);
     }
 
-    // gfFreeCommit(&commit);
+    gfFreeCommit(&commit);
     return 0;
 }
 
