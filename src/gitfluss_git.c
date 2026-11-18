@@ -306,6 +306,7 @@ bool gfGetCommitInfo
     if(result == PD_TYPE_FILE)
     {
         readCommitFromFile(commitPath, hash, commit);
+        pdSVFree(&hashStart);
         return true;
     }
 
