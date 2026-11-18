@@ -30,6 +30,11 @@ void gfFreeCommit
 (
     gfCommitInfo *commit
 ){
+    if(!commit)
+    {
+        return;
+    }
+
     commit->authorTime    = 0;
     commit->committerTime = 0;
 
@@ -42,56 +47,14 @@ void gfFreeCommit
         {
             pdSVFree(&commit->parentHashes[i]);
         }
+        pdArrFree(commit->parentHashes);
         commit->parentHashes = 0;
     }
 
-    // pdSVFree(&commit->parentHash);
     pdSVFree(&commit->authorName);
     pdSVFree(&commit->authorMail);
     pdSVFree(&commit->committerName);
     pdSVFree(&commit->committerMail);
-}
-
-f_internal char valueToHexChar
-(
-    u08 value
-){
-    GF_ASSERT(value < 0x10, "cannot express values bigger than 15 in 4 bits.");
-
-    if(value > 9)
-    {
-        return value + 0x57;
-    }
-
-    return value + 0x30;
-}
-
-f_internal u08 twoCharsToByte
-(
-    char c1,
-    char c2
-){
-    u08 v1 = 0;
-    u08 v2 = 0;
-
-    GF_ASSERT((c1 > 0x2F && c1 < 0x3A) || (c1 > 0x60 && c1 < 0x67),
-              "c1 outside of valid range. passed char: '%c' (0x%X)", c1, c1);
-    GF_ASSERT((c2 > 0x2F && c2 < 0x3A) || (c2 > 0x60 && c2 < 0x67),
-              "c2 outside of valid range. passed char: '%c' (0x%X)", c2, c2);
-
-    v1 = (u08)c1 - '0';
-    if(c1 > 0x60)
-    {
-        v1 = (u08)c1 - 0x57;
-    }
-
-    v2 = (u08)c2 - '0';
-    if(c2 > 0x60)
-    {
-        v2 = (u08)c2 - 0x57;
-    }
-
-    return (u08)((v1 << 4) | v2);
 }
 
 f_internal i64 readTimeFromStr
@@ -112,40 +75,6 @@ f_internal i64 readTimeFromStr
 
     return time;
 }
-
-#ifdef DEBUG
-f_internal bool verifyCommit
-(
-    gfCommitInfo *commit
-){
-    char c = 0;
-
-    for(u08 i = 0; i < commit->hash.size; ++i)
-    {
-        c = commit->hash.data[i];
-        if(!(c > 0x2F && c < 0x3A) && !(c > 0x60 && c < 0x67))
-        {
-            GF_ERROR("commit->hash.data[%"PRIu8"] is outside of valid range: '%c' "
-                     "(0x%X)", i, c, c);
-            return false;
-        }
-    }
-
-    // CURRENT: let's not worry about verifying the parent hashes, for now
-    // for(u08 i = 0; i < commit->parentHash.size; ++i)
-    // {
-    //     c = commit->parentHash.data[i];
-    //     if(!(c > 0x2F && c < 0x3A) && !(c > 0x60 && c < 0x67))
-    //     {
-    //         GF_ERROR("commit->parentHash.data[%"PRIu8"] is outside of valid range: '%c'"
-    //                  " (0x%X)", i, c, c);
-    //         return false;
-    //     }
-    // }
-
-    return true;
-}
-#endif
 
 f_internal bool readCommitFromPtr
 (
@@ -171,7 +100,6 @@ f_internal bool readCommitFromPtr
     u64 index = 0;
     while(pdSVReadLine(commitBufSV, &index, &line))
     {
-        GF_TRACE("TESTING full line: "PRI_SV, ARG_SV(line));
         if(pdSVFind(parentIdent, *((StringView*)&line)) == line.data)
         {
             line.data += parentIdent.size + 1;
@@ -234,13 +162,11 @@ f_internal bool readCommitFromPtr
         commit->summary = pdSVCpy(*((StringView*)&line));
     }
 
-    GF_ASSERT(verifyCommit(commit), "returned bogus commit from readCommitFromPtr.");
-
     GF_TRACE("read commit:");
     GF_TRACE("commit->hash:          '"PRI_SV"'", ARG_SV(commit->hash));
     GF_TRACE("commit->summary:       '"PRI_SV"'", ARG_SV(commit->summary));
 
-    #ifdef DEBUG
+    #ifdef GF_PRI_TRACE
     if(commit->parentHashes)
     {
         for(u16 i = 0; i < pdArrSize(commit->parentHashes); ++i)
@@ -337,7 +263,6 @@ f_internal void readCommitFromFile
 
 closefile:
     fclose(file);
-    GF_ASSERT(verifyCommit(commit), "returned bogus commit from readCommitFromFile.");
 }
 
 bool gfGetCommitInfo
@@ -363,7 +288,10 @@ bool gfGetCommitInfo
 
     GF_TRACE("looking for commit with hash: "PRI_SV, ARG_SV(hash));
 
-    StringView hashStart = hash;
+    // ensure we have a clean slate to work with
+    gfFreeCommit(commit);
+
+    StringView hashStart = pdSVCpy(hash);
     hashStart.size = 2;
 
     StringView hashRest = hash;
@@ -378,7 +306,6 @@ bool gfGetCommitInfo
     u08 result = pdVerifyPath(commitPath);
     if(result == PD_TYPE_FILE)
     {
-        gfFreeCommit(commit);
         readCommitFromFile(commitPath, hash, commit);
         return true;
     }
@@ -394,7 +321,7 @@ bool gfGetCommitInfo
         goto notfound;
     }
 
-    u08 firstTwo = twoCharsToByte(hash.data[0], hash.data[1]);
+    u08 firstTwo = gfTwoCharsToByte(hash.data[0], hash.data[1]);
     if(!table[firstTwo])
     {
         GF_TRACE("table[0x%x] has no data.", firstTwo);
@@ -402,16 +329,34 @@ bool gfGetCommitInfo
     }
 
     u64 arraySize = pdArrSize(table[firstTwo]);
-    GF_TRACE("looking for commit in table[%c%c]: size %"PRIu64,
+    GF_TRACE("looking for commit in table[0x%c%c]: size %"PRIu64,
              hash.data[0], hash.data[1], arraySize);
     for(u64 i = 0; i < arraySize; ++i)
     {
-        GF_TRACE("checking against commit in table[0x%x]: "PRI_SV,
-                 firstTwo, ARG_SV(table[firstTwo][i].hash));
+        gfCommitInfo tmp = table[firstTwo][i];
 
-        if(pdSVSame(hash, table[firstTwo][i].hash))
+        GF_TRACE("checking against commit in table[0x%x]: "PRI_SV,
+                 firstTwo, ARG_SV(tmp.hash));
+
+        if(pdSVSame(hash, tmp.hash))
         {
-            *commit = table[firstTwo][i];
+            commit->hash          = pdSVCpy(tmp.hash);
+            commit->summary       = pdSVCpy(tmp.summary);
+            commit->authorName    = pdSVCpy(tmp.authorName);
+            commit->authorMail    = pdSVCpy(tmp.authorMail);
+            commit->committerName = pdSVCpy(tmp.committerName);
+            commit->committerMail = pdSVCpy(tmp.committerMail);
+            commit->authorTime    = tmp.authorTime;
+            commit->committerTime = tmp.committerTime;
+
+            if(tmp.parentHashes)
+            {
+                for(u64 i = 0; i < pdArrSize(tmp.parentHashes); ++i)
+                {
+                    pdArrPush(commit->parentHashes, pdSVCpy(tmp.parentHashes[i]));
+                }
+            }
+
             GF_TRACE("found commit!");
             found = true;
             break;
@@ -423,12 +368,12 @@ bool gfGetCommitInfo
         goto notfound;
     }
 
-    pdSVFree(&hash);
+    pdSVFree(&hashStart);
     return true;
 
 notfound:
     GF_ERROR("could not find commit with hash '"PRI_SV"' anywhere.", ARG_SV(hash));
-    pdSVFree(&hash);
+    pdSVFree(&hashStart);
     return false;
 }
 
@@ -552,8 +497,8 @@ f_internal gfObjectOffset *readIDXV2
                 pdArrFree(objof);
                 goto closefile;
             }
-            nameBuf[j]     = valueToHexChar(byte >> 4);
-            nameBuf[j + 1] = valueToHexChar(byte & 0x0F);
+            nameBuf[j]     = gfValueToHexChar(byte >> 4);
+            nameBuf[j + 1] = gfValueToHexChar(byte & 0x0F);
         }
 
         StringView name = {0};
@@ -1010,8 +955,8 @@ f_internal gfHashLocation findObjectOffset
                             GF_ERROR("could not read name of object %"PRIu32".", i);
                             return (gfHashLocation){0};
                         }
-                        nameBuf[j]     = valueToHexChar(byte >> 4);
-                        nameBuf[j + 1] = valueToHexChar(byte & 0x0F);
+                        nameBuf[j]     = gfValueToHexChar(byte >> 4);
+                        nameBuf[j + 1] = gfValueToHexChar(byte & 0x0F);
                     }
 
                     StringView name = {0};
@@ -1341,8 +1286,8 @@ nocache:
         for(u08 j = 0; j < oidSize * 2; j += 2)
         {
             byte = packFile[(*index)++];
-            nameBuf[j]     = valueToHexChar(byte >> 4);
-            nameBuf[j + 1] = valueToHexChar(byte & 0x0F);
+            nameBuf[j]     = gfValueToHexChar(byte >> 4);
+            nameBuf[j + 1] = gfValueToHexChar(byte & 0x0F);
         }
 
         StringView name = {0};
@@ -1380,8 +1325,6 @@ nocache:
     return false;
 }
 
-// TODO: also read the commits that are specified in the MIDX file.
-// URGENT: make sure they are added to the table. always.
 f_internal void readCommitsFromOffsets
 (
     StringView     path,
@@ -1462,10 +1405,9 @@ f_internal void readCommitsFromOffsets
         StringView hash = pdSVCpy(objof[i].hash);
         gfFreeCommit(&commit);
 
-        // ASAN: segfault
         readCommitFromPtr(outInfo.data, &commit, hash, outInfo.size);
 
-        u08 firstTwo = twoCharsToByte(hash.data[0], hash.data[1]);
+        u08 firstTwo = gfTwoCharsToByte(hash.data[0], hash.data[1]);
         pdArrPush(table[firstTwo], commit);
     }
 
@@ -1748,8 +1690,6 @@ void gfInitRepository
 
     GF_TRACE("identified HEAD: '"PRI_SV"'", ARG_SV(hash));
     gfGetCommitInfo(repo->path, pdSVCpy(hash), head, commitTable);
-
-    GF_TRACE("TESTING: gfInitRepository returned organically.");
 
 closefile:
     fclose(file);

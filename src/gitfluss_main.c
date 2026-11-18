@@ -244,6 +244,48 @@ f_internal void printHeatMap
     printf("\n");
 }
 
+u08 gfTwoCharsToByte
+(
+    char c1,
+    char c2
+){
+    u08 v1 = 0;
+    u08 v2 = 0;
+
+    GF_ASSERT((c1 > 0x2F && c1 < 0x3A) || (c1 > 0x60 && c1 < 0x67),
+              "c1 outside of valid range. passed char: '%c' (0x%X)", c1, c1);
+    GF_ASSERT((c2 > 0x2F && c2 < 0x3A) || (c2 > 0x60 && c2 < 0x67),
+              "c2 outside of valid range. passed char: '%c' (0x%X)", c2, c2);
+
+    v1 = (u08)c1 - '0';
+    if(c1 > 0x60)
+    {
+        v1 = (u08)c1 - 0x57;
+    }
+
+    v2 = (u08)c2 - '0';
+    if(c2 > 0x60)
+    {
+        v2 = (u08)c2 - 0x57;
+    }
+
+    return (u08)((v1 << 4) | v2);
+}
+
+char gfValueToHexChar
+(
+    u08 value
+){
+    GF_ASSERT(value < 0x10, "cannot express values bigger than 15 in 4 bits.");
+
+    if(value > 9)
+    {
+        return value + 0x57;
+    }
+
+    return value + 0x30;
+}
+
 f_internal void *gatherRepoData
 (
     void *arguments
@@ -266,10 +308,39 @@ f_internal void *gatherRepoData
     repo.path            = data->repository;
     gfInitRepository(&repo, &commit, table);
 
+    StringView *missedQueue     = 0;
+    StringView *seenHashes[256] = {0};
+
+    if(!commit.hash.data || !commit.hash.size)
+    {
+        return 0;
+    }
+
     GF_TRACE("TESTING: LOOP START");
     for(;;)
     {
         GF_TRACE("TESTING: analyzing commit: '"PRI_SV"'", ARG_SV(commit.hash));
+
+        u08 firstTwo = gfTwoCharsToByte(commit.hash.data[0], commit.hash.data[1]);
+
+        bool duplicate = false;
+        if(seenHashes[firstTwo] && pdArrSize(seenHashes[firstTwo]))
+        {
+            for(u64 i = 0; i < pdArrSize(seenHashes[firstTwo]); ++i)
+            {
+                if(pdSVSame(commit.hash, seenHashes[firstTwo][i]))
+                {
+                    duplicate = true;
+                    break;
+                }
+            }
+        }
+
+        if(duplicate)
+        {
+            goto nextCommit;
+        }
+
         bool counts = anyAuthor;
 
         if(commit.authorTime < set->startYearTime ||
@@ -294,7 +365,6 @@ f_internal void *gatherRepoData
         }
 
         gfLock(set);
-        GF_TRACE("TESTING: counting commit: '"PRI_SV"'", ARG_SV(commit.hash));
         ++set->totalCommitCount;
         gfUnlock(set);
 
@@ -338,15 +408,52 @@ f_internal void *gatherRepoData
             printf("unmatched author: "PRI_SV"\n", ARG_SV(commit.authorMail));
         }
 
+        pdArrPush(seenHashes[firstTwo], pdSVCpy(commit.hash));
+
     nextCommit:
         if(!commit.parentHashes || !pdArrSize(commit.parentHashes))
         {
-            break;
+            GF_TRACE("TESTING: DEAD END FOR THIS BRANCH");
+
+            if(!missedQueue || !pdArrSize(missedQueue))
+            {
+                break;
+            }
+
+            GF_TRACE("TESTING: NEW BRANCH WITH COMMIT: '"PRI_SV"'", ARG_SV(missedQueue[0]));
+
+            pdArrPush(commit.parentHashes, pdSVCpy(missedQueue[0]));
+            pdArrRemove(missedQueue, 0, (StringView){0});
         }
 
-        // CURRENT: only ever taking first available parent here. 🤔
-        // technically, we should fork. for every instance of this with two parents,
-        // enter recursion. otherwise, continue as normal.
+        while(pdArrSize(commit.parentHashes) > 1)
+        {
+            u64 last = pdArrSize(commit.parentHashes) - 1;
+
+            firstTwo  = gfTwoCharsToByte(commit.parentHashes[last].data[0],
+                                         commit.parentHashes[last].data[1]);
+            bool seen = false;
+            if(seenHashes[firstTwo] && pdArrSize(seenHashes[firstTwo]))
+            {
+                for(u64 i = 0; i < pdArrSize(seenHashes[firstTwo]); ++i)
+                {
+                    if(pdSVSame(commit.parentHashes[last], seenHashes[firstTwo][i]))
+                    {
+                        seen = true;
+                        break;
+                    }
+                }
+            }
+
+            if(!seen)
+            {
+                GF_TRACE("TESTING: SAVING EXTRA PARENT FOR LATER: '"PRI_SV"'",
+                         ARG_SV(commit.parentHashes[last]));
+                pdArrPush(missedQueue, pdSVCpy(commit.parentHashes[last]));
+            }
+
+            pdArrRemove(commit.parentHashes, last, (StringView){0});
+        }
 
         StringView parentHash = pdSVCpy(commit.parentHashes[0]);
 
@@ -651,10 +758,13 @@ f_internal void displayData
         printf("%"PRIu64" were matched with a provided author (%.2f%%).\n",
                set->personalCommitCount, percentage);
 
-        printf("most commits in the last 365 days (%"PRIu32") made %"PRIu32" days ago.\n",
-               max, maxday);
-        printf("most commits in single repository (%"PRIu32") in '"PRI_SV"'.\n\n",
-               set->repoMax, ARG_SV(set->biggestRepo));
+        printf("most commits in the last 365 days (%"PRIu32") made %"PRIu32
+               " days ago.\n", max, maxday);
+        if(set->repositoryCount > 1)
+        {
+            printf("most commits in single repository (%"PRIu32") in '"PRI_SV"'.\n\n",
+                   set->repoMax, ARG_SV(set->biggestRepo));
+        }
 
         printf("time since first commit: %lu days\n\n", daysCommit);
     }

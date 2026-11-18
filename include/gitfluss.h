@@ -222,6 +222,17 @@ typedef struct gfRecurseInfo
 }
 gfRecurseInfo;
 
+extern u08 gfTwoCharsToByte
+(
+    char c1,
+    char c2
+);
+
+extern char gfValueToHexChar
+(
+    u08 value
+);
+
 extern i64 gfQueryTime
 (
     void
