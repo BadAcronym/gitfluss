@@ -351,9 +351,9 @@ bool gfGetCommitInfo
 
             if(tmp.parentHashes)
             {
-                for(u64 i = 0; i < pdArrSize(tmp.parentHashes); ++i)
+                for(u64 j = 0; j < pdArrSize(tmp.parentHashes); ++j)
                 {
-                    pdArrPush(commit->parentHashes, pdSVCpy(tmp.parentHashes[i]));
+                    pdArrPush(commit->parentHashes, pdSVCpy(tmp.parentHashes[j]));
                 }
             }
 
