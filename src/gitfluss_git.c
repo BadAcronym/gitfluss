@@ -1083,27 +1083,27 @@ nocache:
         char packFileBuf[result.packFilePath.size + 1];
         pdSVCstr(result.packFilePath, packFileBuf);
 
-        FILE *packFile = fopen(packFileBuf, "rb");
-        if(!packFile)
+        FILE *packFileFile = fopen(packFileBuf, "rb");
+        if(!packFileFile)
         {
             GF_ERROR("failed to open packfile: '%s'", packFileBuf);
             return false;
         }
         pdSVFree(&result.packFilePath);
 
-        fseek(packFile, 0, SEEK_END);
-        u64 packFileSize  = (u64)ftell(packFile);
+        fseek(packFileFile, 0, SEEK_END);
+        u64 packFileSize  = (u64)ftell(packFileFile);
         u08 *packFileRead = malloc(packFileSize);
-        fseek(packFile, 0, SEEK_SET);
+        fseek(packFileFile, 0, SEEK_SET);
 
-        if(fread(packFileRead, packFileSize, 1, packFile) != 1)
+        if(fread(packFileRead, packFileSize, 1, packFileFile) != 1)
         {
             GF_ERROR("failed to read new packfile.");
-            fclose(packFile);
+            fclose(packFileFile);
             return false;
         }
 
-        fclose(packFile);
+        fclose(packFileFile);
 
         u08        *savedPackFile = info->packFile;
         u64         savedFileSize = info->fileSize;
