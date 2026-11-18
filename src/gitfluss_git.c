@@ -226,7 +226,6 @@ f_internal bool readObjectHeader
     return true;
 }
 
-// URGENT: check for a cached commit and if none, then add it to cache!
 f_internal void readCommitFromFile
 (
     StringView   path,
@@ -861,9 +860,6 @@ f_internal gfHashLocation findObjectOffset
     StringView objectsPath,
     StringView hash
 ){
-    GF_TRACE("TESTING: looking for object with hash '"PRI_SV"' in idx files.",
-             ARG_SV(hash));
-
     gfHashLocation loc = {0};
 
     char packBuf[4096] = {0};
@@ -1014,7 +1010,6 @@ f_internal gfHashLocation findObjectOffset
 
                 StringView packFile = pdCstrSV(packFileBuf);
 
-                GF_TRACE("TESTING: WE FOUND IT!!!");
                 loc.index        = offset;
                 loc.packFilePath = pdSVCpy(packFile);
                 fclose(idxFile);
@@ -1082,12 +1077,7 @@ nocache:
             return true;
         }
 
-        GF_TRACE("searching for the offset of object '"PRI_SV"'", ARG_SV(info->hash));
-
         gfHashLocation result = findObjectOffset(info->repository, info->hash);
-
-        GF_TRACE("TESTING: result.packFile: '"PRI_SV"'", ARG_SV(result.packFilePath));
-        GF_TRACE("TESTING: result.index: %"PRIu64, result.index);
 
         char packFileBuf[result.packFilePath.size + 1];
         pdSVCstr(result.packFilePath, packFileBuf);
@@ -1110,7 +1100,6 @@ nocache:
 
         fclose(packFile);
 
-        // TESTING: AI code
         u08        *savedPackFile = info->packFile;
         u64         savedFileSize = info->fileSize;
         u64        *savedIndex    = info->index;
@@ -1126,7 +1115,6 @@ nocache:
         info->fileSize  = savedFileSize;
         info->index     = savedIndex;
         info->hash      = savedHash;
-        // TESTING: end AI code
 
         free(packFileRead);
         return success;
