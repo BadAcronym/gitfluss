@@ -460,7 +460,21 @@ f_internal void *gatherRepoData
         {
             GF_TRACE("TESTING: couldn't get commit info from parent: '"PRI_SV"'",
                      ARG_SV(parentHash));
+            pdSVFree(&parentHash);
             break;
+        }
+        pdSVFree(&parentHash);
+    }
+
+    for(u16 i = 0; i < 256; ++i)
+    {
+        if(seenHashes[i])
+        {
+            for(u16 j = 0; j < pdArrSize(seenHashes[i]); ++j)
+            {
+                pdSVFree(&seenHashes[i][j]);
+            }
+            pdArrFree(seenHashes[i]);
         }
     }
 

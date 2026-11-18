@@ -1086,7 +1086,9 @@ nocache:
         if(!packFile)
         {
             GF_ERROR("failed to open packfile: '%s'", packFileBuf);
+            return false;
         }
+        pdSVFree(&result.packFilePath);
 
         fseek(packFile, 0, SEEK_END);
         u64 packFileSize  = (u64)ftell(packFile);
@@ -1096,6 +1098,8 @@ nocache:
         if(fread(packFileRead, packFileSize, 1, packFile) != 1)
         {
             GF_ERROR("failed to read new packfile.");
+            fclose(packFile);
+            return false;
         }
 
         fclose(packFile);
@@ -1103,7 +1107,7 @@ nocache:
         u08        *savedPackFile = info->packFile;
         u64         savedFileSize = info->fileSize;
         u64        *savedIndex    = info->index;
-        StringView  savedHash     = pdSVCpy(info->hash);
+        StringView  savedHash     = info->hash;
 
         info->packFile = packFileRead;
         info->fileSize = packFileSize;
