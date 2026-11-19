@@ -76,12 +76,7 @@ void gfLock
 (
     void *lock
 ){
-    if(!lock)
-    {
-        GF_ERROR("cannot unlock a NULL lock.");
-        return;
-    }
-
+    GF_ASSERT(lock, "cannot lock a NULL lock.");
     AcquireSRWLockExclusive((PSRWLOCK)lock);
 }
 
@@ -89,11 +84,6 @@ void gfUnlock
 (
     void *lock
 ){
-    if(!lock)
-    {
-        GF_ERROR("cannot unlock a NULL lock.");
-        return;
-    }
-
+    GF_ASSERT(lock, "cannot unlock a NULL lock.");
     ReleaseSRWLockExclusive((PSRWLOCK)lock);
 }

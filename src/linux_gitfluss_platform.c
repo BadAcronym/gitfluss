@@ -53,12 +53,7 @@ void gfLock
 (
     gfThreadLock *lock
 ){
-    if(!lock)
-    {
-        GF_ERROR("cannot lock a NULL lock.");
-        return;
-    }
-
+    GF_ASSERT(lock, "cannot lock a NULL lock.");
     pthread_mutex_lock(lock);
 }
 
@@ -66,11 +61,6 @@ void gfUnlock
 (
     gfThreadLock *lock
 ){
-    if(!lock)
-    {
-        GF_ERROR("cannot unlock a NULL lock.");
-        return;
-    }
-
+    GF_ASSERT(lock, "cannot unlock a NULL lock.");
     pthread_mutex_unlock(lock);
 }
