@@ -153,17 +153,6 @@ typedef struct gfDisplaySettings
 }
 gfDisplaySettings;
 
-typedef struct gfThreadData
-{
-    u08               flags;
-    u32               id;
-    u32               authorcount;
-    StringView        repository;
-    StringView        *authorlist;
-    gfDisplaySettings *set;
-}
-gfThreadData;
-
 typedef struct gfPackInfo
 {
     u08 *data;
@@ -172,6 +161,27 @@ typedef struct gfPackInfo
     u64 offset;
 }
 gfPackInfo;
+
+typedef struct gfRecurseInfo
+{
+    StringView repository;
+    u08        *packFile;
+    StringView hash;
+    gfPackInfo **cache;
+    u64        *index;
+    u08        oidSize;
+    u64        fileSize;
+    gfPackInfo *outInfo;
+    bool       firstCall;
+}
+gfRecurseInfo;
+
+typedef struct gfObjectOffset
+{
+    StringView hash;
+    u32        offset;
+}
+gfObjectOffset;
 
 typedef struct gfCommitInfo
 {
@@ -187,6 +197,27 @@ typedef struct gfCommitInfo
 }
 gfCommitInfo;
 
+typedef struct gfRepoThreadData
+{
+    u08               flags;
+    u32               id;
+    u32               authorcount;
+    StringView        repository;
+    StringView        *authorlist;
+    gfDisplaySettings *set;
+}
+gfRepoThreadData;
+
+typedef struct gfOffsetThreadData
+{
+    u08            flags;
+    u32            id;
+    gfObjectOffset *objof;
+    gfRecurseInfo  *info;
+    gfCommitInfo   **table;
+}
+gfOffsetThreadData;
+
 typedef struct gfRepository
 {
     StringView   path;
@@ -194,33 +225,12 @@ typedef struct gfRepository
 }
 gfRepository;
 
-typedef struct gfObjectOffset
-{
-    StringView hash;
-    u32        offset;
-}
-gfObjectOffset;
-
 typedef struct gfHashLocation
 {
     StringView packFilePath;
     u64        index;
 }
 gfHashLocation;
-
-typedef struct gfRecurseInfo
-{
-    StringView repository;
-    u08        *packFile;
-    StringView hash;
-    gfPackInfo **cache;
-    u64        *index;
-    u08        oidSize;
-    u64        fileSize;
-    gfPackInfo *outInfo;
-    bool       firstCall;
-}
-gfRecurseInfo;
 
 extern u08 gfTwoCharsToByte
 (
@@ -250,9 +260,9 @@ extern i64 gfQueryTimezoneOffset
 
 extern void gfDispatchThread
 (
-    gfThread     *thread,
-    void         *func,
-    gfThreadData *data
+    gfThread         *thread,
+    void             *func,
+    gfRepoThreadData *data
 );
 
 extern void gfWaitThread

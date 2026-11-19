@@ -286,11 +286,11 @@ char gfValueToHexChar
     return value + 0x30;
 }
 
-f_internal void *gatherRepoData
+f_internal void *threadProcessRepository
 (
     void *arguments
 ){
-    gfThreadData      *data       = (gfThreadData*)arguments;
+    gfRepoThreadData  *data       = (gfRepoThreadData*)arguments;
     gfDisplaySettings *set        = data->set;
     StringView        *authorlist = data->authorlist;
     u32               authorcount = data->authorcount;
@@ -318,7 +318,7 @@ f_internal void *gatherRepoData
 
     for(;;)
     {
-        GF_TRACE("TESTING: analyzing commit: '"PRI_SV"'", ARG_SV(commit.hash));
+        GF_TRACE("analyzing commit: '"PRI_SV"'", ARG_SV(commit.hash));
 
         u08 firstTwo = gfTwoCharsToByte(commit.hash.data[0], commit.hash.data[1]);
 
@@ -345,8 +345,7 @@ f_internal void *gatherRepoData
         if(commit.authorTime < set->startYearTime ||
            commit.authorTime > set->endYearTime
         ){
-            GF_TRACE("TESTING: skipped out-of-time commit: '"PRI_SV"'",
-                     ARG_SV(commit.hash));
+            GF_TRACE("skipped out-of-time commit: '"PRI_SV"'", ARG_SV(commit.hash));
             goto nextCommit;
         }
 
@@ -412,14 +411,14 @@ f_internal void *gatherRepoData
     nextCommit:
         if(!commit.parentHashes || !pdArrSize(commit.parentHashes))
         {
-            GF_TRACE("TESTING: DEAD END FOR THIS BRANCH");
+            GF_TRACE("dead end for this branch.");
 
             if(!missedQueue || !pdArrSize(missedQueue))
             {
                 break;
             }
 
-            GF_TRACE("TESTING: NEW BRANCH WITH COMMIT: '"PRI_SV"'", ARG_SV(missedQueue[0]));
+            GF_TRACE("new branch with commit: '"PRI_SV"'", ARG_SV(missedQueue[0]));
 
             pdArrPush(commit.parentHashes, pdSVCpy(missedQueue[0]));
             pdSVFree(&missedQueue[0]);
@@ -447,7 +446,7 @@ f_internal void *gatherRepoData
 
             if(!seen)
             {
-                GF_TRACE("TESTING: SAVING EXTRA PARENT FOR LATER: '"PRI_SV"'",
+                GF_TRACE("saving extra parent for later: '"PRI_SV"'",
                          ARG_SV(commit.parentHashes[last]));
                 pdArrPush(missedQueue, pdSVCpy(commit.parentHashes[last]));
             }
@@ -460,7 +459,7 @@ f_internal void *gatherRepoData
 
         if(!gfGetCommitInfo(repo.path, parentHash, &commit, table))
         {
-            GF_TRACE("TESTING: couldn't get commit info from parent: '"PRI_SV"'",
+            GF_TRACE("couldn't get commit info from parent: '"PRI_SV"'",
                      ARG_SV(parentHash));
             pdSVFree(&parentHash);
             break;
@@ -528,8 +527,8 @@ f_internal void gatherData
 
     pdSVSeparateByDelim(config->authors, authorlist, ';', authorcount);
 
-    gfThread     threads[set->repositoryCount];
-    gfThreadData threadData[set->repositoryCount];
+    gfThread         threads[set->repositoryCount];
+    gfRepoThreadData threadData[set->repositoryCount];
 
     GF_TRACE("dispatching %u threads.", set->repositoryCount);
 
@@ -545,7 +544,7 @@ f_internal void gatherData
         GF_TRACE("thread %u: analyzing repository: '"PRI_SV"'",
                  i, ARG_SV(threadData[i].repository));
 
-        gfDispatchThread(&threads[i], (void*)gatherRepoData, &threadData[i]);
+        gfDispatchThread(&threads[i], (void*)threadProcessRepository, &threadData[i]);
     }
 
     for(u32 i = 0; i < set->repositoryCount; ++i)

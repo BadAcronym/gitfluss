@@ -34,9 +34,9 @@ i64 gfQueryTimezoneOffset
 
 void gfDispatchThread
 (
-    gfThread     *thread,
-    void         *func,
-    gfThreadData *data
+    gfThread         *thread,
+    void             *func,
+    gfRepoThreadData *data
 ){
     pthread_create(thread, 0, (void *(*)(void *))func, data);
 }
