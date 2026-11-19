@@ -80,6 +80,8 @@
 #define GF_OBJ_OFS_DELTA 6
 #define GF_OBJ_REF_DELTA 7
 
+#define GF_WORKER_THREADS 16
+
 typedef struct gfConf
 {
     StringView repositories;
@@ -159,15 +161,15 @@ gfPackInfo;
 
 typedef struct gfRecurseInfo
 {
-    StringView repository;
-    u08        *packFile;
-    StringView hash;
-    gfPackInfo **cache;
-    u64        *index;
-    u08        oidSize;
-    u64        fileSize;
-    gfPackInfo *outInfo;
-    bool       firstCall;
+    StringView   repository;
+    u08          *packFile;
+    StringView   hash;
+    gfPackInfo   **cache;
+    u64          *index;
+    u08          oidSize;
+    u64          fileSize;
+    gfPackInfo   *outInfo;
+    bool         firstCall;
 }
 gfRecurseInfo;
 
@@ -208,8 +210,13 @@ typedef struct gfOffsetThreadData
     u08            flags;
     u32            id;
     gfObjectOffset *objof;
-    gfRecurseInfo  *info;
+    gfRecurseInfo  recurseInfo;
+    gfPackInfo     outInfo;
+    u64            index;
     gfCommitInfo   **table;
+    gfThreadLock   *tableLocks;
+    u32            arraySize;
+    u08            workerCount;
 }
 gfOffsetThreadData;
 
@@ -255,9 +262,9 @@ extern i64 gfQueryTimezoneOffset
 
 extern void gfDispatchThread
 (
-    gfThread         *thread,
-    void             *func,
-    gfRepoThreadData *data
+    gfThread *thread,
+    void     *func,
+    void     *data
 );
 
 extern void gfWaitThread

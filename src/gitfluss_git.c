@@ -340,6 +340,7 @@ bool gfGetCommitInfo
         GF_TRACE("checking against commit in table[0x%x]: "PRI_SV,
                  firstTwo, ARG_SV(tmp.hash));
 
+        // ASAN: used here
         if(pdSVSame(hash, tmp.hash))
         {
             commit->hash          = pdSVCpy(tmp.hash);
@@ -1031,6 +1032,7 @@ f_internal gfHashLocation findObjectOffset
     return (gfHashLocation){0};
 }
 
+// FIXME: I think we need to lock the cache here, too... :(
 f_internal bool resolveObjRecurse
 (
     gfRecurseInfo *info
@@ -1317,44 +1319,53 @@ nocache:
     return false;
 }
 
-f_internal void *threadResolveObject
+f_internal void *threadResolveObjects
 (
     void *arguments
 ){
-    gfOffsetThreadData *data = (gfOffsetThreadData*)arguments;
-    gfRecurseInfo  *info    = data->info;
-    gfObjectOffset *objof   = data->objof;
-    gfPackInfo     *outInfo = data->info->outInfo;
-    gfCommitInfo   **table  = data->table;
-    gfCommitInfo   commit   = {0};
+    gfOffsetThreadData *data   = (gfOffsetThreadData*)arguments;
+    gfCommitInfo       **table = data->table;
 
-    if(!resolveObjRecurse(info)
-    ){
-        GF_DEBUG("could not resolve '"PRI_SV"' recursively.", ARG_SV(objof->hash));
-        return 0;
-    }
-
-    if(outInfo->type != GF_OBJ_COMMIT)
+    for(u32 i = data->id; i < data->arraySize; i += data->workerCount)
     {
-        GF_TRACE("'"PRI_SV"' is not a commit, but of type: %"PRIu8". skipping...",
-                 ARG_SV(objof->hash), outInfo->type);
-        return 0;
+        gfCommitInfo   commit = {0};
+        gfObjectOffset objof  = data->objof[i];
+
+        data->index                 = objof.offset;
+        data->recurseInfo.hash      = objof.hash;
+        data->recurseInfo.index     = &data->index;
+        data->recurseInfo.outInfo   = &data->outInfo;
+        data->recurseInfo.firstCall = true;
+
+        if(!resolveObjRecurse(&data->recurseInfo)
+        ){
+            GF_ERROR("could not resolve '"PRI_SV"' recursively.", ARG_SV(objof.hash));
+            return 0;
+        }
+
+        if(data->outInfo.type != GF_OBJ_COMMIT)
+        {
+            GF_TRACE("'"PRI_SV"' is not a commit, but of type: %"PRIu8". skipping...",
+                     ARG_SV(objof.hash), data->outInfo.type);
+            continue;
+        }
+
+        GF_TRACE("resolved '"PRI_SV"' from readCommitsFromOffsets.",
+                 ARG_SV(objof.hash));
+
+        StringView hash = pdSVCpy(objof.hash);
+
+        gfFreeCommit(&commit);
+        readCommitFromPtr(data->outInfo.data, &commit, hash, data->outInfo.size);
+
+        u08 firstTwo = gfTwoCharsToByte(hash.data[0], hash.data[1]);
+        GF_TRACE("pushing commit with hash '"PRI_SV"' to table[0x%X]",
+                 ARG_SV(hash), firstTwo);
+
+        gfLock(&data->tableLocks[firstTwo]);
+        pdArrPush(table[firstTwo], commit);
+        gfUnlock(&data->tableLocks[firstTwo]);
     }
-
-    GF_TRACE("resolved '"PRI_SV"' from readCommitsFromOffsets.", ARG_SV(objof->hash));
-
-    StringView hash = pdSVCpy(objof->hash);
-
-    gfFreeCommit(&commit);
-    readCommitFromPtr(outInfo->data, &commit, hash, outInfo->size);
-
-    u08 firstTwo = gfTwoCharsToByte(hash.data[0], hash.data[1]);
-    GF_TRACE("pushing commit with hash '"PRI_SV"' to table[0x%X]",
-             ARG_SV(hash), firstTwo);
-
-    // FIXME: NEEDS UNLOCK
-    pdArrPush(table[firstTwo], commit);
-    // FIXME: NEEDS UNLOCK
 
     return 0;
 }
@@ -1395,40 +1406,58 @@ f_internal void readCommitsFromOffsets
                                          gitObjectFolder.size);
     pdSVTrim(&repository, trimCount, SV_RIGHT);
 
-    // CURRENT: this loop should be multi-threaded and spawn one resolveObjRecurse per
-    // thread. that way, large objects don't get that much in the way. locks will be a
-    // little nightmare, though.
-
     u64 arraySize = pdArrSize(objof);
 
-    gfThread           threads[arraySize];
-    gfOffsetThreadData threadData[arraySize];
+    // CURRENT: not spawning arraySize threads, maybe.
 
-    GF_TRACE("reading %"PRIu64" objects from offsets into packfile.", arraySize);
-    for(u32 i = 0; i < arraySize; ++i)
+    gfThread           threads[GF_WORKER_THREADS];
+    gfOffsetThreadData threadData[GF_WORKER_THREADS];
+
+    gfThreadLock tableLocks[256] = {0};
+
+    #ifdef BUILD_WINDOWS
+    for(u16 i = 0; i < 256; ++i)
     {
-        gfPackInfo outInfo = {0};
-        u64        index   = objof[i].offset;
+        InitializeSRWLock(tableLocks[i]);
+    }
+    #endif
 
-        gfRecurseInfo info = {0};
-        info.repository = repository;
-        info.packFile   = packFile;
-        info.fileSize   = fileSize;
-        info.cache      = cache;
-        info.oidSize    = oidSize;
-        info.hash       = objof[i].hash;
-        info.index      = &index;
-        info.outInfo    = &outInfo;
-        info.firstCall  = true;
+    GF_ASSERT(arraySize < U32MAX, "arraySize >= U32MAX!");
 
-        threadData[i].info  = &info;
-        threadData[i].objof = &objof[i];
-        threadData[i].table = table;
+    u08 workerCount = GF_WORKER_THREADS;
+    if(workerCount > arraySize)
+    {
+        workerCount = (u08)arraySize;
+    }
+
+    GF_TRACE("reading %"PRIu64" objects from offsets into packfile with %"PRIu8
+             " threads.", arraySize, workerCount);
+
+    for(u08 i = 0; i < workerCount; ++i)
+    {
+        threadData[i].id          = i;
+        threadData[i].table       = table;
+        threadData[i].tableLocks  = tableLocks;
+        threadData[i].arraySize   = (u32)arraySize;
+        threadData[i].workerCount = workerCount;
+        threadData[i].objof       = objof;
+
+        threadData[i].recurseInfo.repository = repository;
+        threadData[i].recurseInfo.packFile   = packFile;
+        threadData[i].recurseInfo.fileSize   = fileSize;
+        threadData[i].recurseInfo.cache      = cache;
+        threadData[i].recurseInfo.oidSize    = oidSize;
 
         GF_TRACE("resolving '"PRI_SV"' at offset %"PRIu32" from "
                  "readCommitsFromOffsets...", ARG_SV(objof[i].hash), objof[i].offset);
 
-        threadResolveObject(&threadData[i]);
+        gfDispatchThread(&threads[i], (void*)threadResolveObjects, &threadData[i]);
+    }
+
+    for(u32 i = 0; i < workerCount; ++i)
+    {
+        GF_TRACE("waiting on thread #%u", i);
+        gfWaitThread(threads[i]);
     }
 
     for(u16 i = 0; i < 256; ++i)
