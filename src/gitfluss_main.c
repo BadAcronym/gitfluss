@@ -422,6 +422,7 @@ f_internal void *gatherRepoData
             GF_TRACE("TESTING: NEW BRANCH WITH COMMIT: '"PRI_SV"'", ARG_SV(missedQueue[0]));
 
             pdArrPush(commit.parentHashes, pdSVCpy(missedQueue[0]));
+            pdSVFree(&missedQueue[0]);
             pdArrRemove(missedQueue, 0, (StringView){0});
         }
 
@@ -451,6 +452,7 @@ f_internal void *gatherRepoData
                 pdArrPush(missedQueue, pdSVCpy(commit.parentHashes[last]));
             }
 
+            pdSVFree(&commit.parentHashes[last]);
             pdArrRemove(commit.parentHashes, last, (StringView){0});
         }
 
@@ -476,6 +478,15 @@ f_internal void *gatherRepoData
             }
             pdArrFree(seenHashes[i]);
         }
+    }
+
+    if(missedQueue)
+    {
+        for(u16 i = 0; i < pdArrSize(missedQueue); ++i)
+        {
+            pdSVFree(&missedQueue[i]);
+        }
+        pdArrFree(missedQueue);
     }
 
     if(repoCommitCount > set->repoMax)

@@ -1030,8 +1030,6 @@ f_internal gfHashLocation findObjectOffset
     return (gfHashLocation){0};
 }
 
-// PERF: calls to this function should be multi-threaded, this is an absolute
-// bottleneck.
 f_internal bool resolveObjRecurse
 (
     gfRecurseInfo *info
@@ -1361,6 +1359,10 @@ f_internal void readCommitsFromOffsets
     info.cache      = cache;
     info.oidSize    = oidSize;
 
+    // PERF: this loop should be multi-threaded and spawn one resolveObjRecurse per
+    // thread. that way, large objects don't get that much in the way. locks will be a
+    // little nightmare, though.
+
     u64 arraySize = pdArrSize(objof);
     GF_TRACE("reading %"PRIu64" objects from offsets into packfile.", arraySize);
     for(u32 i = 0; i < arraySize; ++i)
@@ -1682,7 +1684,7 @@ void gfInitRepository
     hash.size = oidSize * 2;
 
     GF_TRACE("identified HEAD: '"PRI_SV"'", ARG_SV(hash));
-    gfGetCommitInfo(repo->path, pdSVCpy(hash), head, commitTable);
+    gfGetCommitInfo(repo->path, hash, head, commitTable);
 
 closefile:
     fclose(file);
