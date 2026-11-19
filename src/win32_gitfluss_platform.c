@@ -1,7 +1,7 @@
 #include "gitfluss.h"
+#include "gf_print_macros.h"
 
 #include <time.h>
-
 #include <process.h>
 
 i64 gfQueryTime
@@ -74,14 +74,26 @@ void gfWaitThread
 
 void gfLock
 (
-    gfDisplaySettings *set
+    void *lock
 ){
-    AcquireSRWLockExclusive(set->lockSet);
+    if(!lock)
+    {
+        GF_ERROR("cannot unlock a NULL lock.");
+        return;
+    }
+
+    AcquireSRWLockExclusive((PSRWLOCK)lock);
 }
 
 void gfUnlock
 (
-    gfDisplaySettings *set
+    void *lock
 ){
-    ReleaseSRWLockExclusive(set->lockSet);
+    if(!lock)
+    {
+        GF_ERROR("cannot unlock a NULL lock.");
+        return;
+    }
+
+    ReleaseSRWLockExclusive((PSRWLOCK)lock);
 }

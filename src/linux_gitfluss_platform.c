@@ -1,4 +1,5 @@
 #include "gitfluss.h"
+#include "gf_print_macros.h"
 
 i64 gfQueryTime
 (
@@ -50,14 +51,26 @@ void gfWaitThread
 
 void gfLock
 (
-    gfDisplaySettings *set
+    gfThreadLock *lock
 ){
-    pthread_mutex_lock(&set->mutexSet);
+    if(!lock)
+    {
+        GF_ERROR("cannot lock a NULL lock.");
+        return;
+    }
+
+    pthread_mutex_lock(lock);
 }
 
 void gfUnlock
 (
-    gfDisplaySettings *set
+    gfThreadLock *lock
 ){
-    pthread_mutex_unlock(&set->mutexSet);
+    if(!lock)
+    {
+        GF_ERROR("cannot unlock a NULL lock.");
+        return;
+    }
+
+    pthread_mutex_unlock(lock);
 }

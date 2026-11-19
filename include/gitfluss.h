@@ -20,7 +20,8 @@
     #endif
     #include <time.h>
     #include <pthread.h>
-    typedef pthread_t gfThread;
+    typedef pthread_t       gfThread;
+    typedef pthread_mutex_t gfThreadLock;
 #endif
 #ifdef BUILD_WINDOWS
     #include <fcntl.h>
@@ -34,7 +35,8 @@
     #define CONF_PATH     "gitfluss.ini"
     #define CONF_FALLBACK "~\\.config\\gitfluss\\gitfluss.ini"
 
-    typedef HANDLE gfThread;
+    typedef HANDLE  gfThread;
+    typedef SRWLOCK gfThreadLock;
 #endif
 
 #define f_internal static
@@ -142,14 +144,7 @@ typedef struct gfDisplaySettings
     i64               currDayEnd;
     i64               oldestCommitTime;
     char              *biggestRepoBuf;
-
-    #ifdef BUILD_LINUX
-    pthread_mutex_t   mutexSet;
-    #endif
-
-    #ifdef BUILD_WINDOWS
-    PSRWLOCK          lockSet;
-    #endif
+    gfThreadLock      lock;
 }
 gfDisplaySettings;
 
@@ -272,12 +267,12 @@ extern void gfWaitThread
 
 extern void gfLock
 (
-    gfDisplaySettings *set
+    gfThreadLock *lock
 );
 
 extern void gfUnlock
 (
-    gfDisplaySettings *set
+    gfThreadLock *lock
 );
 
 extern void gfAddAuthor

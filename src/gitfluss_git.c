@@ -1351,7 +1351,10 @@ f_internal void *threadResolveObject
     u08 firstTwo = gfTwoCharsToByte(hash.data[0], hash.data[1]);
     GF_TRACE("pushing commit with hash '"PRI_SV"' to table[0x%X]",
              ARG_SV(hash), firstTwo);
+
+    // FIXME: NEEDS UNLOCK
     pdArrPush(table[firstTwo], commit);
+    // FIXME: NEEDS UNLOCK
 
     return 0;
 }

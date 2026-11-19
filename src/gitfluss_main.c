@@ -364,16 +364,16 @@ f_internal void *threadProcessRepository
             }
         }
 
-        gfLock(set);
+        gfLock(&set->lock);
         ++set->totalCommitCount;
-        gfUnlock(set);
+        gfUnlock(&set->lock);
 
         if(counts)
         {
             ++repoCommitCount;
             i64 daysSince = (set->currDayEnd - commit.authorTime) / (24 * 3600);
 
-            gfLock(set);
+            gfLock(&set->lock);
             if(commit.authorTime < set->oldestCommitTime)
             {
                 set->oldestCommitTime = commit.authorTime;
@@ -389,7 +389,7 @@ f_internal void *threadProcessRepository
             {
                 ++set->commitsToday;
             }
-            gfUnlock(set);
+            gfUnlock(&set->lock);
 
             if(flags & GF_FLAG_SUMMARY && commit.authorTime >= currDayStart)
             {
@@ -492,12 +492,12 @@ f_internal void *threadProcessRepository
 
     if(repoCommitCount > set->repoMax)
     {
-        gfLock(set);
+        gfLock(&set->lock);
         char currentRepo[repo.path.size + 1];
         pdSVCstr(repo.path, currentRepo);
         set->biggestRepo = pdCstrSVCpy(currentRepo, set->biggestRepoBuf);
         set->repoMax     = repoCommitCount;
-        gfUnlock(set);
+        gfUnlock(&set->lock);
     }
 
     for(u16 i = 0; i < 256; ++i)
@@ -924,9 +924,7 @@ int main
     GF_DEBUG("currDayEnd: %"PRIi64, set.currDayEnd);
 
     #ifdef BUILD_WINDOWS
-        SRWLOCK lock;
-        InitializeSRWLock(&lock);
-        set.lockSet = &lock;
+        InitializeSRWLock(set.lockSet);
     #endif
 
     u64 gfInitTime = gfQueryMonotonic() - now;
