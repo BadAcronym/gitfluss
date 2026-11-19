@@ -97,6 +97,8 @@ f_internal bool readCommitFromPtr
     commitBufSV.data = (char*)commitBuf;
     commitBufSV.size = bufsize;
 
+    pdArrReserve(commit->parentHashes, 2);
+
     u64 index = 0;
     while(pdSVReadLine(commitBufSV, &index, &line))
     {

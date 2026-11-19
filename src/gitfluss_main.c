@@ -311,6 +311,8 @@ f_internal void *threadProcessRepository
     StringView *missedQueue     = 0;
     StringView *seenHashes[256] = {0};
 
+    pdArrReserve(missedQueue, 8);
+
     if(!commit.hash.data || !commit.hash.size)
     {
         return 0;
