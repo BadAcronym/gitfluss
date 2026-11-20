@@ -539,7 +539,7 @@ f_internal gfObjectOffset *readIDXV2
         {
             offset &= 0x7FFFFFFF;
             // TODO: do something with these
-            GF_WARN("TODO: handle object offset via index into large offset table: %"
+            GF_WARN("object offset via index into large offset table unhandled: %"
                     PRIu32, offset);
             continue;
         }
@@ -609,20 +609,12 @@ f_internal u08 *readDelta
         return false;
     }
 
-    // TODO: we should really make this a scratch buffer. Deflate a little bit, then
-    // parse, then deflate if more is needed, etc. For that, I need to finish scratch
-    // reading in datasurf.
     u08 *deltaDataBuf = malloc(deltaDataSize);
     if(!deltaDataBuf)
     {
         GF_ERROR("failed to allocate buffer for delta data, size %"PRIu64,
                  deltaDataSize);
         return 0;
-    }
-
-    if(deltaDataSize > TEN_MILLION)
-    {
-        GF_TRACE("allocated large delta: deltaDataSize: %"PRIu64, deltaDataSize);
     }
 
     DeflateInfo info = dsReadZlibPtr(&packFile[*index], deltaDataBuf, deltaDataSize);
@@ -662,18 +654,12 @@ f_internal bool applyDelta
     printf("\n");
     #endif
 
-    // TODO: we can't be running around like this and just malloc'ing the whole thing.
     u08 *resultObjBuf = malloc(resultSize);
     if(!resultObjBuf)
     {
         GF_ERROR("failed to allocate buffer for result object, size %"PRIu64,
                  resultSize);
         goto error;
-    }
-
-    if(resultSize > TEN_MILLION)
-    {
-        GF_TRACE("allocated large result buffer: resultSize: %"PRIu64, resultSize);
     }
 
     if(baseSize != outInfo->size)
@@ -790,11 +776,6 @@ error:
     return false;
 }
 
-// TODO: refactor these shenanigans to:
-// not allocate a huge buffer upfront for a large object (size > 10M),
-// but instead work on a scratch buffer. Read at the latest possible time, exactly how
-// many bytes you need, none more.
-// Large objects should not be cached.
 f_internal bool readAndApplyDelta
 (
     u08        *packFile,
@@ -998,8 +979,8 @@ f_internal gfHashLocation findObjectOffset
                 {
                     offset &= 0x7FFFFFFF;
                     // TODO: do something with these
-                    GF_WARN("TODO: handle object offset via index into large "
-                            "offset table: %" PRIu32, offset);
+                    GF_WARN("object offset via index into large offset table unhandled:"
+                            " %" PRIu32, offset);
                     return (gfHashLocation){0};
                 }
 
@@ -1114,10 +1095,10 @@ nocache:
 
         bool success = resolveObjRecurse(info);
 
-        info->packFile  = savedPackFile;
-        info->fileSize  = savedFileSize;
-        info->index     = savedIndex;
-        info->hash      = savedHash;
+        info->packFile = savedPackFile;
+        info->fileSize = savedFileSize;
+        info->index    = savedIndex;
+        info->hash     = savedHash;
 
         free(packFileRead);
         return success;
@@ -1134,7 +1115,14 @@ nocache:
     GF_ASSERT(outInfo->type <= GF_OBJ_REF_DELTA, "object of type %"PRIu8" is greater "
               "than the maxiumum of 7.", outInfo->type);
 
-    if(outInfo->type == GF_OBJ_COMMIT)
+    if(outInfo->type == GF_OBJ_TREE ||
+       outInfo->type == GF_OBJ_BLOB ||
+       outInfo->type == GF_OBJ_TAG
+    ){
+        GF_TRACE("skipping base object of type %"PRIu8, outInfo->type);
+        return true;
+    }
+    else if(outInfo->type == GF_OBJ_COMMIT)
     {
         GF_TRACE("identified commit object.");
 
@@ -1166,55 +1154,6 @@ nocache:
         outInfo->data   = buf;
         outInfo->offset = entryStart;
         GF_TRACE("CACHING OBJECT (COMMIT) FOR OFFSET: %"PRIu64, outInfo->offset);
-
-        gfLock(&info->cacheLocks[lastTwo]);
-        pdArrPush(cache[lastTwo], *outInfo);
-        gfUnlock(&info->cacheLocks[lastTwo]);
-
-        return true;
-    }
-    else if(outInfo->type == GF_OBJ_TREE ||
-            outInfo->type == GF_OBJ_BLOB ||
-            outInfo->type == GF_OBJ_TAG
-    ){
-        GF_TRACE("identified base object of type %"PRIu8, outInfo->type);
-
-        if(info->firstCall)
-        {
-            GF_TRACE("skipping base object of type %"PRIu8, outInfo->type);
-            return true;
-        }
-
-        u08 *buf = calloc(outInfo->size, 1);
-        if(!buf)
-        {
-            GF_ERROR("failed to allocate new outInfo->data of size %"PRIu64,
-                     outInfo->size);
-            return false;
-        }
-
-        if(outInfo->size > TEN_MILLION)
-        {
-            GF_TRACE("allocated large object: outInfo->size: %"PRIu64, outInfo->size);
-        }
-
-        DeflateInfo dfInfo = dsReadZlibPtr(&packFile[*index], buf, outInfo->size);
-
-        if(!dfInfo.success)
-        {
-            GF_ERROR("could not successfully read non-commit base object from offset %"
-                     PRIu64, *index);
-            free(buf);
-            return false;
-        }
-
-        GF_ASSERT(dfInfo.bytesWritten == outInfo->size, "expected to decompress into %"
-                  PRIu64" bytes, actual: %"PRIu64".",
-                  outInfo->size, dfInfo.bytesWritten);
-
-        outInfo->data   = buf;
-        outInfo->offset = entryStart;
-        GF_TRACE("CACHING OBJECT (OTHER) FOR OFFSET: %"PRIu64, outInfo->offset);
 
         gfLock(&info->cacheLocks[lastTwo]);
         pdArrPush(cache[lastTwo], *outInfo);
@@ -1261,6 +1200,12 @@ nocache:
         {
             GF_ERROR("could not read recursive object from OBJ_OFS_DELTA.");
             return false;
+        }
+
+        if(info->outInfo->type != GF_OBJ_COMMIT)
+        {
+            GF_TRACE("skipping non-commit base object.");
+            return true;
         }
 
         if(!readAndApplyDelta(packFile, index, deltaSize, outInfo))
@@ -1310,6 +1255,12 @@ nocache:
         {
             GF_ERROR("could not read recursive object from OBJ_OFS_DELTA.");
             return false;
+        }
+
+        if(info->outInfo->type != GF_OBJ_COMMIT)
+        {
+            GF_TRACE("skipping non-commit base object.");
+            return true;
         }
 
         if(!readAndApplyDelta(packFile, index, deltaSize, outInfo))
