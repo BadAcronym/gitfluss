@@ -9,7 +9,6 @@
     #define CONF_PATH     ".gitflussconf"
     #define CONF_FALLBACK "~/.config/gitfluss/.conf"
 
-    #include <time.h>
     #include <pthread.h>
     typedef pthread_t       gfThread;
     typedef pthread_mutex_t gfThreadLock;
@@ -71,7 +70,7 @@
 #define GF_OBJ_OFS_DELTA 6
 #define GF_OBJ_REF_DELTA 7
 
-#define GF_WORKER_THREADS 8
+#define GF_WORKER_THREADS 4
 
 typedef struct gfConf
 {

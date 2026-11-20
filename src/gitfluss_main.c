@@ -927,26 +927,24 @@ int main
     #endif
 
     u64 gfInitTime = gfQueryMonotonic() - now;
-    now = gfQueryMonotonic();
 
     // TESTING: set start & end time manually
     // set.endYearTime = 430224334;
     set.endYearTime = heatSet.now;
 
-    gatherData(&config, &set);
-
-    u64 gathering = gfQueryMonotonic() - now;
     now = gfQueryMonotonic();
+    gatherData(&config, &set);
+    u64 gathering = gfQueryMonotonic() - now;
 
+    now = gfQueryMonotonic();
     displayData(&config, &set);
-
     u64 printing = gfQueryMonotonic() - now;
 
     if(config.flags & GF_FLAG_PROFILE)
     {
-        f32 printMS   = (f32)printing      / 1e6f;
-        f32 gfinitMS  = (f32)gfInitTime    / 1e6f;
-        f32 gatherMS  = (f32)gathering     / 1e6f;
+        f32 printMS   = (f32)printing   / 1e6f;
+        f32 gfinitMS  = (f32)gfInitTime / 1e6f;
+        f32 gatherMS  = (f32)gathering  / 1e6f;
         f32 perCommit = (gatherMS + printMS) / (f32)set.totalCommitCount;
 
         printf("gitfluss init: %10.5f ms\n", gfinitMS);

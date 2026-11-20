@@ -1,6 +1,8 @@
 #include "gitfluss.h"
 #include "gf_print_macros.h"
 
+#include <time.h>
+
 i64 gfQueryTime
 (
     void
