@@ -80,7 +80,7 @@
 #define GF_OBJ_OFS_DELTA 6
 #define GF_OBJ_REF_DELTA 7
 
-#define GF_WORKER_THREADS 16
+#define GF_WORKER_THREADS 8
 
 typedef struct gfConf
 {
@@ -170,6 +170,7 @@ typedef struct gfRecurseInfo
     u64          fileSize;
     gfPackInfo   *outInfo;
     bool         firstCall;
+    gfThreadLock *cacheLocks;
 }
 gfRecurseInfo;
 

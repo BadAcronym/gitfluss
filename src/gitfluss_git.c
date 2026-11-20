@@ -164,27 +164,26 @@ f_internal bool readCommitFromPtr
         commit->summary = pdSVCpy(*((StringView*)&line));
     }
 
-    GF_TRACE("read commit:");
-    GF_TRACE("commit->hash:          '"PRI_SV"'", ARG_SV(commit->hash));
-    GF_TRACE("commit->summary:       '"PRI_SV"'", ARG_SV(commit->summary));
+    // GF_TRACE("read commit:");
+    // GF_TRACE("commit->hash:          '"PRI_SV"'", ARG_SV(commit->hash));
+    // GF_TRACE("commit->summary:       '"PRI_SV"'", ARG_SV(commit->summary));
 
-    #ifdef GF_PRI_TRACE
-    if(commit->parentHashes)
-    {
-        for(u16 i = 0; i < pdArrSize(commit->parentHashes); ++i)
-        {
-            GF_TRACE("commit->parentHash:    '"PRI_SV"'", ARG_SV(commit->parentHashes[i]));
-        }
-    }
-    #endif
-    // GF_TRACE("commit->parentHash:    '"PRI_SV"'", ARG_SV(commit->parentHash));
+    // #ifdef GF_PRI_TRACE
+    // if(commit->parentHashes)
+    // {
+    //     for(u16 i = 0; i < pdArrSize(commit->parentHashes); ++i)
+    //     {
+    //         GF_TRACE("commit->parentHash:    '"PRI_SV"'", ARG_SV(commit->parentHashes[i]));
+    //     }
+    // }
+    // #endif
 
-    GF_TRACE("commit->authorName:    '"PRI_SV"'", ARG_SV(commit->authorName));
-    GF_TRACE("commit->authorMail:    '"PRI_SV"'", ARG_SV(commit->authorMail));
-    GF_TRACE("commit->committerName: '"PRI_SV"'", ARG_SV(commit->committerName));
-    GF_TRACE("commit->committerMail: '"PRI_SV"'", ARG_SV(commit->committerMail));
-    GF_TRACE("commit->authorTime:    %"PRIu64,    commit->authorTime);
-    GF_TRACE("commit->committerTime: %"PRIu64,    commit->committerTime);
+    // GF_TRACE("commit->authorName:    '"PRI_SV"'", ARG_SV(commit->authorName));
+    // GF_TRACE("commit->authorMail:    '"PRI_SV"'", ARG_SV(commit->authorMail));
+    // GF_TRACE("commit->committerName: '"PRI_SV"'", ARG_SV(commit->committerName));
+    // GF_TRACE("commit->committerMail: '"PRI_SV"'", ARG_SV(commit->committerMail));
+    // GF_TRACE("commit->authorTime:    %"PRIu64,    commit->authorTime);
+    // GF_TRACE("commit->committerTime: %"PRIu64,    commit->committerTime);
 
     return true;
 }
@@ -340,7 +339,6 @@ bool gfGetCommitInfo
         GF_TRACE("checking against commit in table[0x%x]: "PRI_SV,
                  firstTwo, ARG_SV(tmp.hash));
 
-        // ASAN: used here
         if(pdSVSame(hash, tmp.hash))
         {
             commit->hash          = pdSVCpy(tmp.hash);
@@ -1032,7 +1030,6 @@ f_internal gfHashLocation findObjectOffset
     return (gfHashLocation){0};
 }
 
-// FIXME: I think we need to lock the cache here, too... :(
 f_internal bool resolveObjRecurse
 (
     gfRecurseInfo *info
@@ -1169,7 +1166,11 @@ nocache:
         outInfo->data   = buf;
         outInfo->offset = entryStart;
         GF_TRACE("CACHING OBJECT (COMMIT) FOR OFFSET: %"PRIu64, outInfo->offset);
+
+        gfLock(&info->cacheLocks[lastTwo]);
         pdArrPush(cache[lastTwo], *outInfo);
+        gfUnlock(&info->cacheLocks[lastTwo]);
+
         return true;
     }
     else if(outInfo->type == GF_OBJ_TREE ||
@@ -1215,7 +1216,10 @@ nocache:
         outInfo->offset = entryStart;
         GF_TRACE("CACHING OBJECT (OTHER) FOR OFFSET: %"PRIu64, outInfo->offset);
 
+        gfLock(&info->cacheLocks[lastTwo]);
         pdArrPush(cache[lastTwo], *outInfo);
+        gfUnlock(&info->cacheLocks[lastTwo]);
+
         return true;
     }
     else if(outInfo->type == GF_OBJ_OFS_DELTA)
@@ -1267,7 +1271,11 @@ nocache:
 
         outInfo->offset = entryStart;
         GF_TRACE("CACHING OBJECT (OFS_DELTA) FOR OFFSET: %"PRIu64, outInfo->offset);
+
+        gfLock(&info->cacheLocks[lastTwo]);
         pdArrPush(cache[lastTwo], *outInfo);
+        gfUnlock(&info->cacheLocks[lastTwo]);
+
         return true;
     }
     else if(outInfo->type == GF_OBJ_REF_DELTA)
@@ -1312,7 +1320,11 @@ nocache:
 
         outInfo->offset = entryStart;
         GF_TRACE("CACHING OBJECT (REF_DELTA) FOR OFFSET: U64MAX");
+
+        gfLock(&info->cacheLocks[U64MAX & 0xFF]);
         pdArrPush(cache[U64MAX & 0xFF], *outInfo);
+        gfUnlock(&info->cacheLocks[U64MAX & 0xFF]);
+
         return true;
     }
 
@@ -1406,22 +1418,24 @@ f_internal void readCommitsFromOffsets
                                          gitObjectFolder.size);
     pdSVTrim(&repository, trimCount, SV_RIGHT);
 
-    u64 arraySize = pdArrSize(objof);
-
-    // CURRENT: not spawning arraySize threads, maybe.
-
     gfThread           threads[GF_WORKER_THREADS];
     gfOffsetThreadData threadData[GF_WORKER_THREADS];
 
     gfThreadLock tableLocks[256] = {0};
+    gfThreadLock cacheLocks[256] = {0};
 
     #ifdef BUILD_WINDOWS
     for(u16 i = 0; i < 256; ++i)
     {
         InitializeSRWLock(tableLocks[i]);
     }
+    for(u16 i = 0; i < 256; ++i)
+    {
+        InitializeSRWLock(cacheLocks[i]);
+    }
     #endif
 
+    u64 arraySize = pdArrSize(objof);
     GF_ASSERT(arraySize < U32MAX, "arraySize >= U32MAX!");
 
     u08 workerCount = GF_WORKER_THREADS;
@@ -1446,6 +1460,7 @@ f_internal void readCommitsFromOffsets
         threadData[i].recurseInfo.packFile   = packFile;
         threadData[i].recurseInfo.fileSize   = fileSize;
         threadData[i].recurseInfo.cache      = cache;
+        threadData[i].recurseInfo.cacheLocks = cacheLocks;
         threadData[i].recurseInfo.oidSize    = oidSize;
 
         GF_TRACE("resolving '"PRI_SV"' at offset %"PRIu32" from "
@@ -1597,10 +1612,10 @@ void gfInitRepository
 
     char       listBuf[8192] = {0};
     StringView list          = pdListFiles(gitPACK, listBuf);
-    u64        fileCount     = pdSVCountByDelim(list, ';');
+    u32        fileCount     = pdSVCountByDelim(list, ';');
 
     StringView fileBuf[fileCount];
-    for(u64 i = 0; i < fileCount; ++i)
+    for(u32 i = 0; i < fileCount; ++i)
     {
         fileBuf[i].data = 0;
         fileBuf[i].size = 0;
@@ -1638,7 +1653,7 @@ void gfInitRepository
     }
 
     pdSVSeparateByDelim(list, fileBuf, ';', fileCount);
-    for(u64 i = 0; i < fileCount; ++i)
+    for(u32 i = 0; i < fileCount; ++i)
     {
         gfPackInfo *objCache[256] = {0};
         if(pdSVFind(idxIdent, fileBuf[i]))
