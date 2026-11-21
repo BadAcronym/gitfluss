@@ -1155,10 +1155,7 @@ nocache:
         outInfo->offset = entryStart;
         GF_TRACE("CACHING OBJECT (COMMIT) FOR OFFSET: %"PRIu64, outInfo->offset);
 
-        gfLock(&info->cacheLocks[lastTwo]);
         pdArrPush(cache[lastTwo], *outInfo);
-        gfUnlock(&info->cacheLocks[lastTwo]);
-
         return true;
     }
     else if(outInfo->type == GF_OBJ_OFS_DELTA)
@@ -1217,10 +1214,7 @@ nocache:
         outInfo->offset = entryStart;
         GF_TRACE("CACHING OBJECT (OFS_DELTA) FOR OFFSET: %"PRIu64, outInfo->offset);
 
-        gfLock(&info->cacheLocks[lastTwo]);
         pdArrPush(cache[lastTwo], *outInfo);
-        gfUnlock(&info->cacheLocks[lastTwo]);
-
         return true;
     }
     else if(outInfo->type == GF_OBJ_REF_DELTA)
@@ -1272,10 +1266,7 @@ nocache:
         outInfo->offset = entryStart;
         GF_TRACE("CACHING OBJECT (REF_DELTA) FOR OFFSET: U64MAX");
 
-        gfLock(&info->cacheLocks[U64MAX & 0xFF]);
         pdArrPush(cache[U64MAX & 0xFF], *outInfo);
-        gfUnlock(&info->cacheLocks[U64MAX & 0xFF]);
-
         return true;
     }
 
@@ -1369,61 +1360,56 @@ f_internal void readCommitsFromOffsets
                                          gitObjectFolder.size);
     pdSVTrim(&repository, trimCount, SV_RIGHT);
 
-    gfThread           threads[GF_WORKER_THREADS];
-    gfOffsetThreadData threadData[GF_WORKER_THREADS];
-
-    gfThreadLock tableLocks[256] = {0};
-    gfThreadLock cacheLocks[256] = {0};
-
-    #ifdef BUILD_WINDOWS
-    for(u16 i = 0; i < 256; ++i)
-    {
-        InitializeSRWLock(tableLocks[i]);
-    }
-    for(u16 i = 0; i < 256; ++i)
-    {
-        InitializeSRWLock(cacheLocks[i]);
-    }
-    #endif
+    gfRecurseInfo info = {0};
+    info.repository = repository;
+    info.packFile   = packFile;
+    info.fileSize   = fileSize;
+    info.cache      = cache;
+    info.oidSize    = oidSize;
 
     u64 arraySize = pdArrSize(objof);
+
     GF_ASSERT(arraySize < U32MAX, "arraySize >= U32MAX!");
+    GF_TRACE("reading %"PRIu64" objects from offsets into packfile.", arraySize);
 
-    u08 workerCount = GF_WORKER_THREADS;
-    if(workerCount > arraySize)
+    for(u64 i = 0; i < arraySize; ++i)
     {
-        workerCount = (u08)arraySize;
-    }
+        gfPackInfo outInfo = {0};
+        u64        index   = objof[i].offset;
 
-    GF_TRACE("reading %"PRIu64" objects from offsets into packfile with %"PRIu8
-             " threads.", arraySize, workerCount);
-
-    for(u08 i = 0; i < workerCount; ++i)
-    {
-        threadData[i].id          = i;
-        threadData[i].table       = table;
-        threadData[i].tableLocks  = tableLocks;
-        threadData[i].arraySize   = (u32)arraySize;
-        threadData[i].workerCount = workerCount;
-        threadData[i].objof       = objof;
-
-        threadData[i].recurseInfo.repository = repository;
-        threadData[i].recurseInfo.packFile   = packFile;
-        threadData[i].recurseInfo.fileSize   = fileSize;
-        threadData[i].recurseInfo.cache      = cache;
-        threadData[i].recurseInfo.cacheLocks = cacheLocks;
-        threadData[i].recurseInfo.oidSize    = oidSize;
+        info.hash      = objof[i].hash;
+        info.index     = &index;
+        info.outInfo   = &outInfo;
+        info.firstCall = true;
 
         GF_TRACE("resolving '"PRI_SV"' at offset %"PRIu32" from "
                  "readCommitsFromOffsets...", ARG_SV(objof[i].hash), objof[i].offset);
 
-        gfDispatchThread(&threads[i], (void*)threadResolveObjects, &threadData[i]);
-    }
+        if(!resolveObjRecurse(&info))
+        {
+            GF_ERROR("could not resolve '"PRI_SV"' recursively.",
+                     ARG_SV(objof[i].hash));
+            return;
+        }
 
-    for(u32 i = 0; i < workerCount; ++i)
-    {
-        GF_TRACE("waiting on thread #%u", i);
-        gfWaitThread(threads[i]);
+        if(outInfo.type != GF_OBJ_COMMIT)
+        {
+            GF_TRACE("'"PRI_SV"' is not a commit, but of type: %"PRIu8". skipping...",
+                     ARG_SV(objof[i].hash), outInfo.type);
+            continue;
+        }
+
+        GF_TRACE("resolved '"PRI_SV"' from readCommitsFromOffsets.",
+                 ARG_SV(objof[i].hash));
+
+        gfCommitInfo commit = {0};
+        StringView   hash   = pdSVCpy(objof[i].hash);
+
+        gfFreeCommit(&commit);
+        readCommitFromPtr(outInfo.data, &commit, hash, outInfo.size);
+
+        u08 firstTwo = gfTwoCharsToByte(hash.data[0], hash.data[1]);
+        pdArrPush(table[firstTwo], commit);
     }
 
     for(u16 i = 0; i < 256; ++i)
