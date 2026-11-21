@@ -297,7 +297,7 @@ bool gfGetCommitInfo
     StringView hashRest = hash;
     pdSVTrim(&hashRest, 2, SV_LEFT);
 
-    char pathBuf[4096] = {0};
+    char pathBuf[4096];
     StringView commitPath = pdSVConcat(repository, gitObjectFolder, pathBuf);
     commitPath = pdSVConcat(commitPath, hashStart, pathBuf);
     commitPath = pdSVConcat(commitPath, sep, pathBuf);
@@ -805,7 +805,7 @@ f_internal bool resolveObjOnDisk
     StringView hashRest = info->hash;
     pdSVTrim(&hashRest, 2, SV_LEFT);
 
-    char pathBuf[4096] = {0};
+    char pathBuf[4096];
 
     StringView objPath = pdSVConcat(info->repository, gitObjectFolder, pathBuf);
     objPath = pdSVConcat(objPath, hashStart, pathBuf);
