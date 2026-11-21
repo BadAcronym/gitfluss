@@ -458,6 +458,8 @@ f_internal gfObjectOffset *readIDXV2
 ){
     gfObjectOffset *objof = 0;
 
+    pdArrReserve(objof, 1024);
+
     u08 byte    = 0;
     u32 version = 0;
     for(u08 i = 0; i < 4; ++i)
@@ -1035,7 +1037,6 @@ f_internal bool resolveObjRecurse
         goto nocache;
     }
 
-    // ASAN: pointer overflowed?
     u64 arrSize = pdArrSize(arr);
     GF_TRACE("LOOKING FOR CACHED OBJECT FOR OFFSET: %"PRIu64, outInfo->offset);
     for(u16 i = 0; i < arrSize; ++i)
@@ -1391,7 +1392,6 @@ f_internal void readCommitsFromOffsets
     fclose(file);
 }
 
-// CURRENT: we need to lock the table.
 f_internal void threadReadPackfile
 (
     void *args
@@ -1450,9 +1450,6 @@ f_internal void threadReadPackfile
 
     gfObjectOffset *objof = 0;
 
-    // TESTING: try to request a big amount, so we don't realloc that often?
-    // pdArrReserve(objof, requested)
-
     if(v2)
     {
         GF_TRACE("reading .idx v2 file: '"PRI_SV"'", ARG_SV(idxPath));
@@ -1463,12 +1460,6 @@ f_internal void threadReadPackfile
         GF_TRACE("reading .idx v1 file: '"PRI_SV"'", ARG_SV(idxPath));
         fseek(file, 0, SEEK_SET);
         objof = readIDXV1(file, oidSize, packFileSize);
-    }
-
-    if(!objof)
-    {
-        GF_ERROR("could not read any object-offset pairs.");
-        return;
     }
 
     gfPackInfo *cache[256] = {0};
