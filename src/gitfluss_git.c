@@ -1035,6 +1035,7 @@ f_internal bool resolveObjRecurse
         goto nocache;
     }
 
+    // ASAN: pointer overflowed?
     u64 arrSize = pdArrSize(arr);
     GF_TRACE("LOOKING FOR CACHED OBJECT FOR OFFSET: %"PRIu64, outInfo->offset);
     for(u16 i = 0; i < arrSize; ++i)
@@ -1273,63 +1274,13 @@ nocache:
     return false;
 }
 
-f_internal void *threadResolveObjects
-(
-    void *arguments
-){
-    gfOffsetThreadData *data   = (gfOffsetThreadData*)arguments;
-    gfCommitInfo       **table = data->table;
-
-    for(u32 i = data->id; i < data->arraySize; i += data->workerCount)
-    {
-        gfCommitInfo   commit = {0};
-        gfObjectOffset objof  = data->objof[i];
-
-        data->index                 = objof.offset;
-        data->recurseInfo.hash      = objof.hash;
-        data->recurseInfo.index     = &data->index;
-        data->recurseInfo.outInfo   = &data->outInfo;
-        data->recurseInfo.firstCall = true;
-
-        if(!resolveObjRecurse(&data->recurseInfo)
-        ){
-            GF_ERROR("could not resolve '"PRI_SV"' recursively.", ARG_SV(objof.hash));
-            return 0;
-        }
-
-        if(data->outInfo.type != GF_OBJ_COMMIT)
-        {
-            GF_TRACE("'"PRI_SV"' is not a commit, but of type: %"PRIu8". skipping...",
-                     ARG_SV(objof.hash), data->outInfo.type);
-            continue;
-        }
-
-        GF_TRACE("resolved '"PRI_SV"' from readCommitsFromOffsets.",
-                 ARG_SV(objof.hash));
-
-        StringView hash = pdSVCpy(objof.hash);
-
-        gfFreeCommit(&commit);
-        readCommitFromPtr(data->outInfo.data, &commit, hash, data->outInfo.size);
-
-        u08 firstTwo = gfTwoCharsToByte(hash.data[0], hash.data[1]);
-        GF_TRACE("pushing commit with hash '"PRI_SV"' to table[0x%X]",
-                 ARG_SV(hash), firstTwo);
-
-        gfLock(&data->tableLocks[firstTwo]);
-        pdArrPush(table[firstTwo], commit);
-        gfUnlock(&data->tableLocks[firstTwo]);
-    }
-
-    return 0;
-}
-
 f_internal void readCommitsFromOffsets
 (
     StringView     path,
     gfObjectOffset *objof,
     gfPackInfo     **cache,
     gfCommitInfo   **table,
+    gfThreadLock   *tableLocks,
     u08            oidSize
 ){
     FILE *file = fopen(path.data, "rb");
@@ -1409,7 +1360,9 @@ f_internal void readCommitsFromOffsets
         readCommitFromPtr(outInfo.data, &commit, hash, outInfo.size);
 
         u08 firstTwo = gfTwoCharsToByte(hash.data[0], hash.data[1]);
+        gfLock(&tableLocks[firstTwo]);
         pdArrPush(table[firstTwo], commit);
+        gfUnlock(&tableLocks[firstTwo]);
     }
 
     for(u16 i = 0; i < 256; ++i)
@@ -1438,13 +1391,18 @@ f_internal void readCommitsFromOffsets
     fclose(file);
 }
 
-f_internal void readPackedCommits
+// CURRENT: we need to lock the table.
+f_internal void threadReadPackfile
 (
-    StringView   idxPath,
-    gfPackInfo   **objCache,
-    gfCommitInfo **table,
-    u08          oidSize
+    void *args
 ){
+    gfPackedThreadData *data = (gfPackedThreadData*)args;
+
+    StringView   idxPath     = data->idxPath;
+    gfCommitInfo **table     = data->table;
+    gfThreadLock *tableLocks = data->tableLocks;
+    u08          oidSize     = data->oidSize;
+
     FILE *file = fopen(idxPath.data, "rb");
     if(!file)
     {
@@ -1492,6 +1450,9 @@ f_internal void readPackedCommits
 
     gfObjectOffset *objof = 0;
 
+    // TESTING: try to request a big amount, so we don't realloc that often?
+    // pdArrReserve(objof, requested)
+
     if(v2)
     {
         GF_TRACE("reading .idx v2 file: '"PRI_SV"'", ARG_SV(idxPath));
@@ -1510,7 +1471,8 @@ f_internal void readPackedCommits
         return;
     }
 
-    readCommitsFromOffsets(packPath, objof, objCache, table, oidSize);
+    gfPackInfo *cache[256] = {0};
+    readCommitsFromOffsets(packPath, objof, cache, table, tableLocks, oidSize);
 
     u64 arraySize = pdArrSize(objof);
     for(u64 i = 0; i < arraySize; ++i)
@@ -1589,17 +1551,47 @@ void gfInitRepository
         fclose(configFile);
     }
 
+    gfThread threads[fileCount];
+    gfPackedThreadData threadData[fileCount];
+    gfThreadLock tableLocks[256] = {0};
+    char tmpBufs[fileCount * 4096];
+
+    #ifdef BUILD_WINDOWS
+        for(u16 i = 0; i < 256; ++i)
+        {
+            InitializeSRWLock(tableLocks[i]);
+        }
+    #endif
+
     pdSVSeparateByDelim(list, fileBuf, ';', fileCount);
     for(u32 i = 0; i < fileCount; ++i)
     {
-        gfPackInfo *objCache[256] = {0};
         if(pdSVFind(idxIdent, fileBuf[i]))
         {
-            char tmpBuf[4096] = {0};
-            StringView idxPath = pdSVConcat(gitPACK, fileBuf[i], tmpBuf);
-            GF_TRACE("reading packed commits from file: '"PRI_SV"'", ARG_SV(idxPath));
-            readPackedCommits(idxPath, objCache, commitTable, oidSize);
+            StringView idxPath = pdSVConcat(gitPACK, fileBuf[i], &tmpBufs[i * 4096]);
+            threadData[i].id         = i;
+            threadData[i].idxPath    = idxPath;
+            threadData[i].table      = commitTable;
+            threadData[i].tableLocks = tableLocks;
+            threadData[i].oidSize    = oidSize;
+
+            gfDispatchThread(&threads[i], (void*)threadReadPackfile, &threadData[i]);
         }
+        else
+        {
+            threadData[i].id = 0;
+        }
+    }
+
+    for(u32 i = 0; i < fileCount; ++i)
+    {
+        if(!threadData[i].id)
+        {
+            continue;
+        }
+
+        GF_TRACE("waiting on thread #%u", i);
+        gfWaitThread(threads[i]);
     }
 
     FILE *file = fopen(absoluteBuf, "rb");

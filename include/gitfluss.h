@@ -193,20 +193,15 @@ typedef struct gfRepoThreadData
 }
 gfRepoThreadData;
 
-typedef struct gfOffsetThreadData
+typedef struct gfPackedThreadData
 {
-    u08            flags;
-    u32            id;
-    gfObjectOffset *objof;
-    gfRecurseInfo  recurseInfo;
-    gfPackInfo     outInfo;
-    u64            index;
-    gfCommitInfo   **table;
-    gfThreadLock   *tableLocks;
-    u32            arraySize;
-    u08            workerCount;
+    u32          id;
+    StringView   idxPath;
+    gfCommitInfo **table;
+    gfThreadLock *tableLocks;
+    u08          oidSize;
 }
-gfOffsetThreadData;
+gfPackedThreadData;
 
 typedef struct gfRepository
 {
