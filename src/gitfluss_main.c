@@ -740,7 +740,7 @@ f_internal void displayData
     u32 streak        = 0;
     u32 longestStreak = 0;
 
-    for(u32 i = 0; i < MAX_DAYS; ++i)
+    for(u32 i = 0; i < GF_MAX_DAYS; ++i)
     {
         if(!brokeCurrentStreak && !set->heatSet->heatmap[i])
         {
@@ -756,7 +756,7 @@ f_internal void displayData
             ++currentStreak;
         }
 
-        if(!set->heatSet->heatmap[MAX_DAYS - i - 1])
+        if(!set->heatSet->heatmap[GF_MAX_DAYS - i - 1])
         {
             if(streak > longestStreak)
             {
@@ -869,12 +869,12 @@ int main
 
     u64 now = gfQueryMonotonic();
 
-    char sortedRepos[MAX_PATH * 128];
-    char sortedAuthors[MAX_PATH * 4];
-    char biggestRepoBuf[MAX_PATH + 1];
+    char sortedRepos[GF_MAX_PATH * 128];
+    char sortedAuthors[GF_MAX_PATH * 4];
+    char biggestRepoBuf[GF_MAX_PATH + 1];
 
-    u32 heatmap[MAX_DAYS] = {0};
-    u32 sorted[366]       = {0};
+    u32 heatmap[GF_MAX_DAYS] = {0};
+    u32 sorted[366]          = {0};
 
     gfConf config = {0};
     config.sortedRepos   = sortedRepos;

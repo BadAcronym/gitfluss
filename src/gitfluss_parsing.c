@@ -168,10 +168,10 @@ void gfAddAuthorlist
     gfConf     *config,
     StringView path
 ){
-    char pathCstr[MAX_PATH];
+    char pathCstr[GF_MAX_PATH];
     pdSVCstr(path, pathCstr);
 
-    char pathExpandedCstr[4096];
+    char pathExpandedCstr[GF_MAX_PATH];
     pdExpandPath(path, pathExpandedCstr);
 
     StringView pathExpanded = pdCstrSV(pathExpandedCstr);
@@ -248,12 +248,12 @@ void gfAddPath
 
     if(config->repositories.data && config->repositories.size)
     {
-        char *repositoriesCstr = malloc(config->repositories.size + MAX_PATH + 2);
+        char *repositoriesCstr = malloc(config->repositories.size + GF_MAX_PATH + 2);
         pdSVConcat(config->repositories, sep, repositoriesCstr);
         free((void*)config->repositories.data);
         config->repositories = pdCstrSV(repositoriesCstr);
 
-        char resolved_cstr[MAX_PATH];
+        char resolved_cstr[GF_MAX_PATH];
         pdExpandPath(path, resolved_cstr);
         StringView resolved = pdCstrSV(resolved_cstr);
 
@@ -275,7 +275,7 @@ void gfAddPath
     }
     else
     {
-        char *resolvedCstr = calloc(MAX_PATH, 1);
+        char *resolvedCstr = calloc(GF_MAX_PATH, 1);
         pdExpandPath(path, resolvedCstr);
         StringView resolved = pdCstrSV(resolvedCstr);
         config->repositories = resolved;
@@ -291,7 +291,7 @@ void gfAddPathlist
     gfConf     *config,
     StringView path
 ){
-    char pathExpandedCstr[4096];
+    char pathExpandedCstr[GF_MAX_PATH];
     pdExpandPath(path, pathExpandedCstr);
 
     StringView pathExpanded = pdCstrSV(pathExpandedCstr);
@@ -363,8 +363,8 @@ void gfReadConfig
     StringView conf     = pdCstrSV(CONF_PATH);
     StringView fallback = pdCstrSV(CONF_FALLBACK);
 
-    char pathExpanded[MAX_PATH];
-    char fallbackExpanded[MAX_PATH];
+    char pathExpanded[GF_MAX_PATH];
+    char fallbackExpanded[GF_MAX_PATH];
     pdExpandPath(conf, pathExpanded);
     pdExpandPath(fallback, fallbackExpanded);
 

@@ -297,7 +297,7 @@ bool gfGetCommitInfo
     StringView hashRest = hash;
     pdSVTrim(&hashRest, 2, SV_LEFT);
 
-    char pathBuf[4096];
+    char pathBuf[GF_MAX_PATH];
     StringView commitPath = pdSVConcat(repository, gitObjectFolder, pathBuf);
     commitPath = pdSVConcat(commitPath, hashStart, pathBuf);
     commitPath = pdSVConcat(commitPath, sep, pathBuf);
@@ -769,7 +769,7 @@ f_internal bool resolveObjOnDisk
     StringView hashRest = info->hash;
     pdSVTrim(&hashRest, 2, SV_LEFT);
 
-    char pathBuf[4096];
+    char pathBuf[GF_MAX_PATH];
 
     StringView objPath = pdSVConcat(info->repository, gitObjectFolder, pathBuf);
     objPath = pdSVConcat(objPath, hashStart, pathBuf);
@@ -810,12 +810,12 @@ f_internal gfHashLocation findObjectOffset
 ){
     gfHashLocation loc = {0};
 
-    char packBuf[4096] = {0};
+    char packBuf[GF_MAX_PATH];
     StringView pack = pdCstrSV("/pack/");
 
     pack = pdSVConcat(objectsPath, pack, packBuf);
 
-    char       listBuf[8192] = {0};
+    char       listBuf[GF_MAX_PATH * 2];
     StringView list          = pdListFiles(pack, listBuf);
     u64        fileCount     = pdSVCountByDelim(list, ';');
 
@@ -832,8 +832,7 @@ f_internal gfHashLocation findObjectOffset
     {
         if(pdSVFind(idxIdent, fileBuf[f]))
         {
-            // TESTING: this, too
-            char tmpBuf[4096] = {0};
+            char tmpBuf[GF_MAX_PATH];
             StringView idxPath = pdSVConcat(pack, fileBuf[f], tmpBuf);
 
             FILE *idxFile = fopen(tmpBuf, "rb");
@@ -1393,8 +1392,7 @@ f_internal void threadReadPackfile
 
     u64 index = 4;
 
-    // TESTING: should try not memsetting this
-    char packBuf[4096] = {0};
+    char packBuf[GF_MAX_PATH];
     idxPath.size -= 4;
     StringView packPath = pdSVConcat(idxPath, pdCstrSV(".pack"), packBuf);
     idxPath.size += 4;
@@ -1447,9 +1445,9 @@ void gfInitRepository
     gfCommitInfo *head,
     gfCommitInfo **commitTable
 ){
-    char packBuf[4096]     = {0};
-    char confBuf[4096]     = {0};
-    char absoluteBuf[4096] = {0};
+    char packBuf[GF_MAX_PATH];
+    char confBuf[GF_MAX_PATH];
+    char absoluteBuf[GF_MAX_PATH];
 
     StringView absolute = pdExpandPath(repo->path, absoluteBuf);
     StringView gitPACK  = pdCstrSV("/.git/objects/pack/");
@@ -1513,7 +1511,7 @@ void gfInitRepository
     gfThread threads[fileCount];
     gfPackedThreadData threadData[fileCount];
     gfThreadLock tableLocks[256] = {0};
-    char tmpBufs[fileCount * 4096];
+    char tmpBufs[fileCount * GF_MAX_PATH];
 
     #ifdef BUILD_WINDOWS
         for(u16 i = 0; i < 256; ++i)
@@ -1527,7 +1525,8 @@ void gfInitRepository
     {
         if(pdSVFind(idxIdent, fileBuf[i]))
         {
-            StringView idxPath = pdSVConcat(gitPACK, fileBuf[i], &tmpBufs[i * 4096]);
+            StringView idxPath = pdSVConcat(gitPACK, fileBuf[i],
+                                            &tmpBufs[i * GF_MAX_PATH]);
             threadData[i].id         = i;
             threadData[i].idxPath    = idxPath;
             threadData[i].table      = commitTable;
@@ -1553,6 +1552,7 @@ void gfInitRepository
         gfWaitThread(threads[i]);
     }
 
+    // URGENT: move this to a single fread() call
     FILE *file = fopen(absoluteBuf, "rb");
     if(!file)
     {
@@ -1560,7 +1560,7 @@ void gfInitRepository
         return;
     }
 
-    char headBuf[4096] = {0};
+    char headBuf[GF_MAX_PATH];
     u64 elements = 1;
     for(u64 i = 0; elements == 1; ++i)
     {
@@ -1582,7 +1582,7 @@ void gfInitRepository
     GF_TRACE("identified HEAD ref: '"PRI_SV"'", ARG_SV(readHead));
 
     StringView ref = pdCstrSV("/.git/");
-    char refBuf[4096] = {0};
+    char refBuf[GF_MAX_PATH];
 
     ref      = pdSVConcat(ref, readHead, refBuf);
     readHead = pdSVConcat(repo->path, ref, headBuf);
@@ -1595,6 +1595,7 @@ void gfInitRepository
 
     StringView hash = {0};
 
+    // URGENT: move this to a single fread() call
     file = fopen(headBuf, "r");
     if(file)
     {
@@ -1609,8 +1610,8 @@ void gfInitRepository
     }
     else
     {
-        char lineBuf[4096]       = {0};
-        char packedHeadBuf[4096] = {0};
+        char lineBuf[GF_MAX_PATH];
+        char packedHeadBuf[GF_MAX_PATH];
 
         StringView packedHead = pdSVConcat(repo->path, packedHeadIdent, packedHeadBuf);
         file = fopen(packedHeadBuf, "r");
@@ -1621,6 +1622,7 @@ void gfInitRepository
             return;
         }
 
+        // URGENT: move this to a single fread() call and pdSVReadLine after
         while(fgets(lineBuf, 4096, file))
         {
             StringView path = pdCstrSV(lineBuf + oidSize * 2 + 1);

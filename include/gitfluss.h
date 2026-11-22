@@ -39,9 +39,9 @@
 
 #define ANSI_END "\033[0m"
 
-#define GF_BUFSIZE 8192
-#define MAX_DAYS   32768
-#define MAX_PATH   4096
+#define GF_BUFSIZE  8192
+#define GF_MAX_DAYS 32768
+#define GF_MAX_PATH 4096
 
 #define RED    0
 #define GREEN  1
