@@ -844,6 +844,8 @@ int main
     int  argc,
     char **argv
 ){
+    u64 now = gfQueryMonotonic();
+
     #ifdef BUILD_WINDOWS
     _setmode(_fileno(stdout), _O_BINARY);
     SetConsoleOutputCP(CP_UTF8);
@@ -853,8 +855,6 @@ int main
     SetConsoleMode(hOutput, ENABLE_PROCESSED_OUTPUT |
                             ENABLE_VIRTUAL_TERMINAL_PROCESSING);
     #endif
-
-    u64 now = gfQueryMonotonic();
 
     char sortedRepos[GF_MAX_PATH * 128];
     char sortedAuthors[GF_MAX_PATH * 4];
