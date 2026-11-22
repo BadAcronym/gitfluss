@@ -7,6 +7,7 @@
 #include "pd_util.h"
 #include "pd_dyn_arr.h"
 
+#include <inttypes.h>
 #include <memory.h>
 
 #define TEN_MILLION 10000000
@@ -423,6 +424,8 @@ f_internal gfObjectOffset *readIDXV1
 
     //
     GF_WARN("TODO: .idx V1 files unhandled.");
+    // -Wunused
+    printf("-Wunused: hash size: %u\n", oidSize * 2);
     return 0;
     //
 
@@ -605,8 +608,6 @@ f_internal u08 *readDelta
 
 f_internal bool applyDelta
 (
-    u08        *packFile,
-    u64        *index,
     u64        deltaDataSize,
     u08        *deltaDataBuf,
     gfPackInfo *outInfo,
@@ -758,12 +759,11 @@ f_internal bool readAndApplyDelta
 ){
     u08 *deltaDataBuf = readDelta(packFile, index, deltaDataSize, outInfo);
 
-    u64 cursor     = 0;
-    u64 baseSize   = readDeltaSize(deltaDataBuf, &cursor, deltaDataSize);
-    u64 resultSize = readDeltaSize(deltaDataBuf, &cursor, deltaDataSize);
+    u64 cursor = 0;
+    u64 base   = readDeltaSize(deltaDataBuf, &cursor, deltaDataSize);
+    u64 result = readDeltaSize(deltaDataBuf, &cursor, deltaDataSize);
 
-    return applyDelta(packFile, index, deltaDataSize, deltaDataBuf, outInfo, &cursor,
-                      baseSize, resultSize);
+    return applyDelta(deltaDataSize, deltaDataBuf, outInfo, &cursor, base, result);
 }
 
 f_internal bool resolveObjOnDisk
@@ -797,6 +797,7 @@ f_internal bool resolveObjOnDisk
         // object to the cache!!
 
         //
+        printf("-Wunused on buffer: %p\n", zlibBuf.data);
         GF_WARN("reading generic object from loose file unimplemented.");
         return false;
         //
