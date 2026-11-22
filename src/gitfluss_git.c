@@ -434,10 +434,6 @@ f_internal gfObjectOffset *readIDXV1
     return objof;
 }
 
-// PERF: probably do the same thing as I tried to do with the packfile. read the
-// entire thing into memory first, then iterate byte-by-byte instead of using
-// fread byte-by-byte.
-// I want no more random fread() calls in here, just pass an already read buffer down.
 f_internal gfObjectOffset *readIDXV2
 (
     u08 *idxFile,
@@ -843,7 +839,7 @@ f_internal gfHashLocation findObjectOffset
             }
 
             fseek(idxFile, 0, SEEK_END);
-            u64 idxFileSize    = (u64)ftell(idxFile);
+            u64 idxFileSize = (u64)ftell(idxFile);
             u08 *idxFileBuf = malloc(idxFileSize);
             fseek(idxFile, 0, SEEK_SET);
 
@@ -867,7 +863,6 @@ f_internal gfHashLocation findObjectOffset
             }
 
             u64 index = 4;
-
             u32 foundIndex = U32MAX;
 
             if(v2)
@@ -953,7 +948,6 @@ f_internal gfHashLocation findObjectOffset
 
                 loc.index        = offset;
                 loc.packFilePath = pdSVCpy(packFile);
-                return loc;
             }
             else
             {
@@ -962,7 +956,8 @@ f_internal gfHashLocation findObjectOffset
                 //
             }
 
-            fclose(idxFile);
+            free(idxFileBuf);
+            return loc;
         }
     }
 
@@ -1552,7 +1547,6 @@ void gfInitRepository
         gfWaitThread(threads[i]);
     }
 
-    // URGENT: move this to a single fread() call
     FILE *file = fopen(absoluteBuf, "rb");
     if(!file)
     {
@@ -1560,12 +1554,18 @@ void gfInitRepository
         return;
     }
 
+    fseek(file, 0, SEEK_END);
+    u64 fileSize = (u64)ftell(file);
     char headBuf[GF_MAX_PATH];
-    u64 elements = 1;
-    for(u64 i = 0; elements == 1; ++i)
+    fseek(file, 0, SEEK_SET);
+
+    u64 elements = fread(headBuf, 1, fileSize, file);
+    if(elements != fileSize)
     {
-        elements = fread(&headBuf[i], 1, 1, file);
+        GF_WARN("couldn't read HEAD file.");
+        return;
     }
+    fclose(file);
 
     StringView readHead = pdCstrSV(headBuf);
     const char *refLoc  = pdSVFind(refIdent, readHead);
@@ -1587,25 +1587,18 @@ void gfInitRepository
     ref      = pdSVConcat(ref, readHead, refBuf);
     readHead = pdSVConcat(repo->path, ref, headBuf);
 
-    fclose(file);
-
     GF_TRACE("opening ref under '%s'...", headBuf);
 
-    char hashBuf[64]   = {0};
+    char hashBuf[64] = {0};
+    StringView hash  = {0};
 
-    StringView hash = {0};
-
-    // URGENT: move this to a single fread() call
     file = fopen(headBuf, "r");
     if(file)
     {
-        for(u08 i = 0; i < oidSize * 2; ++i)
+        if(fread(hashBuf, 1, oidSize * 2, file) != oidSize * 2)
         {
-            if(fread(&hashBuf[i], 1, 1, file) != 1)
-            {
-                GF_ERROR("could not read HEAD commit from '"PRI_SV"'.",
-                         ARG_SV(readHead));
-            }
+            GF_ERROR("could not read HEAD commit from '"PRI_SV"'.",
+                     ARG_SV(readHead));
         }
     }
     else
@@ -1622,7 +1615,6 @@ void gfInitRepository
             return;
         }
 
-        // URGENT: move this to a single fread() call and pdSVReadLine after
         while(fgets(lineBuf, 4096, file))
         {
             StringView path = pdCstrSV(lineBuf + oidSize * 2 + 1);
