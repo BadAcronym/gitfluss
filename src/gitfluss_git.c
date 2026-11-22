@@ -380,22 +380,15 @@ notfound:
 
 f_internal bool readIDXFanout
 (
-    FILE *file,
-    u32  *fanouts
+    u08 *idxFile,
+    u64 *index,
+    u32 *fanouts
 ){
-    u08 byte = 0;
-
     for(u16 i = 0; i < 256; ++i)
     {
         for(u08 j = 0; j < 4; ++j)
         {
-            if(fread(&byte, 1, 1, file) != 1)
-            {
-                GF_ERROR("could not read fanout entry %"PRIu16".", j);
-                return false;
-            }
-
-            fanouts[i] |= (u32)(byte << (8 * (3 - j)));
+            fanouts[i] |= (u32)(idxFile[(*index)++]<< (8 * (3 - j)));
         }
     }
 
@@ -404,73 +397,62 @@ f_internal bool readIDXFanout
 
 f_internal gfObjectOffset *readIDXV1
 (
-    FILE *file,
-    u08  oidSize,
-    u64  packFileSize
+    u08 *idxFile,
+    u64 *index,
+    u08 oidSize,
+    u64 packFileSize
 ){
     u32            fanout[256] = {0};
     gfObjectOffset *objof      = 0;
 
-    if(!readIDXFanout(file, fanout))
+    //
+    GF_WARN("TODO: .idx V1 files unhandled.");
+    return 0;
+    //
+
+    if(!readIDXFanout(idxFile, index, fanout))
     {
         GF_ERROR("could not read fanouts of v1 IDX file.");
-        goto closefile;
+        return 0;
     }
-
-    GF_WARN("TODO: .idx V1 files unhandled.");
-    goto closefile;
 
     for(u32 i = 0; i < fanout[255]; ++i)
     {
-        u08 byte   = 0;
         u32 offset = 0;
         for(u08 j = 0; j < 4; ++j)
         {
-            if(fread(&byte, 1, 1, file) != 1)
-            {
-                GF_ERROR("could not read offset of object %"PRIu32".", i);
-                goto closefile;
-            }
-
-            offset |= (u32)(byte << (8 * (3 - j)));
+            offset |= (u32)(idxFile[(*index)++] << (8 * (3 - j)));
         }
 
         if(offset >= packFileSize)
         {
             GF_ERROR("pack offset is out of bounds.");
-            goto closefile;
+            return 0;
         }
     }
 
-closefile:
-    fclose(file);
     return objof;
 }
 
-// TODO: probably do the same thing as I tried to do with the packfile. read the
+// PERF: probably do the same thing as I tried to do with the packfile. read the
 // entire thing into memory first, then iterate byte-by-byte instead of using
 // fread byte-by-byte.
+// I want no more random fread() calls in here, just pass an already read buffer down.
 f_internal gfObjectOffset *readIDXV2
 (
-    FILE *file,
-    u08  oidSize,
-    u64  packFileSize
+    u08 *idxFile,
+    u64 *index,
+    u08 oidSize,
+    u64 packFileSize
 ){
     gfObjectOffset *objof = 0;
 
     pdArrReserve(objof, 1024);
 
-    u08 byte    = 0;
     u32 version = 0;
-    for(u08 i = 0; i < 4; ++i)
+    for(u08 j = 0; j < 4; ++j)
     {
-        if(fread(&byte, 1, 1, file) != 1)
-        {
-            GF_ERROR("failed to read IDX v2 version number.");
-            goto closefile;
-        }
-
-        version |= (u32)(byte << (3 - i));
+        version |= (u32)idxFile[(*index)++] << (3 - j) * 8;
     }
 
     if(version != 2)
@@ -480,7 +462,7 @@ f_internal gfObjectOffset *readIDXV2
     }
 
     u32 fanout[256] = {0};
-    if(!readIDXFanout(file, fanout))
+    if(!readIDXFanout(idxFile, index, fanout))
     {
         GF_ERROR("could not read fanouts of v2 IDX file.");
         goto closefile;
@@ -494,12 +476,7 @@ f_internal gfObjectOffset *readIDXV2
 
         for(u08 j = 0; j < oidSize * 2; j += 2)
         {
-            if(fread(&byte, 1, 1, file) != 1)
-            {
-                GF_ERROR("could not read name of object %"PRIu32".", i);
-                pdArrFree(objof);
-                goto closefile;
-            }
+            u08 byte = idxFile[(*index)++];
             nameBuf[j]     = gfValueToHexChar(byte >> 4);
             nameBuf[j + 1] = gfValueToHexChar(byte & 0x0F);
         }
@@ -515,26 +492,14 @@ f_internal gfObjectOffset *readIDXV2
                  ARG_SV(oo.hash));
     }
 
-    if(fseek(file, fanout[255] * 4, SEEK_CUR) != 0)
-    {
-        GF_ERROR("could not skip CRC table.");
-        pdArrFree(objof);
-        goto closefile;
-    }
+    *index += fanout[255] * 4;
 
     for(u32 i = 0; i < fanout[255]; ++i)
     {
         u32 offset = 0;
         for(u08 j = 0; j < 4; ++j)
         {
-            if(fread(&byte, 1, 1, file) != 1)
-            {
-                GF_ERROR("could not read offset of object %"PRIu32".", i);
-                pdArrFree(objof);
-                goto closefile;
-            }
-
-            offset |= (u32)(byte << (8 * (3 - j)));
+            offset |= (u32)idxFile[(*index)++] << (3 - j) * 8;
         }
 
         if(offset & 0x80000000)
@@ -558,7 +523,6 @@ f_internal gfObjectOffset *readIDXV2
     }
 
 closefile:
-    fclose(file);
     return objof;
 }
 
@@ -868,6 +832,7 @@ f_internal gfHashLocation findObjectOffset
     {
         if(pdSVFind(idxIdent, fileBuf[f]))
         {
+            // TESTING: this, too
             char tmpBuf[4096] = {0};
             StringView idxPath = pdSVConcat(pack, fileBuf[f], tmpBuf);
 
@@ -878,22 +843,31 @@ f_internal gfHashLocation findObjectOffset
                 return (gfHashLocation){0};
             }
 
+            fseek(idxFile, 0, SEEK_END);
+            u64 idxFileSize    = (u64)ftell(idxFile);
+            u08 *idxFileBuf = malloc(idxFileSize);
+            fseek(idxFile, 0, SEEK_SET);
+
+            u64 elements = fread(idxFileBuf, 1, idxFileSize, idxFile);
+            if(elements != idxFileSize)
+            {
+                GF_WARN("couldn't read .idx idxFile into memory. tried to read %"PRIu64", but "
+                        "read %"PRIu64" instead.: '"PRI_SV"'",
+                        idxFileSize, elements, ARG_SV(idxPath));
+                return (gfHashLocation){0};
+            }
+            fclose(idxFile);
+
             bool v2   = true;
-            u08  byte = 0;
             for(u08 i = 0; i < 4; ++i)
             {
-                if(fread(&byte, 1, 1, idxFile) != 1)
-                {
-                    GF_ERROR("couldn't read first 4 bytes of .idx file: '"PRI_SV"'",
-                             ARG_SV(idxPath));
-                    return (gfHashLocation){0};
-                }
-
-                if((char)byte != idxV2Magic.data[i])
+                if((char)idxFileBuf[i] != idxV2Magic.data[i])
                 {
                     v2 = false;
                 }
             }
+
+            u64 index = 4;
 
             u32 foundIndex = U32MAX;
 
@@ -902,13 +876,7 @@ f_internal gfHashLocation findObjectOffset
                 u32 version = 0;
                 for(u08 i = 0; i < 4; ++i)
                 {
-                    if(fread(&byte, 1, 1, idxFile) != 1)
-                    {
-                        GF_ERROR("failed to read IDX v2 version number.");
-                        return (gfHashLocation){0};
-                    }
-
-                    version |= (u32)(byte << (3 - i));
+                    version |= (u32)idxFileBuf[index++] << ((3 - i) * 8);
                 }
 
                 if(version != 2)
@@ -918,7 +886,7 @@ f_internal gfHashLocation findObjectOffset
                 }
 
                 u32 fanout[256] = {0};
-                if(!readIDXFanout(idxFile, fanout))
+                if(!readIDXFanout(idxFileBuf, &index, fanout))
                 {
                     GF_ERROR("could not read fanouts of v2 IDX file.");
                     return (gfHashLocation){0};
@@ -930,11 +898,7 @@ f_internal gfHashLocation findObjectOffset
 
                     for(u08 j = 0; j < hash.size; j += 2)
                     {
-                        if(fread(&byte, 1, 1, idxFile) != 1)
-                        {
-                            GF_ERROR("could not read name of object %"PRIu32".", i);
-                            return (gfHashLocation){0};
-                        }
+                        u08 byte = idxFileBuf[index++];
                         nameBuf[j]     = gfValueToHexChar(byte >> 4);
                         nameBuf[j + 1] = gfValueToHexChar(byte & 0x0F);
                     }
@@ -957,24 +921,18 @@ f_internal gfHashLocation findObjectOffset
                                      fanout[255] * 4;
                 u64 entryPos = offsetTablePos + (u64)foundIndex * 4;
 
-                if(fseek(idxFile, (long)entryPos, SEEK_SET) != 0)
-                {
-                    GF_ERROR("could not seek to object offset.");
-                    fclose(idxFile);
-                    return (gfHashLocation){0};
-                }
+                index = entryPos;
+                // if(fseek(idxFile, (long)entryPos, SEEK_SET) != 0)
+                // {
+                //     GF_ERROR("could not seek to object offset.");
+                //     fclose(idxFile);
+                //     return (gfHashLocation){0};
+                // }
 
                 u32 offset = 0;
                 for(u08 j = 0; j < 4; ++j)
                 {
-                    if(fread(&byte, 1, 1, idxFile) != 1)
-                    {
-                        GF_ERROR("could not read offset of object %"PRIu32".",
-                                 foundIndex);
-                        return (gfHashLocation){0};
-                    }
-
-                    offset |= (u32)(byte << (8 * (3 - j)));
+                    offset |= (u32)(idxFileBuf[index++] << (8 * (3 - j)));
                 }
 
                 if(offset & 0x80000000)
@@ -996,7 +954,6 @@ f_internal gfHashLocation findObjectOffset
 
                 loc.index        = offset;
                 loc.packFilePath = pdSVCpy(packFile);
-                fclose(idxFile);
                 return loc;
             }
             else
@@ -1290,11 +1247,10 @@ f_internal void readCommitsFromOffsets
         GF_WARN("couldn't open pack file: '"PRI_SV"'", ARG_SV(path));
         return;
     }
-    u08 *packFile = 0;
 
     fseek(file, 0, SEEK_END);
     u64 fileSize = (u64)ftell(file);
-    packFile = malloc(fileSize);
+    u08 *packFile = malloc(fileSize);
 
     fseek(file, 0, SEEK_SET);
 
@@ -1410,24 +1366,34 @@ f_internal void threadReadPackfile
         return;
     }
 
-    bool v2   = true;
-    u08  byte = 0;
+    fseek(file, 0, SEEK_END);
+    u64 fileSize    = (u64)ftell(file);
+    u08 *idxFileBuf = malloc(fileSize);
+    fseek(file, 0, SEEK_SET);
+
+    u64 elements = fread(idxFileBuf, 1, fileSize, file);
+    if(elements != fileSize)
+    {
+        GF_WARN("couldn't read .idx file into memory. tried to read %"PRIu64", but "
+                "read %"PRIu64" instead.: '"PRI_SV"'",
+                fileSize, elements, ARG_SV(idxPath));
+        return;
+    }
+    fclose(file);
+
+    bool v2 = true;
     for(u08 i = 0; i < 4; ++i)
     {
-        if(fread(&byte, 1, 1, file) != 1)
-        {
-            GF_ERROR("couldn't read first 4 bytes of .idx file: '"PRI_SV"'",
-                     ARG_SV(idxPath));
-            return;
-        }
-
-        if((char)byte != idxV2Magic.data[i])
+        if((char)idxFileBuf[i] != idxV2Magic.data[i])
         {
             v2 = false;
             break;
         }
     }
 
+    u64 index = 4;
+
+    // TESTING: should try not memsetting this
     char packBuf[4096] = {0};
     idxPath.size -= 4;
     StringView packPath = pdSVConcat(idxPath, pdCstrSV(".pack"), packBuf);
@@ -1446,20 +1412,19 @@ f_internal void threadReadPackfile
         fseek(packFile, 0, SEEK_END);
         packFileSize = (u64)ftell(packFile);
     }
-    fclose(packFile);
 
     gfObjectOffset *objof = 0;
 
     if(v2)
     {
         GF_TRACE("reading .idx v2 file: '"PRI_SV"'", ARG_SV(idxPath));
-        objof = readIDXV2(file, oidSize, packFileSize);
+        objof = readIDXV2(idxFileBuf, &index, oidSize, packFileSize);
     }
     else
     {
         GF_TRACE("reading .idx v1 file: '"PRI_SV"'", ARG_SV(idxPath));
-        fseek(file, 0, SEEK_SET);
-        objof = readIDXV1(file, oidSize, packFileSize);
+        index = 0;
+        objof = readIDXV1(idxFileBuf, &index, oidSize, packFileSize);
     }
 
     gfPackInfo *cache[256] = {0};
@@ -1471,6 +1436,9 @@ f_internal void threadReadPackfile
         pdSVFree(&objof[i].hash);
     }
     pdArrFree(objof);
+
+    free(idxFileBuf);
+    fclose(packFile);
 }
 
 void gfInitRepository
