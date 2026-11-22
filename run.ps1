@@ -35,8 +35,10 @@ $args_always=@("-DBUILD_WINDOWS",
 
 $args_release=@("-O2")
 
-$args_debug=@("-DDEBUG", "-gcodeview", "-O0")
+$args_debug=@("-DDEBUG", "-gcodeview", "-O0", "-DGF_PRI_DEBUG")
 $args_debug_cl=@("/DDEBUG", "/Zi", "/Od")
+
+$args_trace=$args_debug+@("-DGF_PRI_TRACE")
 
 $args_asan=$args_debug_cl+@("-oa.exe", "/clang:-std=gnu99", "/DASAN",
 "/fsanitize=address", "/MD",
@@ -93,7 +95,7 @@ function compile
     {
         return;
     }
-    Move-Item ./a.pdb ./bin/$build/gitfluss.pdb -Force
+    # Move-Item ./a.pdb ./bin/$build/gitfluss.pdb -Force
 }
 
 if($build -eq "release")
@@ -103,6 +105,10 @@ if($build -eq "release")
 elseif($build -eq "debug")
 {
     compile ($args_always + $args_debug)
+}
+elseif($build -eq "trace")
+{
+    compile ($args_always + $args_trace)
 }
 elseif($build -eq "asan")
 {
