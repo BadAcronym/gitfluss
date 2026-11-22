@@ -26,6 +26,41 @@ s_global const StringView gitObjectFolder = { .size = 14, .data = "/.git/objects
 s_global const StringView headPackedIdent = { .size = 15, .data = "refs/heads/main"   };
 s_global const StringView packedHeadIdent = { .size = 17, .data = "/.git/packed-refs" };
 
+s_global const char hexValues[] = "0123456789abcdef";
+
+f_internal void gfValueToHex
+(
+    const u08 *src,
+    const u08 byteCount,
+    char      *dst
+){
+
+    for(u08 i = 0; i < byteCount; ++i)
+    {
+        dst[2 * i]     = hexValues[src[i] >> 4];
+        dst[2 * i + 1] = hexValues[src[i] & 0x0F];
+    }
+}
+
+f_internal inline i64 readTimeFromStr
+(
+    String str
+){
+    i64 time = 0;
+
+    for(u08 i = 0; i < str.size; ++i)
+    {
+        if(str.data[i] == 0x20 || str.data[i] == 0x0A || !str.data[i])
+        {
+            break;
+        }
+        time *= 10;
+        time += str.data[i] - '0';
+    }
+
+    return time;
+}
+
 void gfFreeCommit
 (
     gfCommitInfo *commit
@@ -55,25 +90,6 @@ void gfFreeCommit
     pdSVFree(&commit->authorMail);
     pdSVFree(&commit->committerName);
     pdSVFree(&commit->committerMail);
-}
-
-f_internal i64 readTimeFromStr
-(
-    String str
-){
-    i64 time = 0;
-
-    for(u08 i = 0; i < str.size; ++i)
-    {
-        if(str.data[i] == 0x20 || str.data[i] == 0x0A || !str.data[i])
-        {
-            break;
-        }
-        time *= 10;
-        time += str.data[i] - '0';
-    }
-
-    return time;
 }
 
 f_internal bool readCommitFromPtr
@@ -113,7 +129,7 @@ f_internal bool readCommitFromPtr
         {
             const char *karatLoc = pdSVFind(spaceKarat, *((StringView*)&line));
 
-            StringView authorName = {0};
+            StringView authorName;
             authorName.data = line.data + authorIdent.size + 1;
             authorName.size = (u64)(karatLoc - authorName.data);
 
@@ -122,7 +138,7 @@ f_internal bool readCommitFromPtr
 
             const char *karatEndLoc = pdSVFind(karatSpace, *((StringView*)&line));
 
-            StringView authorMail = {0};
+            StringView authorMail;
             authorMail.data = (char*)(authorName.data + authorName.size + 2);
             authorMail.size = (u64)(karatEndLoc - authorMail.data);
 
@@ -137,7 +153,7 @@ f_internal bool readCommitFromPtr
         {
             const char *karatLoc = pdSVFind(spaceKarat, *((StringView*)&line));
 
-            StringView committerName = {0};
+            StringView committerName;
             committerName.data = line.data + committerIdent.size + 1;
             committerName.size = (u64)(karatLoc - committerName.data);
 
@@ -146,7 +162,7 @@ f_internal bool readCommitFromPtr
 
             const char *karatEndLoc = pdSVFind(karatSpace, *((StringView*)&line));
 
-            StringView committerMail = {0};
+            StringView committerMail;
             committerMail.data = (char*)(committerName.data + committerName.size + 2);
             committerMail.size = (u64)(karatEndLoc - committerMail.data);
 
@@ -468,20 +484,15 @@ f_internal gfObjectOffset *readIDXV2
 
     for(u32 i = 0; i < fanout[255]; ++i)
     {
-        char nameBuf[64] = {0};
+        char nameBuf[oidSize * 2];
+        gfValueToHex(&idxFile[*index], oidSize, nameBuf);
+        *index += oidSize;
 
-        for(u08 j = 0; j < oidSize * 2; j += 2)
-        {
-            u08 byte = idxFile[(*index)++];
-            nameBuf[j]     = gfValueToHexChar(byte >> 4);
-            nameBuf[j + 1] = gfValueToHexChar(byte & 0x0F);
-        }
-
-        StringView name = {0};
+        StringView name;
         name.data = nameBuf;
         name.size = oidSize * 2;
 
-        gfObjectOffset oo = {0};
+        gfObjectOffset oo;
         oo.hash = pdSVCpy(name);
         pdArrPush(objof, oo);
         GF_TRACE("pushed object with hash '"PRI_SV"' to object-offset table.",
@@ -888,14 +899,9 @@ f_internal gfHashLocation findObjectOffset
 
                 for(u32 i = 0; i < fanout[255]; ++i)
                 {
-                    char nameBuf[64] = {0};
-
-                    for(u08 j = 0; j < hash.size; j += 2)
-                    {
-                        u08 byte = idxFileBuf[index++];
-                        nameBuf[j]     = gfValueToHexChar(byte >> 4);
-                        nameBuf[j + 1] = gfValueToHexChar(byte & 0x0F);
-                    }
+                    char nameBuf[hash.size];
+                    gfValueToHex(&idxFileBuf[index], (u08)(hash.size / 2), nameBuf);
+                    index += (u08)hash.size / 2;
 
                     StringView name = {0};
                     name.data = nameBuf;
@@ -1174,15 +1180,9 @@ nocache:
     {
         GF_TRACE("identified ref delta object.");
 
-        u08  byte        = 0;
-        char nameBuf[64] = {0};
-
-        for(u08 j = 0; j < oidSize * 2; j += 2)
-        {
-            byte = packFile[(*index)++];
-            nameBuf[j]     = gfValueToHexChar(byte >> 4);
-            nameBuf[j + 1] = gfValueToHexChar(byte & 0x0F);
-        }
+        char nameBuf[oidSize * 2];
+        gfValueToHex(&packFile[*index], oidSize, nameBuf);
+        *index += oidSize;
 
         StringView name = {0};
         name.data = nameBuf;

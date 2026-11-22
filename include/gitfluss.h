@@ -223,11 +223,6 @@ extern u08 gfTwoCharsToByte
     char c2
 );
 
-extern char gfValueToHexChar
-(
-    u08 value
-);
-
 extern i64 gfQueryTime
 (
     void

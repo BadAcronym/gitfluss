@@ -272,21 +272,8 @@ u08 gfTwoCharsToByte
     return (u08)((v1 << 4) | v2);
 }
 
-char gfValueToHexChar
-(
-    u08 value
-){
-    GF_ASSERT(value < 0x10, "cannot express values bigger than 15 in 4 bits.");
-
-    if(value > 9)
-    {
-        return value + 0x57;
-    }
-
-    return value + 0x30;
-}
-
 f_internal void *threadProcessRepository
+
 (
     void *arguments
 ){
