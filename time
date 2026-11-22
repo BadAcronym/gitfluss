@@ -1,0 +1,26 @@
+#!/bin/bash
+
+total=0
+
+for i in {1..100}
+do
+    line=$(./bin/release/gitfluss | rg "gather time:")
+    line=${line:13}
+
+    echo $line
+
+    ms=${line%% ms}
+    ms=${ms##* }
+
+    int=${ms::-6}
+    frac=${ms##*.}
+
+    total=$(bc <<< "$total + $int * 100000 + $frac")
+done
+echo ""
+
+total=$(bc <<< "scale=5; $total / 100000")
+avg=$(bc <<< "scale=5; $total / 100")
+
+echo "total gather time: $total ms"
+echo "average gather time: $avg ms"
