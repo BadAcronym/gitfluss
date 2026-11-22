@@ -910,7 +910,7 @@ int main
     GF_DEBUG("currDayEnd: %"PRIi64, set.currDayEnd);
 
     #ifdef BUILD_WINDOWS
-        InitializeSRWLock(set.lock);
+        InitializeSRWLock(&set.lock);
     #endif
 
     u64 gfInitTime = gfQueryMonotonic() - now;

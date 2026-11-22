@@ -74,7 +74,7 @@ void gfWaitThread
 
 void gfLock
 (
-    void *lock
+    gfThreadLock *lock
 ){
     GF_ASSERT(lock, "cannot lock a NULL lock.");
     AcquireSRWLockExclusive((PSRWLOCK)lock);
@@ -82,7 +82,7 @@ void gfLock
 
 void gfUnlock
 (
-    void *lock
+    gfThreadLock *lock
 ){
     GF_ASSERT(lock, "cannot unlock a NULL lock.");
     ReleaseSRWLockExclusive((PSRWLOCK)lock);

@@ -1512,7 +1512,7 @@ void gfInitRepository
     #ifdef BUILD_WINDOWS
         for(u16 i = 0; i < 256; ++i)
         {
-            InitializeSRWLock(tableLocks[i]);
+            InitializeSRWLock(&tableLocks[i]);
         }
     #endif
 
