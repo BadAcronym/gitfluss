@@ -81,19 +81,19 @@ function compile()
 
 if [[ $build = "release" ]]
 then
-    compile "$args_always $args_release"
+    compile "$args_always $args_release -march=$2"
 else
 if [[ $build = "debug" ]]
 then
-    compile "$args_always $args_debug"
+    compile "$args_always $args_debug -march=$2"
 else
 if [[ $build = "asan" ]]
 then
-    compile "$args_always $args_asan"
+    compile "$args_always $args_asan -march=$2"
 else
 if [[ $build = "trace" ]]
 then
-    compile "$args_always $args_trace"
+    compile "$args_always $args_trace -march=$2"
 else
     echo -e "\033[31m\nERROR: invalid make config: $build.\033[0m"
     exit 3;
