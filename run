@@ -79,21 +79,28 @@ function compile()
     mv ./a.out ./bin/$build/gitfluss
 }
 
+if [[ $2 = "--compile-only" ]]
+then
+    arch=$3
+else
+    arch=$2
+fi
+
 if [[ $build = "release" ]]
 then
-    compile "$args_always $args_release -march=$2"
+    compile "$args_always $args_release -march=$arch"
 else
 if [[ $build = "debug" ]]
 then
-    compile "$args_always $args_debug -march=$2"
+    compile "$args_always $args_debug -march=$arch"
 else
 if [[ $build = "asan" ]]
 then
-    compile "$args_always $args_asan -march=$2"
+    compile "$args_always $args_asan -march=$arch"
 else
 if [[ $build = "trace" ]]
 then
-    compile "$args_always $args_trace -march=$2"
+    compile "$args_always $args_trace -march=$arch"
 else
     echo -e "\033[31m\nERROR: invalid make config: $build.\033[0m"
     exit 3;
@@ -104,7 +111,7 @@ fi
 
 echo -e "\n"
 
-if [[ $2 = "--compile-only" ]]
+if [[ $2 = "--compile-only" ]] || [[ $3 = "--compile-only" ]]
 then
     exit 0
 fi
