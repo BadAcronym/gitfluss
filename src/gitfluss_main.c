@@ -95,12 +95,17 @@ f_internal u08 daysInMonth
 f_internal void printCorrespondingHeat
 (
     gfConf        *config,
+    u08           charWidth,
     gfPercentiles *percentiles,
     u32           commitCount
 ){
     if(!commitCount)
     {
-        printf(" ");
+        for(u08 i = 0; i < charWidth; ++i)
+        {
+            printf(" ");
+        }
+
         return;
     }
 
@@ -185,6 +190,7 @@ f_internal void printCorrespondingHeat
 f_internal void printHeatMap
 (
     gfHeatmapSettings *set,
+    u08               charWidth,
     u08               yearsBack
 ){
     u08 currentWeekday = 0;
@@ -206,14 +212,14 @@ f_internal void printHeatMap
         {
             printf("%s", months[indexedMonth]);
 
-            for(u08 j = 3; j < remainingWeeks; ++j)
+            for(u08 j = 3; j < remainingWeeks * charWidth; ++j)
             {
                 printf(" ");
             }
         }
         else
         {
-            for(u08 j = 0; j < remainingWeeks; ++j)
+            for(u08 j = 0; j < remainingWeeks * charWidth; ++j)
             {
                 printf(" ");
             }
@@ -233,9 +239,9 @@ f_internal void printHeatMap
     {
         i64 offset = (yearsBack + 1) * 365;
         printf(" %s ", days[i]);
-        for(int16_t j = i - set->weekday365; j < 366; j += 7)
+        for(i16 j = i - set->weekday365; j < 366; j += 7)
         {
-            printCorrespondingHeat(set->config, set->percentiles,
+            printCorrespondingHeat(set->config, charWidth, set->percentiles,
                                    set->heatmap[offset - j]);
         }
         printf("\n");
@@ -273,7 +279,6 @@ u08 gfTwoCharsToByte
 }
 
 f_internal void *threadProcessRepository
-
 (
     void *arguments
 ){
@@ -711,13 +716,20 @@ f_internal void displayData
     heatSet.endYear     = config->endYear;
     calculateHeatmap(&heatSet, 1);
 
+    u08 charWidth = 1;
+    if(config->character)
+    {
+        StringView charSV = pdCstrSV(config->character);
+        charWidth = (u08)charSV.size;
+    }
+
     #ifdef DEBUG
         printf("\npalette: ");
-        printCorrespondingHeat(config, &percentiles, 1);
-        printCorrespondingHeat(config, &percentiles, percentiles.d20);
-        printCorrespondingHeat(config, &percentiles, percentiles.d50);
-        printCorrespondingHeat(config, &percentiles, percentiles.d70);
-        printCorrespondingHeat(config, &percentiles, percentiles.d90);
+        printCorrespondingHeat(config, charWidth, &percentiles, 1);
+        printCorrespondingHeat(config, charWidth, &percentiles, percentiles.d20);
+        printCorrespondingHeat(config, charWidth, &percentiles, percentiles.d50);
+        printCorrespondingHeat(config, charWidth, &percentiles, percentiles.d70);
+        printCorrespondingHeat(config, charWidth, &percentiles, percentiles.d90);
         printf("\n");
     #endif
 
@@ -783,13 +795,13 @@ f_internal void displayData
         printf("longest streak: %"PRIu32" days\n", longestStreak);
         printf("current streak: %"PRIu32" days\n", currentStreak);
         printf("commits today:  %"PRIu32" ", set->commitsToday);
-        printCorrespondingHeat(config, &percentiles, set->commitsToday);
+        printCorrespondingHeat(config, charWidth, &percentiles, set->commitsToday);
         printf("\n\n");
     }
 
     if(!config->years)
     {
-        printHeatMap(&heatSet, 0);
+        printHeatMap(&heatSet, charWidth, 0);
         return;
     }
 
@@ -813,7 +825,7 @@ f_internal void displayData
         printf("[%u - %u]\n", currPrintYear - 1, currPrintYear);
 
         calculateHeatmap(&heatSet, 0);
-        printHeatMap(&heatSet, config->years - i - 1);
+        printHeatMap(&heatSet, charWidth, config->years - i - 1);
     }
 }
 
