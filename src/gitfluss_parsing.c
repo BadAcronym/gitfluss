@@ -130,7 +130,7 @@ f_internal void setColour
     GF_DEBUG("detected colour: "PRI_SV"", ARG_SV(colour));
 }
 
-// FIXME: revamp this, I can do better.
+// TODO: revamp this, I can do better.
 void gfAddAuthor
 (
     gfConf     *config,
@@ -169,9 +169,6 @@ void gfAddAuthorlist
     gfConf     *config,
     StringView path
 ){
-    char pathCstr[GF_MAX_PATH];
-    pdSVCstr(path, pathCstr);
-
     char pathExpandedCstr[GF_MAX_PATH];
     pdExpandPath(path, pathExpandedCstr);
 
@@ -179,36 +176,41 @@ void gfAddAuthorlist
 
     if(pdVerifyPath(pathExpanded) != PD_TYPE_FILE)
     {
-        GF_WARN("tasked with opening author list file: '"PRI_SV"', no such file "
-                "exists.", ARG_SV(pathExpanded));
+        GF_WARN("tasked with opening author list file: '"PRI_SV"', no such file exists.",
+                ARG_SV(pathExpanded));
         return;
     }
 
-    // FIXME: turn this into pdSVReadFile
-    FILE *file = fopen(pathExpandedCstr, "r");
-    if(!file)
+    StringView authorList = pdSVReadFile(pathExpandedCstr);
+    if(!authorList.data)
     {
-        GF_WARN("tasked with opening author list file: '%s' , failed to open.",
-                pathExpandedCstr);
+        GF_WARN("tasked with opening author list file: '"PRI_SV"', failed to open.",
+                 ARG_SV(pathExpanded));
         return;
     }
 
-    char buf[GF_BUFSIZE];
-    while(fgets(buf, GF_BUFSIZE, file))
+    char lineBuf[GF_MAX_PATH];
+
+    String line;
+    line.data = lineBuf;
+    line.size = GF_MAX_PATH;
+
+    u64 index = 0;
+    while(index < authorList.size)
     {
-        StringView buffer = pdCstrSV(buf);
+        pdSVReadLine(authorList, &index, &line);
 
         StringView commentSV   = pdCstrSV("//");
-        const char *commentloc = pdSVFind(commentSV, buffer);
-        if(commentloc == buf)
+        const char *commentloc = pdSVFind(commentSV, *(StringView*)&line);
+        if(commentloc == lineBuf)
         {
             continue;
         }
 
-        gfAddAuthor(config, buffer);
+        gfAddAuthor(config, *(StringView*)&line);
     }
 
-    fclose(file);
+    pdSVFree(&authorList);
 }
 
 f_internal inline void verifyDirectory
@@ -233,7 +235,7 @@ f_internal inline void verifyDirectory
     }
 }
 
-// FIXME: revamp this, I can do better.
+// TODO: revamp this, I can do better.
 void gfAddPath
 (
     gfConf     *config,
@@ -306,31 +308,36 @@ void gfAddPathlist
         return;
     }
 
-    // FIXME: turn this into pdSVReadFile
-    FILE *file = fopen(pathExpandedCstr, "r");
-    if(!file)
+    StringView pathList = pdSVReadFile(pathExpandedCstr);
+    if(!pathList.data)
     {
-        GF_DEBUG("tasked with opening path list file: '"PRI_SV"', failed to open.",
+        GF_WARN("tasked with opening path list file: '"PRI_SV"', failed to open.",
                  ARG_SV(pathExpanded));
         return;
     }
 
-    char buf[GF_BUFSIZE];
-    while(fgets(buf, GF_BUFSIZE, file))
+    char lineBuf[GF_MAX_PATH];
+
+    String line;
+    line.data = lineBuf;
+    line.size = GF_MAX_PATH;
+
+    u64 index = 0;
+    while(index < pathList.size)
     {
-        StringView buffer = pdCstrSV(buf);
+        pdSVReadLine(pathList, &index, &line);
 
         StringView commentSV   = pdCstrSV("//");
-        const char *commentloc = pdSVFind(commentSV, buffer);
-        if(commentloc == buf)
+        const char *commentloc = pdSVFind(commentSV, *(StringView*)&line);
+        if(commentloc == lineBuf)
         {
             continue;
         }
 
-        gfAddPath(config, buffer);
+        gfAddPath(config, *(StringView*)&line);
     }
 
-    fclose(file);
+    pdSVFree(&pathList);
 }
 
 f_internal u08 parseYear
