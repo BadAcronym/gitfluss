@@ -287,8 +287,9 @@ f_internal void threadProcessRepository
 ){
     gfRepoThreadData  *data       = (gfRepoThreadData*)arguments;
     gfDisplaySettings *set        = data->set;
-    StringView        *authorlist = data->authorlist;
+    u32               repoCount   = data->repocount;
     u32               authorcount = data->authorcount;
+    StringView        *authorlist = data->authorlist;
     u08               flags       = data->flags;
 
     i64 currDayStart    = set->currDayEnd - (24 * 3600);
@@ -301,7 +302,7 @@ f_internal void threadProcessRepository
     gfCommitInfo commit  = {0};
     gfRepository repo    = {0};
     repo.path            = data->repository;
-    gfInitRepository(&repo, &commit, table);
+    gfInitRepository(repoCount, &repo, &commit, table);
 
     StringView *missedQueue     = 0;
     StringView *seenHashes[256] = {0};
@@ -531,6 +532,8 @@ f_internal void gatherData
 
     pdSVSeparateByDelim(config->repositories, repoBuf, ';', repoCount);
 
+    bool dispatched[set->repositoryCount];
+
     for(u32 i = 0; i < set->repositoryCount; ++i)
     {
         char pathBuf[repoBuf[i].size + gitFolder.size + 1];
@@ -538,14 +541,16 @@ f_internal void gatherData
 
         if(!pdVerifyPath(currentPath))
         {
-            threadData[i].id = 0;
+            dispatched[i] = false;
             continue;
         }
 
         GF_TRACE("dispatching thread %"PRIu32".", i);
+        dispatched[i] = true;
 
         threadData[i].repository  = repoBuf[i];
         threadData[i].id          = i;
+        threadData[i].repocount   = repoCount;
         threadData[i].authorcount = authorcount;
         threadData[i].authorlist  = authorlist;
         threadData[i].set         = set;
@@ -559,11 +564,13 @@ f_internal void gatherData
 
     for(u32 i = 0; i < set->repositoryCount; ++i)
     {
-        if(threadData[i].id)
+        if(!dispatched[i])
         {
-            GF_TRACE("waiting on thread #%u", i);
-            gfWaitThread(threads[i]);
+            continue;
         }
+
+        GF_TRACE("waiting on thread #%u", i);
+        gfWaitThread(threads[i]);
     }
 }
 

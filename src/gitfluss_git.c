@@ -1427,6 +1427,7 @@ f_internal void threadReadPackfile
 
 void gfInitRepository
 (
+    u32          repoCount,
     gfRepository *repo,
     gfCommitInfo *head,
     gfCommitInfo **commitTable
@@ -1514,6 +1515,8 @@ void gfInitRepository
         }
     #endif
 
+    bool dispatched[fileCount];
+
     pdSVSeparateByDelim(list, fileBuf, ';', fileCount);
     for(u32 i = 0; i < fileCount; ++i)
     {
@@ -1521,29 +1524,30 @@ void gfInitRepository
         {
             StringView idxPath = pdSVConcat(gitPACK, fileBuf[i],
                                             &tmpBufs[i * GF_MAX_PATH]);
-            threadData[i].id         = i;
+            threadData[i].id         = i + repoCount;
             threadData[i].idxPath    = idxPath;
             threadData[i].table      = commitTable;
             threadData[i].tableLocks = tableLocks;
             threadData[i].oidSize    = oidSize;
 
-            GF_TRACE("dispatching sub-thread #%"PRIu32".", i);
+            GF_TRACE("dispatching thread #%"PRIu32".", i);
             gfDispatchThread(&threads[i], (void*)threadReadPackfile, &threadData[i]);
+            dispatched[i] = true;
         }
         else
         {
-            threadData[i].id = 0;
+            dispatched[i] = false;
         }
     }
 
     for(u32 i = 0; i < fileCount; ++i)
     {
-        if(!threadData[i].id)
+        if(!dispatched[i])
         {
             continue;
         }
 
-        GF_TRACE("waiting on sub-thread #%u", i);
+        GF_TRACE("waiting on thread #%u", i);
         gfWaitThread(threads[i]);
     }
 

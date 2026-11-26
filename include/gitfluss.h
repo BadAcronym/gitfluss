@@ -186,6 +186,7 @@ typedef struct gfRepoThreadData
 {
     u08               flags;
     u32               id;
+    u32               repocount;
     u32               authorcount;
     StringView        repository;
     StringView        *authorlist;
@@ -298,6 +299,7 @@ extern void gfReadArgs
 
 extern void gfInitRepository
 (
+    u32          repoCount,
     gfRepository *repo,
     gfCommitInfo *head,
     gfCommitInfo **commitTable
