@@ -4,7 +4,7 @@ total=0
 
 for i in {1..100}
 do
-    line=$(./bin/$1/gitfluss | rg "gather time:")
+    line=$(./bin/release/gitfluss | rg "gather time:")
     line=${line:13}
 
     echo $line
