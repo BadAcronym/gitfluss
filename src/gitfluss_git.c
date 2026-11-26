@@ -268,7 +268,7 @@ f_internal void readCommitFromFile
 
     GF_TRACE("reading commit from loose object.");
 
-    u08         *dstBuf = calloc(GF_BUFSIZE * 4, 1);
+    u08         *dstBuf = malloc(GF_BUFSIZE * 4);
     DeflateInfo dfInfo  = dsReadZlibPtr(zlibBuf, dstBuf, GF_BUFSIZE * 4);
     if(!dfInfo.success)
     {
