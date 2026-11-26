@@ -308,6 +308,7 @@ f_internal void threadProcessRepository
 
     if(!commit.hash.data || !commit.hash.size)
     {
+        GF_TRACE("initialized repository's head has no hash.");
         return;
     }
 
@@ -532,7 +533,6 @@ f_internal void gatherData
 
     for(u32 i = 0; i < set->repositoryCount; ++i)
     {
-        // PERF: does this make a difference, even?
         char pathBuf[repoBuf[i].size + gitFolder.size + 1];
         StringView currentPath = pdSVConcat(repoBuf[i], gitFolder, pathBuf);
 

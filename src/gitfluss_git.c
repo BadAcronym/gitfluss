@@ -498,8 +498,8 @@ f_internal gfObjectOffset *readIDXV2
         gfObjectOffset oo;
         oo.hash = pdSVCpy(name);
         pdArrPush(objof, oo);
-        GF_TRACE("pushed object with hash '"PRI_SV"' to object-offset table.",
-                 ARG_SV(oo.hash));
+        // GF_TRACE("pushed object with hash '"PRI_SV"' to object-offset table.",
+        //          ARG_SV(oo.hash));
     }
 
     *index += fanout[255] * 4;
@@ -1012,6 +1012,7 @@ f_internal bool resolveObjRecurse
 nocache:
     if(*index == U64MAX)
     {
+        GF_TRACE("resolving by name and not by offset.");
         if(resolveObjOnDisk(info))
         {
             return true;
@@ -1063,6 +1064,8 @@ nocache:
         free(packFileRead);
         return success;
     }
+
+    GF_TRACE("resolving by offset...");
 
     if(!readObjectHeader(packFile, index, fileSize, outInfo))
     {
@@ -1236,25 +1239,15 @@ f_internal void readCommitsFromOffsets
     gfThreadLock   *tableLocks,
     u08            oidSize
 ){
-    FILE *file = fopen(path.data, "rb");
-    if(!file)
+    char pathCstr[path.size + 1];
+    pdSVCstr(path, pathCstr);
+    path.data = pathCstr;
+
+    GF_TRACE("opening packFile: '"PRI_SV"'...", ARG_SV(path));
+    BinBuffer packFile = pdReadBinFile(path.data);
+    if(!packFile.data)
     {
         GF_WARN("couldn't open pack file: '"PRI_SV"'", ARG_SV(path));
-        return;
-    }
-
-    fseek(file, 0, SEEK_END);
-    u64 fileSize = (u64)ftell(file);
-    u08 *packFile = malloc(fileSize);
-
-    fseek(file, 0, SEEK_SET);
-
-    u64 elements = fread(packFile, 1, fileSize, file);
-    if(elements != fileSize)
-    {
-        GF_WARN("couldn't read pack file into memory. tried to read %"PRIu64", but "
-                "read %"PRIu64" instead.: '"PRI_SV"'",
-                fileSize, elements, ARG_SV(path));
         return;
     }
 
@@ -1265,8 +1258,8 @@ f_internal void readCommitsFromOffsets
 
     gfRecurseInfo info = {0};
     info.repository = repository;
-    info.packFile   = packFile;
-    info.fileSize   = fileSize;
+    info.packFile   = packFile.data;
+    info.fileSize   = packFile.size;
     info.cache      = cache;
     info.oidSize    = oidSize;
 
@@ -1292,6 +1285,7 @@ f_internal void readCommitsFromOffsets
         {
             GF_ERROR("could not resolve '"PRI_SV"' recursively.",
                      ARG_SV(objof[i].hash));
+            free(packFile.data);
             return;
         }
 
@@ -1336,11 +1330,7 @@ f_internal void readCommitsFromOffsets
         pdArrFree(cache[i]);
     }
 
-    if(packFile)
-    {
-        free(packFile);
-    }
-    fclose(file);
+    free(packFile.data);
 }
 
 f_internal void threadReadPackfile
@@ -1454,17 +1444,28 @@ void gfInitRepository
     gitHEAD = pdSVConcat(absolute, gitHEAD, absoluteBuf);
     gitCONF = pdSVConcat(absolute, gitCONF, confBuf);
 
+    StringView gitOBJ = gitPACK;
+    gitOBJ.size -= 5;
+
     GF_TRACE("resolved head of '"PRI_SV"' to '"PRI_SV"'",
              ARG_SV(repo->path), ARG_SV(gitHEAD));
 
-    if(pdVerifyPath(gitPACK) != PD_TYPE_DIRECTORY)
+    if(pdVerifyPath(gitOBJ) != PD_TYPE_DIRECTORY)
     {
+        GF_TRACE("repository has no object folder in "PRI_SV".", ARG_SV(gitOBJ));
         return;
     }
 
-    char       listBuf[8192] = {0};
+    char       listBuf[512 + GF_MAX_PATH] = {0};
     StringView list          = pdListFiles(gitPACK, listBuf);
     u32        fileCount     = pdSVCountByDelim(list, ';');
+
+    if(!fileCount)
+    {
+        GF_TRACE("found no files in .git/objects/pack folder.");
+        return;
+    }
+    GF_TRACE("found %"PRIu32" files in .git/objects/pack folder.", fileCount);
 
     StringView fileBuf[fileCount];
     for(u32 i = 0; i < fileCount; ++i)
@@ -1475,33 +1476,30 @@ void gfInitRepository
 
     u08 oidSize = 20;
 
-    FILE *configFile = fopen(confBuf, "r");
-    if(!configFile)
+    StringView configFile = pdSVReadFile(confBuf);
+    if(!configFile.data)
     {
         GF_WARN("could not read git config from '%s' to determine object ID size. "
                 "Assuming 20 bytes.", confBuf);
     }
     else
     {
-        char line[8192] = {0};
-        while(fgets(line, 8192, configFile))
-        {
-            StringView lineSV = {0};
-            lineSV.data = line;
-            lineSV.size = 8192;
+        u64  index         = 0;
+        char lineBuf[4096] = {0};
 
-            const char *objFormLoc = pdSVFind(objFormatIdent, lineSV);
+        String line = pdCstrStr(lineBuf);
+        while(pdSVReadLine(configFile, &index, &line))
+        {
+            const char *objFormLoc = pdSVFind(objFormatIdent, *((StringView*)&line));
             if(objFormLoc)
             {
-                lineSV = pdCstrSV(objFormLoc + objFormatIdent.size);
+                StringView lineSV = pdCstrSV(objFormLoc + objFormatIdent.size);
                 if(pdSVFind(sha256Ident, lineSV))
                 {
                     oidSize = 32;
                 }
             }
         }
-
-        fclose(configFile);
     }
 
     gfThread threads[fileCount];
@@ -1529,6 +1527,7 @@ void gfInitRepository
             threadData[i].tableLocks = tableLocks;
             threadData[i].oidSize    = oidSize;
 
+            GF_TRACE("dispatching sub-thread #%"PRIu32".", i);
             gfDispatchThread(&threads[i], (void*)threadReadPackfile, &threadData[i]);
         }
         else
@@ -1544,56 +1543,44 @@ void gfInitRepository
             continue;
         }
 
-        GF_TRACE("waiting on thread #%u", i);
+        GF_TRACE("waiting on sub-thread #%u", i);
         gfWaitThread(threads[i]);
     }
 
-    FILE *file = fopen(absoluteBuf, "rb");
-    if(!file)
-    {
-        GF_WARN("couldn't open repository: '"PRI_SV"'", ARG_SV(repo->path));
-        return;
-    }
-
-    fseek(file, 0, SEEK_END);
-    u64 fileSize = (u64)ftell(file);
-    char headBuf[GF_MAX_PATH];
-    fseek(file, 0, SEEK_SET);
-
-    u64 elements = fread(headBuf, 1, fileSize, file);
-    if(elements != fileSize)
+    StringView readHead = pdSVReadFile(absoluteBuf);
+    if(!readHead.data)
     {
         GF_WARN("couldn't read HEAD file.");
         return;
     }
-    fclose(file);
 
-    StringView readHead = pdCstrSV(headBuf);
-    const char *refLoc  = pdSVFind(refIdent, readHead);
-
+    const char *refLoc = pdSVFind(refIdent, readHead);
     if(refLoc && !(refLoc == readHead.data))
     {
         GF_TRACE("identified HEAD: '"PRI_SV"'", ARG_SV(readHead));
         gfGetCommitInfo(absolute, readHead, head, 0);
-        goto closefile;
+        pdSVFree(&readHead);
+        return;
     }
 
     readHead.data += 5;
-    readHead.size -= 5;
+    readHead.size -= 6;
     GF_TRACE("identified HEAD ref: '"PRI_SV"'", ARG_SV(readHead));
 
     StringView ref = pdCstrSV("/.git/");
     char refBuf[GF_MAX_PATH];
+    char headBuf[GF_MAX_PATH];
 
     ref      = pdSVConcat(ref, readHead, refBuf);
     readHead = pdSVConcat(repo->path, ref, headBuf);
 
-    GF_TRACE("opening ref under '%s'...", headBuf);
+    GF_TRACE("opening ref under '"PRI_SV"'...", ARG_SV(readHead));
 
+    // URGENT: make this better, but be careful with killing the logic.
     char hashBuf[64] = {0};
     StringView hash  = {0};
 
-    file = fopen(headBuf, "r");
+    FILE *file = fopen(headBuf, "r");
     if(file)
     {
         if(fread(hashBuf, 1, oidSize * 2, file) != oidSize * 2)
@@ -1633,10 +1620,9 @@ void gfInitRepository
 
     hash.data = hashBuf;
     hash.size = oidSize * 2;
-
     GF_TRACE("identified HEAD: '"PRI_SV"'", ARG_SV(hash));
     gfGetCommitInfo(repo->path, hash, head, commitTable);
 
-closefile:
-    fclose(file);
+    // pdSVFree(&headHash);
+    pdSVFree(&readHead);
 }

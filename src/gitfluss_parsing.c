@@ -130,6 +130,7 @@ f_internal void setColour
     GF_DEBUG("detected colour: "PRI_SV"", ARG_SV(colour));
 }
 
+// FIXME: revamp this, I can do better.
 void gfAddAuthor
 (
     gfConf     *config,
@@ -183,6 +184,7 @@ void gfAddAuthorlist
         return;
     }
 
+    // FIXME: turn this into pdSVReadFile
     FILE *file = fopen(pathExpandedCstr, "r");
     if(!file)
     {
@@ -209,7 +211,7 @@ void gfAddAuthorlist
     fclose(file);
 }
 
-f_internal void verifyDirectory
+f_internal inline void verifyDirectory
 (
     StringView resolved
 ){
@@ -231,6 +233,7 @@ f_internal void verifyDirectory
     }
 }
 
+// FIXME: revamp this, I can do better.
 void gfAddPath
 (
     gfConf     *config,
@@ -250,7 +253,7 @@ void gfAddPath
     {
         char *repositoriesCstr = malloc(config->repositories.size + GF_MAX_PATH + 2);
         pdSVConcat(config->repositories, sep, repositoriesCstr);
-        free((void*)config->repositories.data);
+        pdSVFree(&config->repositories);
         config->repositories = pdCstrSV(repositoriesCstr);
 
         char resolved_cstr[GF_MAX_PATH];
@@ -303,6 +306,7 @@ void gfAddPathlist
         return;
     }
 
+    // FIXME: turn this into pdSVReadFile
     FILE *file = fopen(pathExpandedCstr, "r");
     if(!file)
     {
@@ -593,7 +597,7 @@ f_internal void printSpecMissing
     GF_WARN("option '%s' requires a specified argument. Ignoring...", arg);
 }
 
-f_internal u08 checkIdentMissing
+f_internal inline bool checkIdentMissing
 (
     u16 i,
     int      argc,
@@ -602,10 +606,10 @@ f_internal u08 checkIdentMissing
     if(argc < i + 2 || (argv[i + 1][0] == '-' && argv[i + 1][1] == '-'))
     {
         printSpecMissing(argv[i]);
-        return 1;
+        return true;
     }
 
-    return 0;
+    return false;
 }
 
 void gfReadArgs
@@ -614,18 +618,8 @@ void gfReadArgs
     char   **argv,
     gfConf *config
 ){
-    u08 reposRead   = 0;
-    u08 authorsRead = 0;
-
-    if(config->repositories.data)
-    {
-        reposRead = 1;
-    }
-
-    if(config->authors.data)
-    {
-        authorsRead = 1;
-    }
+    bool freeRepos   = config->repositories.size != 0;
+    bool freeAuthors = config->authors.size      != 0;
 
     for(u16 i = 1; i < argc; ++i)
     {
@@ -646,11 +640,10 @@ void gfReadArgs
                 continue;
             }
 
-            if(authorsRead)
+            if(freeAuthors)
             {
-                authorsRead = 0;
-                free((void*)config->authors.data);
-                config->authors.size = 0;
+                freeAuthors = 0;
+                pdSVFree(&config->authors);
             }
 
             gfAddAuthorlist(config, pdCstrSV(argv[i + 1]));
@@ -664,11 +657,10 @@ void gfReadArgs
                 continue;
             }
 
-            if(reposRead)
+            if(freeRepos)
             {
-                reposRead = 0;
-                free((void*)config->repositories.data);
-                config->repositories.size = 0;
+                freeRepos = 0;
+                pdSVFree(&config->repositories);
             }
 
             gfAddPathlist(config, pdCstrSV(argv[i + 1]));
@@ -682,11 +674,10 @@ void gfReadArgs
                 continue;
             }
 
-            if(authorsRead)
+            if(freeAuthors)
             {
-                authorsRead = 0;
-                free((void*)config->authors.data);
-                config->authors.size = 0;
+                freeAuthors = 0;
+                pdSVFree(&config->authors);
             }
 
             StringView author = pdCstrSV(argv[i + 1]);
@@ -871,14 +862,12 @@ void gfReadArgs
         }
 
     isPath:
-        if(reposRead)
+        if(freeRepos)
         {
-            reposRead = 0;
-            free((void*)config->repositories.data);
-            config->repositories.size = 0;
+            freeRepos = 0;
+            pdSVFree(&config->repositories);
         }
 
-        StringView path = pdCstrSV(argv[i]);
-        gfAddPath(config, path);
+        gfAddPath(config, pdCstrSV(argv[i]));
     }
 }
