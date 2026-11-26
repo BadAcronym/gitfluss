@@ -3,9 +3,12 @@
 
 #include "datasurf_main.h"
 
+#include "pd_path.h"
 #include "pd_dyn_arr.h"
 
 #include <stdio.h>
+
+s_global StringView gitFolder = { .data = "/.git", .size = 6 };
 
 s_global const char *months[12] =
 {
@@ -278,7 +281,7 @@ u08 gfTwoCharsToByte
     return (u08)((v1 << 4) | v2);
 }
 
-f_internal void *threadProcessRepository
+f_internal void threadProcessRepository
 (
     void *arguments
 ){
@@ -305,7 +308,7 @@ f_internal void *threadProcessRepository
 
     if(!commit.hash.data || !commit.hash.size)
     {
-        return 0;
+        return;
     }
 
     pdArrReserve(missedQueue, 8);
@@ -507,7 +510,6 @@ f_internal void *threadProcessRepository
     }
 
     gfFreeCommit(&commit);
-    return 0;
 }
 
 f_internal void gatherData
@@ -523,12 +525,27 @@ f_internal void gatherData
     gfThread         threads[set->repositoryCount];
     gfRepoThreadData threadData[set->repositoryCount];
 
-    GF_TRACE("dispatching %u threads.", set->repositoryCount);
+    u32 repoCount = pdSVCountByDelim(config->repositories, ';');
+    StringView repoBuf[repoCount];
+
+    pdSVSeparateByDelim(config->repositories, repoBuf, ';', repoCount);
 
     for(u32 i = 0; i < set->repositoryCount; ++i)
     {
+        // PERF: does this make a difference, even?
+        char pathBuf[repoBuf[i].size + gitFolder.size + 1];
+        StringView currentPath = pdSVConcat(repoBuf[i], gitFolder, pathBuf);
+
+        if(!pdVerifyPath(currentPath))
+        {
+            threadData[i].id = 0;
+            continue;
+        }
+
+        GF_TRACE("dispatching thread %"PRIu32".", i);
+
+        threadData[i].repository  = repoBuf[i];
         threadData[i].id          = i;
-        threadData[i].repository  = pdSVFindByDelim(config->repositories, ';', i);
         threadData[i].authorcount = authorcount;
         threadData[i].authorlist  = authorlist;
         threadData[i].set         = set;
@@ -542,8 +559,11 @@ f_internal void gatherData
 
     for(u32 i = 0; i < set->repositoryCount; ++i)
     {
-        GF_TRACE("waiting on thread #%u", i);
-        gfWaitThread(threads[i]);
+        if(threadData[i].id)
+        {
+            GF_TRACE("waiting on thread #%u", i);
+            gfWaitThread(threads[i]);
+        }
     }
 }
 
