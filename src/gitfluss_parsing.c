@@ -198,7 +198,7 @@ void gfAddAuthorlist
     u64 index = 0;
     while(index < authorList.size)
     {
-        pdSVReadLine(authorList, &index, &line);
+        pdSVReadLine(authorList, &index, &line, GF_MAX_PATH);
 
         StringView commentSV   = pdCstrSV("//");
         const char *commentloc = pdSVFind(commentSV, *(StringView*)&line);
@@ -325,7 +325,7 @@ void gfAddPathlist
     u64 index = 0;
     while(index < pathList.size)
     {
-        pdSVReadLine(pathList, &index, &line);
+        pdSVReadLine(pathList, &index, &line, GF_MAX_PATH);
 
         StringView commentSV   = pdCstrSV("//");
         const char *commentloc = pdSVFind(commentSV, *(StringView*)&line);

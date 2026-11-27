@@ -117,7 +117,7 @@ f_internal bool readCommitFromPtr
     pdArrReserve(commit->parentHashes, 2);
 
     u64 index = 0;
-    while(pdSVReadLine(commitBufSV, &index, &line))
+    while(pdSVReadLine(commitBufSV, &index, &line, 1024))
     {
         if(pdSVFind(parentIdent, *((StringView*)&line)) == line.data)
         {
@@ -176,7 +176,7 @@ f_internal bool readCommitFromPtr
         }
     }
 
-    if(pdSVReadLine(commitBufSV, &index, &line))
+    if(pdSVReadLine(commitBufSV, &index, &line, 1024))
     {
         commit->summary = pdSVCpy(*((StringView*)&line));
     }
@@ -1486,10 +1486,10 @@ void gfInitRepository
     else
     {
         u64  index         = 0;
-        char lineBuf[4096] = {0};
+        char lineBuf[GF_MAX_PATH] = {0};
 
         String line = pdCstrStr(lineBuf);
-        while(pdSVReadLine(configFile, &index, &line))
+        while(pdSVReadLine(configFile, &index, &line, GF_MAX_PATH))
         {
             const char *objFormLoc = pdSVFind(objFormatIdent, *((StringView*)&line));
             if(objFormLoc)
